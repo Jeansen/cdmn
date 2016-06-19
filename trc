@@ -1,0 +1,223 @@
+#!/usr/bin/perl
+use strict;
+use warnings FATAL => 'all';
+use 5.10.1;
+use List::Util qw(sum);
+use autodie;
+
+use constant {
+    RED => 3,
+    GREEN => 4,
+    PINK => 7,
+    YELLOW => 5,
+    BLUE => 6,
+    WHITE => 248,
+};
+
+use constant {
+    STAT => '/proc/stat',
+    DISKSTATS => '/proc/diskstats',
+    MEMINFO => '/proc/meminfo',
+    RX_BYTES => '/sys/class/net/eth0/statistics/rx_bytes',
+};
+
+use constant {GAUGE => '▪'};
+
+sub getColor {
+    for(shift){
+       return RED if $_ > 80;
+       return YELLOW if $_ > 60;
+       return BLUE if $_ > 40;
+       return GREEN if $_ > 20;
+    }
+    WHITE;
+}
+
+my %colors;
+my %visibilities;
+
+
+sub on_init {
+    my ($self) = @_;
+
+    # only for backwards compatibility
+    my $hotkey = $self->{argv}[0]
+        || $self->x_resource ("%")
+        || "M-n";
+
+    $self->bind_action ($hotkey, "%:show")
+        or warn "unable to register '$hotkey' as scrollback search start hotkey\n";
+
+    ()
+}
+
+
+sub on_action {
+    my ($self, $action) = @_;
+
+    if ( $action eq "show") {
+        $self->{showing} = !$self->{showing};
+        $self->{showing} ? $self->{diskOverlay}->show : $self->{diskOverlay}->hide;
+        $self->{showing} ? $self->{memOverlay}->show : $self->{memOverlay}->hide;
+        $self->{showing} ? $self->{netOverlay}->show : $self->{netOverlay}->hide;
+        $self->{showing} ? $self->{cpuOverlay}->show : $self->{cpuOverlay}->hide;
+    }
+    ()
+}
+
+
+
+sub on_start {
+    my ($self) = @_;
+
+   # $visibility{"cpu"} = true if ($self->x_resource('trc.cpu'));
+    # $visibility{"disk"} = true if ($self->x_resource('trc.disk'));
+    #$visibility{"ram"} = true if ($self->x_resource('trc.ram'));
+    # $visibility{"network"} = true if ($self->x_resource('trc.network'));
+
+    #$colors{"network"} = true if ($self->x_resource('trc.color.1'));
+    #$colors{"network"} = true if ($self->x_resource('trc.color.2'));
+    #$colors{"network"} = true if ($self->x_resource('trc.color.3'));
+    #$colors{"network"} = true if ($self->x_resource('trc.color.5'));
+
+    $self->{showing} = $self->x_resource_boolean('trc.showing');
+
+    my $rend = urxvt::OVERLAY_RSTYLE;
+       $rend = urxvt::SET_BGCOLOR $rend, 1;
+       $rend = urxvt::SET_FGCOLOR $rend, 255;
+
+    my $speed = `curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
+       $speed =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
+       $speed = $2 / 8;
+
+    #open(STAT, '/sys/class/net/eth0/speed');
+    #{
+    #    local $/;
+    #    $speed = <STAT>;
+    #    $speed = 11 * 1000000 / 8
+    #}
+    #close STAT;
+
+
+    $| = 1;
+
+    $self->{cpu} = urxvt::timer
+        ->new
+        ->start ( 1 + int urxvt::NOW )
+        ->interval ( 1 )
+        ->cb ( sub {
+            my $diff_usage = 0;
+            state $prev_idle = 0;
+            state $prev_total = 0;
+            state $diff_total = 0;
+
+            open( my $f, '<', STAT );
+            while (<$f>) {
+                next unless /^cpu\s+[0-9]+/;
+                my @cpu = split /\s+/, $_;
+                shift @cpu;
+
+                my $idle = $cpu[3];
+                my $total = sum( @cpu );
+
+                my $diff_idle = $idle - $prev_idle;
+                if ($total != $prev_total) {
+                    $diff_total = $total - $prev_total;
+                }
+                $diff_usage = 100 * ($diff_total - $diff_idle) / $diff_total;
+
+                $prev_idle = $idle;
+                $prev_total = $total;
+            }
+
+            $rend = urxvt::SET_FGCOLOR $rend, getColor( $diff_usage );
+            $self->{cpuOverlay} = $self->overlay ( -1, 0, 1, 1, $rend, 0 );
+            $self->{cpuOverlay}->set ( 0, 0, GAUGE );
+
+            $self->{showing} ? $self->{cpuOverlay}->show : $self->{cpuOverlay}->hide;
+        } );
+
+    $self->{disk} = urxvt::timer
+        ->new
+        ->start ( 1 + int urxvt::NOW )
+        ->interval ( 1 )
+        ->cb ( sub {
+            my $diff_usage;
+            state $prev_sda = 0;
+
+            open( my $f, '<', DISKSTATS );
+            while (<$f>) {
+                next unless /sda\s+[0-9]+/;
+                my @sda = split /\s+/, $_;
+
+                my $diff_sda = $sda[13] - $prev_sda;
+                $diff_usage = $diff_sda / 10;
+
+                $prev_sda = $sda[13];
+            }
+
+            $rend = urxvt::SET_FGCOLOR $rend, getColor( $diff_usage );
+            $self->{diskOverlay} = $self->overlay ( -1, 1, 1, 1, $rend, 0 );
+            $self->{diskOverlay}->set ( 0, 0, GAUGE );
+
+            $self->{showing} ? $self->{diskOverlay}->show : $self->{diskOverlay}->hide;
+        } );
+
+    $self->{mem} = urxvt::timer
+        ->new
+        ->start ( 1 + int urxvt::NOW )
+        ->interval ( 1 )
+        ->cb ( sub {
+            my @sda;
+            my $total = 0;
+            my $available = 0;
+
+            open( my $f, '<', MEMINFO );
+            while (<$f>) {
+                if (/^MemTotal:\s+[0-9]+/) {
+                    @sda = split /\s+/, $_;
+                    $total = $sda[1];
+                }
+                if (/^MemAvailable:\s+[0-9]+/) {
+                    @sda = split /\s+/, $_;
+                    $available = $sda[1];
+                }
+            }
+
+            my $diff_usage = 100 - (100 * $available / $total);
+
+            $rend = urxvt::SET_FGCOLOR $rend, getColor( $diff_usage );
+            $self->{memOverlay} = $self->overlay ( -1, 2, 1, 1, $rend, 0 );
+            $self->{memOverlay}->set ( 0, 0, GAUGE );
+
+            $self->{showing} ? $self->{memOverlay}->show : $self->{memOverlay}->hide;
+        } );
+
+    $self->{net} = urxvt::timer
+        ->new
+        ->start ( 1 + int urxvt::NOW )
+        ->interval ( 1 )
+        ->cb ( sub {
+            my $rx_bytes = 0;
+            state $prev_rx = 0;
+
+            open( my $f, '<', RX_BYTES );
+            {
+                local $/;
+                $rx_bytes = <$f>;
+            }
+
+            my $diff_rx = $rx_bytes - $prev_rx;
+            my $diff_usage = 100 * $diff_rx / $speed;
+
+            $prev_rx = $rx_bytes;
+
+            $rend = urxvt::SET_FGCOLOR $rend, getColor( $diff_usage );
+            $self->{netOverlay} = $self->overlay ( -1, 3, 1, 1, $rend, 0 );
+            $self->{netOverlay}->set ( 0, 0, GAUGE );
+
+            $self->{showing} ? $self->{netOverlay}->show : $self->{netOverlay}->hide;
+        } );
+    ()
+}
+
