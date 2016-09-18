@@ -157,6 +157,11 @@ sub on_start {
     $self->{showing} = $self->x_resource_boolean('%.showing') // 1;
     $self->{showingLabels} = $self->x_resource_boolean('%.showing-labels') // 0;
 
+    for (keys  %{$self->{labels}}) {
+        $self->{gauges}->{$self->{labels}->{$_}} = [];
+    }
+
+
     my $rend = urxvt::OVERLAY_RSTYLE;
     $rend = urxvt::SET_BGCOLOR $rend, 1;
     $rend = urxvt::SET_FGCOLOR $rend, 255;
@@ -174,7 +179,6 @@ sub on_start {
     #}
     #close STAT;
 
-
     $self->{createTimer} = sub {
         my $p = shift;
         $self->{$p} = urxvt::timer
@@ -182,6 +186,51 @@ sub on_start {
             ->start ( 1 + int urxvt::NOW )
             ->interval ( 1 )
             ->cb ( $self->{"sub_$p"} );
+    };
+
+    $self->{createHeader} = sub {
+        my ($label, $xOff, $count, $padding) = @_;
+        my $w = (length $self->{labels}->{$label}) + 2;
+
+        my $r = urxvt::SET_FGCOLOR $rend, 5;
+        $r = urxvt::SET_BGCOLOR $r, 19;
+
+        my %label = (
+            "overlay" => $self->overlay( $xOff, 0, $w, 1, $r, 0 ),
+            "x"       => 0,
+            "y"       => 0,
+            "with"    => $w,
+            "height"  => 1,
+        );
+
+        my $with = 1;
+        for (my $pos =0; $pos<$count; $pos++) {
+            my $x = $xOff+$w+$pos;
+            $with += $padding if ($pos == $count-1);
+
+            my %gauge = (
+                "overlay" => $self->overlay( $x, 0, $with, 1, $r, 0 ),
+                "x"       => $x,
+                "y"       => 0,
+                "with"    => $with,
+                "height"  => 1,
+            );
+            $gauge{overlay}->show;
+            $self->{gauges}->{$label}[$pos] = \%gauge;
+        }
+
+        my %properties = (
+            "label" => \%label,
+            "gauges" => $self->{gauges}->{$label},
+        );
+
+        $label{overlay}->set ( 0, 0, $self->{labels}->{$label} );
+        $label{overlay}->show;
+
+        $self->{header}->{$self->{labels}->{$label}} = \%properties;
+
+        return $xOff+$w+$count+$padding;
+
     };
 
     $self->{createOverlay} = sub {
@@ -233,7 +282,7 @@ sub on_start {
             }
 
             if ($cpu =~ /^cpu[0-9]+/) {
-                $self->{createHeaderOverlay}($cpu, $rend, $diff_usage, ++$count);
+                $self->{createHeaderOverlay}($cpu, $rend, $diff_usage, $self->{labels}->{cpu}, $count++);
             }
         }
     };
@@ -245,7 +294,7 @@ sub on_start {
         open( my $f, '<', DISKSTATS );
         while (<$f>) {
             if (! /\bsd(a|b|c)\b/) {
-              next;
+                next;
             }
             my @sda = split /\s+/, $_;
             shift @sda;
@@ -255,13 +304,15 @@ sub on_start {
             $self->{$sda[0]}{prev_sda} = $self->{$sda[0]}{prev_sda} // 0;
 
             my $diff_sda = $sda[10] - $self->{$sda[0]}{prev_sda};
-            $diff_usage = $diff_sda / 7;
+            $diff_usage = $diff_sda / 10;
 
             $self->{$sda[0]}{prev_sda} = $sda[10];
+            $self->{createHeaderOverlay}($sda[0], $rend, $diff_usage, $self->{labels}->{disk}, $count++);
         }
 
-        #$self->{createOverlay}("disk", $rend, $diff_usage, 1);
-        $self->{createHeaderOverlay}($self->{$sda[0]}{prev_sda}, $rend, $diff_usage, ++$count);
+        $self->{createOverlay}("disk", $rend, $diff_usage, 1);
+
+        #$self->{createHeaderOverlay}($self->{$sda[0]}{prev_sda}, $rend, $diff_usage, ++$count);
     };
 
     $self->{sub_mem} = sub {
@@ -309,26 +360,25 @@ sub on_start {
         $self->{createTimer}($_);
     }
 
+    my @stats2 = qw(cpu disk);
+    my $xOff = 0;
+    foreach (@stats2) {
+        $xOff = $self->{createHeader}($_, $xOff, 4, 3);
+    }
+
 
     $self->{createHeaderOverlay} = sub {
-        my($designation, $rend, $diff_usage, $x) = @_;
+        my($designation, $rend, $diff_usage, $label, $x) = @_;
         my $usage = $diff_usage / 10 * 7 / 10;
-        my $w = (length $self->{labels}->{cpu}) + 2;
 
-        $rend = urxvt::SET_FGCOLOR $rend, 5;
-        $rend = urxvt::SET_BGCOLOR $rend, 19;
+        print "$diff_usage\n";
 
-        $self->{overlays}->{header}->{x1} = $self->overlay( 0, 0, $w, 1, $rend, 0 );
-        $self->{overlays}->{header}->{x1}->set ( 0, 0, $self->{labels}->{cpu} );
-        $self->{overlays}->{header}->{x1}->show;
-
-        $self->{overlays}->{header}->{$x} = $self->overlay( $w+$x-1, 0, 1, 1, $rend, 0 );
-        $self->{overlays}->{header}->{$x}->set ( 0, 0, BLOCKS->[$usage] );
-        $self->{overlays}->{header}->{$x}->show;
+        $self->{header}->{$label}->{gauges}[$x]->{overlay}->set ( 0, 0, BLOCKS->[$usage] ) if $usage < 8;
 
 
-       # $self->{overlays}->{x2} = $self->overlay( $w+$x, 0, $self->ncol-$w-$x-1, 1, $rend, 0 );
-       # $self->{overlays}->{x2}->show;
+
+        # $self->{overlays}->{x2} = $self->overlay( $w+$x, 0, $self->ncol-$w-$x-1, 1, $rend, 0 );
+        # $self->{overlays}->{x2}->show;
     };
 
     # $self->{createHeaderOverlay}();
