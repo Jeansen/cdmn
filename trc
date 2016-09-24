@@ -116,7 +116,7 @@ sub on_action {
     ()
 }
 
-use constant BLOCKS => [ qw/▁ ▂ ▃ ▄ ▅ ▆ ▇ █/ ];
+use constant BLOCKS => [ qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/ ];
 
 sub on_refresh_begin {
     my ($self) = @_;
@@ -157,10 +157,14 @@ sub on_start {
     $self->{showing} = $self->x_resource_boolean('%.showing') // 1;
     $self->{showingLabels} = $self->x_resource_boolean('%.showing-labels') // 0;
 
+    $self->{headerLabels} = $self->x_resource('%.header-labels') // 'CPU,DISK';
+
+    $self->{headerLabels} = [split(/,/, $self->{headerLabels})];
+
+
     for (keys  %{$self->{labels}}) {
         $self->{gauges}->{$self->{labels}->{$_}} = [];
     }
-
 
     my $rend = urxvt::OVERLAY_RSTYLE;
     $rend = urxvt::SET_BGCOLOR $rend, 1;
@@ -193,7 +197,7 @@ sub on_start {
         my $w = (length $self->{labels}->{$label}) + 2;
 
         my $r = urxvt::SET_FGCOLOR $rend, 5;
-        $r = urxvt::SET_BGCOLOR $r, 19;
+      #  $r = urxvt::SET_BGCOLOR $r, 19;
 
         my %label = (
             "overlay" => $self->overlay( $xOff, 0, $w, 1, $r, 0 ),
@@ -311,8 +315,6 @@ sub on_start {
         }
 
         $self->{createOverlay}("disk", $rend, $diff_usage, 1);
-
-        #$self->{createHeaderOverlay}($self->{$sda[0]}{prev_sda}, $rend, $diff_usage, ++$count);
     };
 
     $self->{sub_mem} = sub {
@@ -332,8 +334,10 @@ sub on_start {
             }
         }
 
+
         my $diff_usage = 100 - (100 * $available / $total);
 
+        $self->{createHeaderOverlay}($sda[0], $rend, $diff_usage, $self->{labels}->{mem}, 0);
         $self->{createOverlay}("mem", $rend, $diff_usage, 2);
     };
 
@@ -353,6 +357,8 @@ sub on_start {
         $prev_rx = $rx_bytes;
 
         $self->{createOverlay}("net", $rend, $diff_usage, 3);
+        $self->{createHeaderOverlay}("net", $rend, $diff_usage, $self->{labels}->{net}, 0);
+
     };
 
     my @stats = qw(cpu disk mem net);
@@ -360,7 +366,7 @@ sub on_start {
         $self->{createTimer}($_);
     }
 
-    my @stats2 = qw(cpu disk);
+    my @stats2 = qw(cpu disk mem net);
     my $xOff = 0;
     foreach (@stats2) {
         $xOff = $self->{createHeader}($_, $xOff, 4, 3);
@@ -369,16 +375,21 @@ sub on_start {
 
     $self->{createHeaderOverlay} = sub {
         my($designation, $rend, $diff_usage, $label, $x) = @_;
-        my $usage = $diff_usage / 10 * 7 / 10;
+        my $usage = $diff_usage / 10 * 9 / 10;
 
-        print "$diff_usage\n";
+        print "$label   :   $usage\n";
+        $self->{header}->{$label}->{gauges}[$x]->{overlay}->set ( 0, 0, BLOCKS->[$usage] ) if $usage < 10;
 
-        $self->{header}->{$label}->{gauges}[$x]->{overlay}->set ( 0, 0, BLOCKS->[$usage] ) if $usage < 8;
+        my $d = @{$self->{headerLabels}}[-1];
+        my $xx = $self->{header}->{$d}->{gauges}[-1]->{x};
 
+        my $rend2 = urxvt::OVERLAY_RSTYLE;
+        $rend2 = urxvt::SET_FGCOLOR $rend2, 5;
+        #$rend2 = urxvt::SET_BGCOLOR $rend2, 19;
+        $rend2 = $rend2 | urxvt::RS_Bold;
 
-
-        # $self->{overlays}->{x2} = $self->overlay( $w+$x, 0, $self->ncol-$w-$x-1, 1, $rend, 0 );
-        # $self->{overlays}->{x2}->show;
+        $self->{overlays}->{x2} = $self->overlay( $xx, 0, $self->ncol-$xx-1, 1, $rend2, 0 );
+        $self->{overlays}->{x2}->show;
     };
 
     # $self->{createHeaderOverlay}();
