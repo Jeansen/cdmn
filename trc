@@ -30,6 +30,17 @@ use utf8;
 
 use open ':std', ':encoding(UTF-8)';
 
+my $rend = urxvt::OVERLAY_RSTYLE;
+$rend = urxvt::SET_BGCOLOR $rend, 1;
+$rend = urxvt::SET_FGCOLOR $rend, 255;
+
+#$rend = $rend | urxvt::RS_Bold;
+
+my $speed = `curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
+$speed =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
+$speed = $2 / 8;
+
+
 use constant {
     RED => 3,
     GREEN => 4,
@@ -54,20 +65,6 @@ use constant {
 };
 
 use constant {GAUGE => '▪'};
-
-use constant {
-    LOWER_ONE_EIGHTH_BLOCK => '▪',
-    LOWER_ONE_QUARTER_BLOCK => '▪',
-    LOWER_THREE_EIGHTHS_BLOCK => '▪',
-    LOWER_HALF_BLOCK => '▪',
-    LOWER_FIVE_EIGHTHS_BLOCK => '▪',
-    LOWER_THREE_QUARTERS_BLOCK => '▪',
-    LOWER_SEVEN_EIGHTH_BLOCK => '▪',
-    FULL_BLOCK => '▪',
-
-};
-
-
 
 
 sub getColor {
@@ -98,19 +95,19 @@ sub on_action {
     my ($self, $action) = @_;
 
     if ( $action eq "show") {
-        $self->{showing} = !$self->{showing};
+        $self->{SHOWING} = !$self->{SHOWING};
         while ( my($key, $value) = each(%{$self->{overlays}}) ) {
-            $value->show if $key !~ /label/i and $self->{showing};
-            $value->hide if ! $self->{showing};
-            $value->show if $key =~ /label/i and $self->{showingLabels} and $self->{showing};
+            $value->show if $key !~ /label/i and $self->{SHOWING};
+            $value->hide if ! $self->{SHOWING};
+            $value->show if $key =~ /label/i and $self->{SHOWING_LABELS} and $self->{SHOWING};
         }
     }
 
-    if ( $action eq "show-labels" and $self->{showing}) {
-        $self->{showingLabels} = !$self->{showingLabels};
+    if ( $action eq "show-labels" and $self->{SHOWING}) {
+        $self->{SHOWING_LABELS} = !$self->{SHOWING_LABELS};
         while ( my($key, $value) = each(%{$self->{overlays}}) ) {
-            $value->show if $key =~ /label/i and $self->{showingLabels};
-            $value->hide if $key =~ /label/i and ! $self->{showingLabels} ;
+            $value->show if $key =~ /label/i and $self->{SHOWING_LABELS};
+            $value->hide if $key =~ /label/i and ! $self->{SHOWING_LABELS} ;
         }
     }
     ()
@@ -133,11 +130,217 @@ sub on_refresh_begin {
     }
 }
 
+sub createTimer {
+    my $self = shift;
+    my $p = shift;
+    $self->{$p} = urxvt::timer
+        ->new
+        ->start ( 1 + int urxvt::NOW )
+        ->interval ( 1 )
+        ->cb ( $self->{"sub_$p"} );
+};
+
+sub createHeader {
+    my ($self, $label, $xOff, $count, $padding) = @_;
+    my $w = (length $self->{LABELS}->{$label}) + 2;
+
+    my $r = urxvt::SET_FGCOLOR $rend, 5;
+    #  $r = urxvt::SET_BGCOLOR $r, 19;
+
+    my %label = (
+        "overlay" => $self->overlay( $xOff, 0, $w, 1, $r, 0 ),
+        "x"       => 0,
+        "y"       => 0,
+        "with"    => $w,
+        "height"  => 1,
+    );
+
+    my $with = 1;
+    for (my $pos =0; $pos<$count; $pos++) {
+        my $x = $xOff+$w+$pos;
+        $with += $padding if ($pos == $count-1);
+
+        my %gauge = (
+            "overlay" => $self->overlay( $x, 0, $with, 1, $r, 0 ),
+            "x"       => $x,
+            "y"       => 0,
+            "with"    => $with,
+            "height"  => 1,
+        );
+        $gauge{overlay}->show;
+        $self->{GAUGES}->{$label}[$pos] = \%gauge;
+    }
+
+    my %properties = (
+        "label" => \%label,
+        "gauges" => $self->{GAUGES}->{$label},
+    );
+
+    $label{overlay}->set ( 0, 0, $self->{LABELS}->{$label} );
+    $label{overlay}->show;
+
+    $self->{header}->{$self->{LABELS}->{$label}} = \%properties;
+
+    return $xOff+$w+$count+$padding;
+};
+
+sub createOverlay {
+    my($self, $designation, $rend, $diff_usage, $y) = @_;
+    my $len = length $self->{LABELS}->{$designation};
+
+    $rend = urxvt::SET_FGCOLOR $rend, getColor( $diff_usage );
+    $self->{overlays}->{$designation."Label"} = $self->overlay ( -($len + 2), $y, $len, 1, $rend, 0 );
+    $self->{overlays}->{$designation."Label"}->set ( 0, 0, $self->{LABELS}->{$designation} );
+    ( $self->{SHOWING_LABELS} and $self->{SHOWING} )? $self->{overlays}->{$designation."Label"}->show : $self->{overlays}->{$designation."Label"}->hide;
+
+    $self->{overlays}->{$designation} = $self->overlay ( -1, $y, 1, 1, $rend, 0 );
+    $self->{overlays}->{$designation}->set ( 0, 0, GAUGE );
+    $self->{SHOWING} ? $self->{overlays}->{$designation}->show : $self->{overlays}->{$designation}->hide;
+};
+
+sub createHeaderOverlay {
+    my($self, $designation, $rend, $diff_usage, $label, $x) = @_;
+    my $usage = $diff_usage / 10 * 9 / 10;
+
+    $self->{header}->{$label}->{gauges}[$x]->{overlay}->set ( 0, 0, BLOCKS->[$usage] ) if $usage < 10;
+
+    my $d = @{$self->{HEADER_LABELS}}[-1];
+    my $xx = $self->{header}->{$d}->{gauges}[-1]->{x};
+
+    my $rend2 = urxvt::OVERLAY_RSTYLE;
+    $rend2 = urxvt::SET_FGCOLOR $rend2, 5;
+    $rend2 = urxvt::SET_BGCOLOR $rend2, 1;
+    $rend2 = $rend2 | urxvt::RS_Bold;
+
+    $self->{overlays}->{x2} = $self->overlay( $xx, 0, $self->ncol-$xx-1, 1, $rend2, 0 );
+    $self->{overlays}->{x2}->show;
+    # $self->{overlays}->{x3} = $self->overlay( 0, 1, $self->ncol, 1, $rend2, 0 );
+    # $self->{overlays}->{x3}->set ( 0, 0, "─"x$self->ncol );
+    # $self->{overlays}->{x3}->show;
+};
+
+sub getCpuUsage {
+    my ($self) = @_;
+    my $diff_usage = 0;
+    my $count = 0;
+
+    open( my $f, '<', STAT );
+    while (<$f>) {
+        if (! /^cpu[0-9]*\s+[0-9]+/) {
+            next;
+        }
+
+        my @cpu = split /\s+/;
+        my $cpu = shift @cpu;
+
+        $self->{$cpu}{prev_idle} = $self->{$cpu}{prev_idle} // 0;
+        $self->{$cpu}{prev_total} = $self->{$cpu}{prev_total} // 0;
+        $self->{$cpu}{diff_total} = $self->{$cpu}{diff_total} // 0;
+
+        my $idle = $cpu[3];
+        my $total = sum( @cpu );
+
+        my $diff_idle = $idle - $self->{$cpu}{prev_idle};
+        if ($total != $self->{$cpu}{prev_total}) {
+            $self->{$cpu}{diff_total} = $total - $self->{$cpu}{prev_total};
+        }
+        $diff_usage = 100 * ($self->{$cpu}{diff_total} - $diff_idle) / $self->{$cpu}{diff_total};
+
+        $self->{$cpu}{prev_idle} = $idle;
+        $self->{$cpu}{prev_total} = $total;
+
+        if ($cpu =~ /^cpu$/) {
+            $self->{createOverlay}($self, $cpu, $rend, $diff_usage, 0);
+        }
+
+        if ($cpu =~ /^cpu[0-9]+/) {
+            $self->{createHeaderOverlay}($self, $cpu, $rend, $diff_usage, $self->{LABELS}->{&CPU}, $count++);
+        }
+    }
+};
+
+sub getDiskUsage {
+    my ($self) = @_;
+    my $diff_usage;
+    my $count = 0;
+
+    open( my $f, '<', DISKSTATS );
+    while (<$f>) {
+        if (! /\bsd(a|b|c)\b/) {
+            next;
+        }
+        my @sda = split /\s+/, $_;
+        shift @sda;
+        shift @sda;
+        shift @sda;
+
+        $self->{$sda[0]}{prev_sda} = $self->{$sda[0]}{prev_sda} // 0;
+
+        my $diff_sda = $sda[10] - $self->{$sda[0]}{prev_sda};
+        $diff_usage = $diff_sda / 10;
+
+        $self->{$sda[0]}{prev_sda} = $sda[10];
+        $self->{createHeaderOverlay}($self, $sda[0], $rend, $diff_usage, $self->{LABELS}->{&DISK}, $count++);
+    }
+
+    $self->{createOverlay}($self, &DISK, $rend, $diff_usage, 1);
+};
+
+sub getMemoryUsage {
+    my ($self) = @_;
+    my @sda;
+    my $total = 0;
+    my $available = 0;
+
+    open( my $f, '<', MEMINFO );
+    while (<$f>) {
+        if (/^MemTotal:\s+[0-9]+/) {
+            @sda = split /\s+/, $_;
+            $total = $sda[1];
+        }
+        if (/^MemAvailable:\s+[0-9]+/) {
+            @sda = split /\s+/, $_;
+            $available = $sda[1];
+        }
+    }
+
+    my $diff_usage = 100 - (100 * $available / $total);
+
+    $self->{createHeaderOverlay}($self, $sda[0], $rend, $diff_usage, $self->{LABELS}->{&MEMORY}, 0);
+    $self->{createOverlay}($self, &MEMORY, $rend, $diff_usage, 2);
+};
+
+sub getNetworkUsage {
+    my ($self) = @_;
+    my $rx_bytes = 0;
+    state $prev_rx = 0;
+
+    open( my $f, '<', RX_BYTES );
+    {
+        local $/;
+        $rx_bytes = <$f>;
+    }
+
+    my $diff_rx = $rx_bytes - $prev_rx;
+    my $diff_usage = 100 * $diff_rx / $speed;
+
+    $prev_rx = $rx_bytes;
+
+    $self->{createOverlay}($self, &NETWORK, $rend, $diff_usage, 3);
+    $self->{createHeaderOverlay}($self, "net", $rend, $diff_usage, $self->{LABELS}->{&NETWORK}, 0);
+
+
+    #open(STAT, '/sys/class/net/eth0/speed');
+    #{
+    #    local $/;
+    #    $speed = <STAT>;
+    #    $speed = 11 * 1000000 / 8
+    #}
+    #close STAT;
+};
 
 sub on_start {
     my ($self) = @_;
-
-
 
     # $visibility{"cpu"} = true if ($self->x_resource('trc.cpu'));
     # $visibility{"disk"} = true if ($self->x_resource('trc.disk'));
@@ -149,248 +352,50 @@ sub on_start {
     #$colors{"network"} = true if ($self->x_resource('trc.color.3'));
     #$colors{"network"} = true if ($self->x_resource('trc.color.5'));
 
-    $self->{labels}->{net} = $self->x_resource('%.label.network') // 'NETWORK';
-    $self->{labels}->{disk} = $self->x_resource('%.label.disk') // 'DISK';
-    $self->{labels}->{cpu} = $self->x_resource('%.label.cpu') // 'CPU';
-    $self->{labels}->{mem} = $self->x_resource('%.label.ram') // 'RAM';
+    $self->{LABELS}->{&NETWORK} = $self->x_resource('%.label.network') // 'NETWORK';
+    $self->{LABELS}->{&DISK} = $self->x_resource('%.label.disk') // 'DISK';
+    $self->{LABELS}->{&CPU} = $self->x_resource('%.label.cpu') // 'CPU';
+    $self->{LABELS}->{&MEMORY} = $self->x_resource('%.label.ram') // 'RAM';
 
-    $self->{showing} = $self->x_resource_boolean('%.showing') // 1;
-    $self->{showingLabels} = $self->x_resource_boolean('%.showing-labels') // 0;
+    $self->{SHOWING} = $self->x_resource_boolean('%.showing') // 1;
+    $self->{SHOWING_LABELS} = $self->x_resource_boolean('%.showing-labels') // 0;
 
-    $self->{headerLabels} = $self->x_resource('%.header-labels') // 'CPU,DISK';
+    $self->{HEADER_LABELS} = $self->x_resource('%.header-labels') // 'CPU,DISK,RAM,NETWORK';
+    $self->{HEADER_LABELS} = [split(/[[:punct:],[:space:]]/, $self->{HEADER_LABELS})];
 
-    $self->{headerLabels} = [split(/,/, $self->{headerLabels})];
-
-
-    for (keys  %{$self->{labels}}) {
-        $self->{gauges}->{$self->{labels}->{$_}} = [];
+    my @h = @{$self->{HEADER_LABELS}};
+    my @v = (values %{$self->{LABELS}});
+    foreach my $value (@h) {
+        if(! grep {$_ eq $value} @v or $#v != $#h) {
+            $self->{HEADER_LABELS} = [qw(CPU DISK RAM NETWORK)];
+            last;
+        }
     }
 
-    my $rend = urxvt::OVERLAY_RSTYLE;
-    $rend = urxvt::SET_BGCOLOR $rend, 1;
-    $rend = urxvt::SET_FGCOLOR $rend, 255;
-    #$rend = $rend | urxvt::RS_Bold;
+    for (keys  %{$self->{LABELS}}) {
+        $self->{GAUGES}->{$self->{LABELS}->{$_}} = [];
+    }
 
-    my $speed = `curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
-    $speed =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
-    $speed = $2 / 8;
+    $self->{createTimer} = \&createTimer;
+    $self->{createHeader} = \&createHeader;
+    $self->{createOverlay} = \&createOverlay;
+    $self->{createHeaderOverlay} = \&createHeaderOverlay;
 
-    #open(STAT, '/sys/class/net/eth0/speed');
-    #{
-    #    local $/;
-    #    $speed = <STAT>;
-    #    $speed = 11 * 1000000 / 8
-    #}
-    #close STAT;
+    $self->{"sub_".&CPU} = sub { getCpuUsage $self };
+    $self->{"sub_".&DISK} = sub { getDiskUsage $self };
+    $self->{"sub_".&MEMORY} = sub { getMemoryUsage $self };
+    $self->{"sub_".&NETWORK} = sub { getNetworkUsage $self };
 
-    $self->{createTimer} = sub {
-        my $p = shift;
-        $self->{$p} = urxvt::timer
-            ->new
-            ->start ( 1 + int urxvt::NOW )
-            ->interval ( 1 )
-            ->cb ( $self->{"sub_$p"} );
-    };
-
-    $self->{createHeader} = sub {
-        my ($label, $xOff, $count, $padding) = @_;
-        my $w = (length $self->{labels}->{$label}) + 2;
-
-        my $r = urxvt::SET_FGCOLOR $rend, 5;
-      #  $r = urxvt::SET_BGCOLOR $r, 19;
-
-        my %label = (
-            "overlay" => $self->overlay( $xOff, 0, $w, 1, $r, 0 ),
-            "x"       => 0,
-            "y"       => 0,
-            "with"    => $w,
-            "height"  => 1,
-        );
-
-        my $with = 1;
-        for (my $pos =0; $pos<$count; $pos++) {
-            my $x = $xOff+$w+$pos;
-            $with += $padding if ($pos == $count-1);
-
-            my %gauge = (
-                "overlay" => $self->overlay( $x, 0, $with, 1, $r, 0 ),
-                "x"       => $x,
-                "y"       => 0,
-                "with"    => $with,
-                "height"  => 1,
-            );
-            $gauge{overlay}->show;
-            $self->{gauges}->{$label}[$pos] = \%gauge;
-        }
-
-        my %properties = (
-            "label" => \%label,
-            "gauges" => $self->{gauges}->{$label},
-        );
-
-        $label{overlay}->set ( 0, 0, $self->{labels}->{$label} );
-        $label{overlay}->show;
-
-        $self->{header}->{$self->{labels}->{$label}} = \%properties;
-
-        return $xOff+$w+$count+$padding;
-
-    };
-
-    $self->{createOverlay} = sub {
-        my($designation, $rend, $diff_usage, $y) = @_;
-        my $len = length $self->{labels}->{$designation};
-
-        $rend = urxvt::SET_FGCOLOR $rend, getColor( $diff_usage );
-        $self->{overlays}->{$designation."Label"} = $self->overlay ( -($len + 2), $y, $len, 1, $rend, 0 );
-        $self->{overlays}->{$designation."Label"}->set ( 0, 0, $self->{labels}->{$designation} );
-        ( $self->{showingLabels} and $self->{showing} )? $self->{overlays}->{$designation."Label"}->show : $self->{overlays}->{$designation."Label"}->hide;
-
-        $self->{overlays}->{$designation} = $self->overlay ( -1, $y, 1, 1, $rend, 0 );
-        $self->{overlays}->{$designation}->set ( 0, 0, GAUGE );
-        $self->{showing} ? $self->{overlays}->{$designation}->show : $self->{overlays}->{$designation}->hide;
-    };
-
-    $self->{sub_cpu} = sub {
-        my $diff_usage = 0;
-        my $count = 0;
-
-        open( my $f, '<', STAT );
-        while (<$f>) {
-            if (! /^cpu[0-9]*\s+[0-9]+/) {
-                next;
-            }
-
-            my @cpu = split /\s+/;
-            my $cpu = shift @cpu;
-
-
-            $self->{$cpu}{prev_idle} = $self->{$cpu}{prev_idle} // 0;
-            $self->{$cpu}{prev_total} = $self->{$cpu}{prev_total} // 0;
-            $self->{$cpu}{diff_total} = $self->{$cpu}{diff_total} // 0;
-
-            my $idle = $cpu[3];
-            my $total = sum( @cpu );
-
-            my $diff_idle = $idle - $self->{$cpu}{prev_idle};
-            if ($total != $self->{$cpu}{prev_total}) {
-                $self->{$cpu}{diff_total} = $total - $self->{$cpu}{prev_total};
-            }
-            $diff_usage = 100 * ($self->{$cpu}{diff_total} - $diff_idle) / $self->{$cpu}{diff_total};
-
-            $self->{$cpu}{prev_idle} = $idle;
-            $self->{$cpu}{prev_total} = $total;
-
-            if ($cpu =~ /^cpu$/) {
-                $self->{createOverlay}($cpu, $rend, $diff_usage, 0);
-            }
-
-            if ($cpu =~ /^cpu[0-9]+/) {
-                $self->{createHeaderOverlay}($cpu, $rend, $diff_usage, $self->{labels}->{cpu}, $count++);
-            }
-        }
-    };
-
-    $self->{sub_disk} = sub {
-        my $diff_usage;
-        my $count = 0;
-
-        open( my $f, '<', DISKSTATS );
-        while (<$f>) {
-            if (! /\bsd(a|b|c)\b/) {
-                next;
-            }
-            my @sda = split /\s+/, $_;
-            shift @sda;
-            shift @sda;
-            shift @sda;
-
-            $self->{$sda[0]}{prev_sda} = $self->{$sda[0]}{prev_sda} // 0;
-
-            my $diff_sda = $sda[10] - $self->{$sda[0]}{prev_sda};
-            $diff_usage = $diff_sda / 10;
-
-            $self->{$sda[0]}{prev_sda} = $sda[10];
-            $self->{createHeaderOverlay}($sda[0], $rend, $diff_usage, $self->{labels}->{disk}, $count++);
-        }
-
-        $self->{createOverlay}("disk", $rend, $diff_usage, 1);
-    };
-
-    $self->{sub_mem} = sub {
-        my @sda;
-        my $total = 0;
-        my $available = 0;
-
-        open( my $f, '<', MEMINFO );
-        while (<$f>) {
-            if (/^MemTotal:\s+[0-9]+/) {
-                @sda = split /\s+/, $_;
-                $total = $sda[1];
-            }
-            if (/^MemAvailable:\s+[0-9]+/) {
-                @sda = split /\s+/, $_;
-                $available = $sda[1];
-            }
-        }
-
-
-        my $diff_usage = 100 - (100 * $available / $total);
-
-        $self->{createHeaderOverlay}($sda[0], $rend, $diff_usage, $self->{labels}->{mem}, 0);
-        $self->{createOverlay}("mem", $rend, $diff_usage, 2);
-    };
-
-    $self->{sub_net} = sub {
-        my $rx_bytes = 0;
-        state $prev_rx = 0;
-
-        open( my $f, '<', RX_BYTES );
-        {
-            local $/;
-            $rx_bytes = <$f>;
-        }
-
-        my $diff_rx = $rx_bytes - $prev_rx;
-        my $diff_usage = 100 * $diff_rx / $speed;
-
-        $prev_rx = $rx_bytes;
-
-        $self->{createOverlay}("net", $rend, $diff_usage, 3);
-        $self->{createHeaderOverlay}("net", $rend, $diff_usage, $self->{labels}->{net}, 0);
-
-    };
-
-    my @stats = qw(cpu disk mem net);
+    my @stats = (CPU, DISK, MEMORY, NETWORK);
     foreach (@stats) {
-        $self->{createTimer}($_);
+        $self->{createTimer}($self, $_);
     }
 
-    my @stats2 = qw(cpu disk mem net);
+    my @stats2 = (CPU, DISK, MEMORY, NETWORK);
     my $xOff = 0;
     foreach (@stats2) {
-        $xOff = $self->{createHeader}($_, $xOff, 4, 3);
+        $xOff = $self->{createHeader}($self, $_, $xOff, 4, 3);
     }
-
-
-    $self->{createHeaderOverlay} = sub {
-        my($designation, $rend, $diff_usage, $label, $x) = @_;
-        my $usage = $diff_usage / 10 * 9 / 10;
-
-        print "$label   :   $usage\n";
-        $self->{header}->{$label}->{gauges}[$x]->{overlay}->set ( 0, 0, BLOCKS->[$usage] ) if $usage < 10;
-
-        my $d = @{$self->{headerLabels}}[-1];
-        my $xx = $self->{header}->{$d}->{gauges}[-1]->{x};
-
-        my $rend2 = urxvt::OVERLAY_RSTYLE;
-        $rend2 = urxvt::SET_FGCOLOR $rend2, 5;
-        #$rend2 = urxvt::SET_BGCOLOR $rend2, 19;
-        $rend2 = $rend2 | urxvt::RS_Bold;
-
-        $self->{overlays}->{x2} = $self->overlay( $xx, 0, $self->ncol-$xx-1, 1, $rend2, 0 );
-        $self->{overlays}->{x2}->show;
-    };
 
     # $self->{createHeaderOverlay}();
     ()
