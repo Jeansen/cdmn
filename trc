@@ -117,6 +117,7 @@ use constant BLOCKS => [ qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/ ];
 
 sub on_refresh_begin {
     my ($self) = @_;
+
     my $empty = 1;
 
     for(my $i = 1; $i < $self->nrow; $i++) {
@@ -132,6 +133,8 @@ sub on_refresh_begin {
 
 sub createTimer {
     my $self = shift;
+    $self = ${$self};
+
     my $p = shift;
     $self->{$p} = urxvt::timer
         ->new
@@ -142,6 +145,8 @@ sub createTimer {
 
 sub createHeader {
     my ($self, $label, $xOff, $count, $padding) = @_;
+    $self = ${$self};
+
     my $w = (length $self->{LABELS}->{$label}) + 2;
 
     my $r = urxvt::SET_FGCOLOR $rend, 5;
@@ -186,6 +191,8 @@ sub createHeader {
 
 sub createOverlay {
     my($self, $designation, $rend, $diff_usage, $y) = @_;
+    $self = ${$self};
+
     my $len = length $self->{LABELS}->{$designation};
 
     $rend = urxvt::SET_FGCOLOR $rend, getColor( $diff_usage );
@@ -200,6 +207,8 @@ sub createOverlay {
 
 sub createHeaderOverlay {
     my($self, $designation, $rend, $diff_usage, $label, $x) = @_;
+    $self = ${$self};
+
     my $usage = $diff_usage / 10 * 9 / 10;
 
     $self->{header}->{$label}->{gauges}[$x]->{overlay}->set ( 0, 0, BLOCKS->[$usage] ) if $usage < 10;
@@ -221,6 +230,8 @@ sub createHeaderOverlay {
 
 sub getCpuUsage {
     my ($self) = @_;
+    $self = ${$self};
+
     my $diff_usage = 0;
     my $count = 0;
 
@@ -250,17 +261,19 @@ sub getCpuUsage {
         $self->{$cpu}{prev_total} = $total;
 
         if ($cpu =~ /^cpu$/) {
-            $self->{createOverlay}($self, $cpu, $rend, $diff_usage, 0);
+            $self->{createOverlay}(\$self, $cpu, $rend, $diff_usage, 0);
         }
 
         if ($cpu =~ /^cpu[0-9]+/) {
-            $self->{createHeaderOverlay}($self, $cpu, $rend, $diff_usage, $self->{LABELS}->{&CPU}, $count++);
+            $self->{createHeaderOverlay}(\$self, $cpu, $rend, $diff_usage, $self->{LABELS}->{&CPU}, $count++);
         }
     }
 };
 
 sub getDiskUsage {
     my ($self) = @_;
+    $self = ${$self};
+
     my $diff_usage;
     my $count = 0;
 
@@ -280,14 +293,16 @@ sub getDiskUsage {
         $diff_usage = $diff_sda / 10;
 
         $self->{$sda[0]}{prev_sda} = $sda[10];
-        $self->{createHeaderOverlay}($self, $sda[0], $rend, $diff_usage, $self->{LABELS}->{&DISK}, $count++);
+        $self->{createHeaderOverlay}(\$self, $sda[0], $rend, $diff_usage, $self->{LABELS}->{&DISK}, $count++);
     }
 
-    $self->{createOverlay}($self, &DISK, $rend, $diff_usage, 1);
+    $self->{createOverlay}(\$self, &DISK, $rend, $diff_usage, 1);
 };
 
 sub getMemoryUsage {
     my ($self) = @_;
+    $self = ${$self};
+
     my @sda;
     my $total = 0;
     my $available = 0;
@@ -306,12 +321,14 @@ sub getMemoryUsage {
 
     my $diff_usage = 100 - (100 * $available / $total);
 
-    $self->{createHeaderOverlay}($self, $sda[0], $rend, $diff_usage, $self->{LABELS}->{&MEMORY}, 0);
-    $self->{createOverlay}($self, &MEMORY, $rend, $diff_usage, 2);
+    $self->{createHeaderOverlay}(\$self, $sda[0], $rend, $diff_usage, $self->{LABELS}->{&MEMORY}, 0);
+    $self->{createOverlay}(\$self, &MEMORY, $rend, $diff_usage, 2);
 };
 
 sub getNetworkUsage {
     my ($self) = @_;
+    $self = ${$self};
+
     my $rx_bytes = 0;
     state $prev_rx = 0;
 
@@ -326,8 +343,8 @@ sub getNetworkUsage {
 
     $prev_rx = $rx_bytes;
 
-    $self->{createOverlay}($self, &NETWORK, $rend, $diff_usage, 3);
-    $self->{createHeaderOverlay}($self, "net", $rend, $diff_usage, $self->{LABELS}->{&NETWORK}, 0);
+    $self->{createOverlay}(\$self, &NETWORK, $rend, $diff_usage, 3);
+    $self->{createHeaderOverlay}(\$self, "net", $rend, $diff_usage, $self->{LABELS}->{&NETWORK}, 0);
 
 
     #open(STAT, '/sys/class/net/eth0/speed');
@@ -381,20 +398,20 @@ sub on_start {
     $self->{createOverlay} = \&createOverlay;
     $self->{createHeaderOverlay} = \&createHeaderOverlay;
 
-    $self->{"sub_".&CPU} = sub { getCpuUsage $self };
-    $self->{"sub_".&DISK} = sub { getDiskUsage $self };
-    $self->{"sub_".&MEMORY} = sub { getMemoryUsage $self };
-    $self->{"sub_".&NETWORK} = sub { getNetworkUsage $self };
+    $self->{"sub_".&CPU} = sub { getCpuUsage \$self };
+    $self->{"sub_".&DISK} = sub { getDiskUsage \$self };
+    $self->{"sub_".&MEMORY} = sub { getMemoryUsage \$self };
+    $self->{"sub_".&NETWORK} = sub { getNetworkUsage \$self };
 
     my @stats = (CPU, DISK, MEMORY, NETWORK);
     foreach (@stats) {
-        $self->{createTimer}($self, $_);
+        $self->{createTimer}(\$self, $_);
     }
 
     my @stats2 = (CPU, DISK, MEMORY, NETWORK);
     my $xOff = 0;
     foreach (@stats2) {
-        $xOff = $self->{createHeader}($self, $_, $xOff, 4, 3);
+        $xOff = $self->{createHeader}(\$self, $_, $xOff, 4, 3);
     }
 
     # $self->{createHeaderOverlay}();
