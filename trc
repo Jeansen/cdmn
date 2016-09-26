@@ -30,15 +30,15 @@ use utf8;
 
 use open ':std', ':encoding(UTF-8)';
 
-my $rend = urxvt::OVERLAY_RSTYLE;
-$rend = urxvt::SET_BGCOLOR $rend, 1;
-$rend = urxvt::SET_FGCOLOR $rend, 255;
+my $G_rend = urxvt::OVERLAY_RSTYLE;
+$G_rend = urxvt::SET_BGCOLOR $G_rend, 1;
+$G_rend = urxvt::SET_FGCOLOR $G_rend, 255;
 
 #$rend = $rend | urxvt::RS_Bold;
 
-my $speed = `curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
-$speed =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
-$speed = $2 / 8;
+my $G_speed = `curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
+$G_speed =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
+$G_speed = $2 / 8;
 
 
 use constant {
@@ -66,6 +66,12 @@ use constant {
 
 use constant {GAUGE => '▪'};
 
+use constant BLOCKS => [ qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/ ];
+
+
+####################################################
+#   UTILITY METHODS
+####################################################
 
 sub getColor {
     for(shift){
@@ -78,70 +84,9 @@ sub getColor {
 }
 
 
-sub on_init {
-    my ($self) = @_;
-
-    my $hotkey = $self->x_resource ("%") || "M-n";
-    $self->bind_action ($hotkey, "%:show") or warn "unable to register '$hotkey' as hotkey\n";
-
-    $hotkey = $self->x_resource ("%") || "M-l";
-    $self->bind_action ($hotkey, "%:show-labels") or warn "unable to register '$hotkey' as hotkey\n";
-
-    ()
-}
-
-
-sub on_action {
-    my ($self, $action) = @_;
-
-    if ( $action eq "show") {
-        $self->{SHOWING} = !$self->{SHOWING};
-        while ( my($key, $value) = each(%{$self->{overlays}}) ) {
-            $value->show if $key !~ /label/i and $self->{SHOWING};
-            $value->hide if ! $self->{SHOWING};
-            $value->show if $key =~ /label/i and $self->{SHOWING_LABELS} and $self->{SHOWING};
-        }
-    }
-
-    if ( $action eq "show-labels" and $self->{SHOWING}) {
-        $self->{SHOWING_LABELS} = !$self->{SHOWING_LABELS};
-        while ( my($key, $value) = each(%{$self->{overlays}}) ) {
-            $value->show if $key =~ /label/i and $self->{SHOWING_LABELS};
-            $value->hide if $key =~ /label/i and ! $self->{SHOWING_LABELS} ;
-        }
-    }
-    ()
-}
-
-use constant BLOCKS => [ qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/ ];
-
-sub on_refresh_begin {
-    my ($self) = @_;
-
-    my $empty = 1;
-
-    for(my $i = 1; $i < $self->nrow; $i++) {
-        $empty = 0 if $self->ROW_t($i) !~ /^\s*$/;
-    }
-
-    if ($self->ROW_t(0) !~ /^\s*$/ and $empty ) {
-        #if ($self->ROW_t(0) =~ /.*d/){
-        $self->cmd_parse("\e[1T\e[1B");
-        #$self->view_start(-1);
-    }
-}
-
-sub createTimer {
-    my $self = shift;
-    $self = ${$self};
-
-    my $p = shift;
-    $self->{$p} = urxvt::timer
-        ->new
-        ->start ( 1 + int urxvt::NOW )
-        ->interval ( 1 )
-        ->cb ( $self->{"sub_$p"} );
-};
+####################################################
+#   GUI / OVERLAY
+####################################################
 
 sub createHeader {
     my ($self, $label, $xOff, $count, $padding) = @_;
@@ -149,7 +94,7 @@ sub createHeader {
 
     my $w = (length $self->{LABELS}->{$label}) + 2;
 
-    my $r = urxvt::SET_FGCOLOR $rend, 5;
+    my $r = urxvt::SET_FGCOLOR $G_rend, 5;
     #  $r = urxvt::SET_BGCOLOR $r, 19;
 
     my %label = (
@@ -228,6 +173,11 @@ sub createHeaderOverlay {
     # $self->{overlays}->{x3}->show;
 };
 
+
+####################################################
+#   DATA
+####################################################
+
 sub getCpuUsage {
     my ($self) = @_;
     $self = ${$self};
@@ -261,11 +211,11 @@ sub getCpuUsage {
         $self->{$cpu}{prev_total} = $total;
 
         if ($cpu =~ /^cpu$/) {
-            $self->{createOverlay}(\$self, $cpu, $rend, $diff_usage, 0);
+            $self->{createOverlay}(\$self, $cpu, $G_rend, $diff_usage, 0);
         }
 
         if ($cpu =~ /^cpu[0-9]+/) {
-            $self->{createHeaderOverlay}(\$self, $cpu, $rend, $diff_usage, $self->{LABELS}->{&CPU}, $count++);
+            $self->{createHeaderOverlay}(\$self, $cpu, $G_rend, $diff_usage, $self->{LABELS}->{&CPU}, $count++);
         }
     }
 };
@@ -293,10 +243,10 @@ sub getDiskUsage {
         $diff_usage = $diff_sda / 10;
 
         $self->{$sda[0]}{prev_sda} = $sda[10];
-        $self->{createHeaderOverlay}(\$self, $sda[0], $rend, $diff_usage, $self->{LABELS}->{&DISK}, $count++);
+        $self->{createHeaderOverlay}(\$self, $sda[0], $G_rend, $diff_usage, $self->{LABELS}->{&DISK}, $count++);
     }
 
-    $self->{createOverlay}(\$self, &DISK, $rend, $diff_usage, 1);
+    $self->{createOverlay}(\$self, &DISK, $G_rend, $diff_usage, 1);
 };
 
 sub getMemoryUsage {
@@ -321,8 +271,8 @@ sub getMemoryUsage {
 
     my $diff_usage = 100 - (100 * $available / $total);
 
-    $self->{createHeaderOverlay}(\$self, $sda[0], $rend, $diff_usage, $self->{LABELS}->{&MEMORY}, 0);
-    $self->{createOverlay}(\$self, &MEMORY, $rend, $diff_usage, 2);
+    $self->{createHeaderOverlay}(\$self, $sda[0], $G_rend, $diff_usage, $self->{LABELS}->{&MEMORY}, 0);
+    $self->{createOverlay}(\$self, &MEMORY, $G_rend, $diff_usage, 2);
 };
 
 sub getNetworkUsage {
@@ -339,12 +289,12 @@ sub getNetworkUsage {
     }
 
     my $diff_rx = $rx_bytes - $prev_rx;
-    my $diff_usage = 100 * $diff_rx / $speed;
+    my $diff_usage = 100 * $diff_rx / $G_speed;
 
     $prev_rx = $rx_bytes;
 
-    $self->{createOverlay}(\$self, &NETWORK, $rend, $diff_usage, 3);
-    $self->{createHeaderOverlay}(\$self, "net", $rend, $diff_usage, $self->{LABELS}->{&NETWORK}, 0);
+    $self->{createOverlay}(\$self, &NETWORK, $G_rend, $diff_usage, 3);
+    $self->{createHeaderOverlay}(\$self, "net", $G_rend, $diff_usage, $self->{LABELS}->{&NETWORK}, 0);
 
 
     #open(STAT, '/sys/class/net/eth0/speed');
@@ -355,6 +305,61 @@ sub getNetworkUsage {
     #}
     #close STAT;
 };
+
+
+####################################################
+#   HANDLERS
+####################################################
+
+sub on_init {
+    my ($self) = @_;
+
+    my $hotkey = $self->x_resource ("%") || "M-n";
+    $self->bind_action ($hotkey, "%:show") or warn "unable to register '$hotkey' as hotkey\n";
+
+    $hotkey = $self->x_resource ("%") || "M-l";
+    $self->bind_action ($hotkey, "%:show-labels") or warn "unable to register '$hotkey' as hotkey\n";
+
+    ()
+}
+
+sub on_action {
+    my ($self, $action) = @_;
+
+    if ( $action eq "show") {
+        $self->{SHOWING} = !$self->{SHOWING};
+        while ( my($key, $value) = each(%{$self->{overlays}}) ) {
+            $value->show if $key !~ /label/i and $self->{SHOWING};
+            $value->hide if ! $self->{SHOWING};
+            $value->show if $key =~ /label/i and $self->{SHOWING_LABELS} and $self->{SHOWING};
+        }
+    }
+
+    if ( $action eq "show-labels" and $self->{SHOWING}) {
+        $self->{SHOWING_LABELS} = !$self->{SHOWING_LABELS};
+        while ( my($key, $value) = each(%{$self->{overlays}}) ) {
+            $value->show if $key =~ /label/i and $self->{SHOWING_LABELS};
+            $value->hide if $key =~ /label/i and ! $self->{SHOWING_LABELS} ;
+        }
+    }
+    ()
+}
+
+sub on_refresh_begin {
+    my ($self) = @_;
+
+    my $empty = 1;
+
+    for(my $i = 1; $i < $self->nrow; $i++) {
+        $empty = 0 if $self->ROW_t($i) !~ /^\s*$/;
+    }
+
+    if ($self->ROW_t(0) !~ /^\s*$/ and $empty ) {
+        #if ($self->ROW_t(0) =~ /.*d/){
+        $self->cmd_parse("\e[1T\e[1B");
+        #$self->view_start(-1);
+    }
+}
 
 sub on_start {
     my ($self) = @_;
@@ -418,3 +423,19 @@ sub on_start {
     ()
 }
 
+
+####################################################
+#   MAIN
+####################################################
+
+sub createTimer {
+    my $self = shift;
+    $self = ${$self};
+
+    my $p = shift;
+    $self->{$p} = urxvt::timer
+        ->new
+        ->start ( 1 + int urxvt::NOW )
+        ->interval ( 1 )
+        ->cb ( $self->{"sub_$p"} );
+};
