@@ -24,7 +24,7 @@ use strict;
 use warnings FATAL => 'all';
 use autodie;
 use 5.22.2;
-use List::Util qw(sum);
+use List::Util qw(sum max min);
 use autodie;
 use utf8;
 
@@ -64,9 +64,11 @@ use constant {
     DISK => 'disk',
 };
 
-use constant {GAUGE => '▪'};
-
-use constant BLOCKS => [ qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/ ];
+use constant {
+    ACTION_SHOW => 'show',
+    ACTION_SHOW_LABELS => 'show-labels',
+    ACTION_SHOW_HEADER => 'show-header',
+};
 
 
 ####################################################
@@ -83,94 +85,16 @@ sub getColor {
     WHITE;
 }
 
-
-####################################################
-#   GUI / OVERLAY
-####################################################
-
-sub createHeader {
-    my ($self, $label, $xOff, $count, $padding) = @_;
+sub createTimer {
+    my $self = shift;
     $self = ${$self};
 
-    my $w = (length $self->{LABELS}->{$label}) + 2;
-
-    my $r = urxvt::SET_FGCOLOR $G_rend, 5;
-    #  $r = urxvt::SET_BGCOLOR $r, 19;
-
-    my %label = (
-        "overlay" => $self->overlay( $xOff, 0, $w, 1, $r, 0 ),
-        "x"       => 0,
-        "y"       => 0,
-        "with"    => $w,
-        "height"  => 1,
-    );
-
-    my $with = 1;
-    for (my $pos =0; $pos<$count; $pos++) {
-        my $x = $xOff+$w+$pos;
-        $with += $padding if ($pos == $count-1);
-
-        my %gauge = (
-            "overlay" => $self->overlay( $x, 0, $with, 1, $r, 0 ),
-            "x"       => $x,
-            "y"       => 0,
-            "with"    => $with,
-            "height"  => 1,
-        );
-        $gauge{overlay}->show;
-        $self->{GAUGES}->{$label}[$pos] = \%gauge;
-    }
-
-    my %properties = (
-        "label" => \%label,
-        "gauges" => $self->{GAUGES}->{$label},
-    );
-
-    $label{overlay}->set ( 0, 0, $self->{LABELS}->{$label} );
-    $label{overlay}->show;
-
-    $self->{header}->{$self->{LABELS}->{$label}} = \%properties;
-
-    return $xOff+$w+$count+$padding;
-};
-
-sub createOverlay {
-    my($self, $designation, $rend, $diff_usage, $y) = @_;
-    $self = ${$self};
-
-    my $len = length $self->{LABELS}->{$designation};
-
-    $rend = urxvt::SET_FGCOLOR $rend, getColor( $diff_usage );
-    $self->{overlays}->{$designation."Label"} = $self->overlay ( -($len + 2), $y, $len, 1, $rend, 0 );
-    $self->{overlays}->{$designation."Label"}->set ( 0, 0, $self->{LABELS}->{$designation} );
-    ( $self->{SHOWING_LABELS} and $self->{SHOWING} )? $self->{overlays}->{$designation."Label"}->show : $self->{overlays}->{$designation."Label"}->hide;
-
-    $self->{overlays}->{$designation} = $self->overlay ( -1, $y, 1, 1, $rend, 0 );
-    $self->{overlays}->{$designation}->set ( 0, 0, GAUGE );
-    $self->{SHOWING} ? $self->{overlays}->{$designation}->show : $self->{overlays}->{$designation}->hide;
-};
-
-sub createHeaderOverlay {
-    my($self, $designation, $rend, $diff_usage, $label, $x) = @_;
-    $self = ${$self};
-
-    my $usage = $diff_usage / 10 * 9 / 10;
-
-    $self->{header}->{$label}->{gauges}[$x]->{overlay}->set ( 0, 0, BLOCKS->[$usage] ) if $usage < 10;
-
-    my $d = @{$self->{HEADER_LABELS}}[-1];
-    my $xx = $self->{header}->{$d}->{gauges}[-1]->{x};
-
-    my $rend2 = urxvt::OVERLAY_RSTYLE;
-    $rend2 = urxvt::SET_FGCOLOR $rend2, 5;
-    $rend2 = urxvt::SET_BGCOLOR $rend2, 1;
-    $rend2 = $rend2 | urxvt::RS_Bold;
-
-    $self->{overlays}->{x2} = $self->overlay( $xx, 0, $self->ncol-$xx-1, 1, $rend2, 0 );
-    $self->{overlays}->{x2}->show;
-    # $self->{overlays}->{x3} = $self->overlay( 0, 1, $self->ncol, 1, $rend2, 0 );
-    # $self->{overlays}->{x3}->set ( 0, 0, "─"x$self->ncol );
-    # $self->{overlays}->{x3}->show;
+    my $p = shift;
+    $self->{$p} = urxvt::timer
+        ->new
+        ->start ( 1 + int urxvt::NOW )
+        ->interval ( 1 )
+        ->cb ( $self->{"sub_$p"} );
 };
 
 
@@ -183,7 +107,6 @@ sub getCpuUsage {
     $self = ${$self};
 
     my $diff_usage = 0;
-    my $count = 0;
 
     open( my $f, '<', STAT );
     while (<$f>) {
@@ -211,21 +134,21 @@ sub getCpuUsage {
         $self->{$cpu}{prev_total} = $total;
 
         if ($cpu =~ /^cpu$/) {
-            $self->{createOverlay}(\$self, $cpu, $G_rend, $diff_usage, 0);
+            $self->{cornerObj}->setColor(CPU, "cpu10", $diff_usage);
         }
 
-        if ($cpu =~ /^cpu[0-9]+/) {
-            $self->{createHeaderOverlay}(\$self, $cpu, $G_rend, $diff_usage, $self->{LABELS}->{&CPU}, $count++);
+        if ($cpu =~ /^cpu[0-9]/) {
+            #   $self->{headerObj}->set(CPU, $cpu, $diff_usage);
         }
     }
 };
+
 
 sub getDiskUsage {
     my ($self) = @_;
     $self = ${$self};
 
     my $diff_usage;
-    my $count = 0;
 
     open( my $f, '<', DISKSTATS );
     while (<$f>) {
@@ -243,10 +166,10 @@ sub getDiskUsage {
         $diff_usage = $diff_sda / 10;
 
         $self->{$sda[0]}{prev_sda} = $sda[10];
-        $self->{createHeaderOverlay}(\$self, $sda[0], $G_rend, $diff_usage, $self->{LABELS}->{&DISK}, $count++);
+        # $self->{headerObj}->set(DISK, $sda[0], $diff_usage);
     }
 
-    $self->{createOverlay}(\$self, &DISK, $G_rend, $diff_usage, 1);
+    $self->{cornerObj}->setColor(DISK, "sda", $diff_usage);
 };
 
 sub getMemoryUsage {
@@ -271,8 +194,8 @@ sub getMemoryUsage {
 
     my $diff_usage = 100 - (100 * $available / $total);
 
-    $self->{createHeaderOverlay}(\$self, $sda[0], $G_rend, $diff_usage, $self->{LABELS}->{&MEMORY}, 0);
-    $self->{createOverlay}(\$self, &MEMORY, $G_rend, $diff_usage, 2);
+    #$self->{headerObj}->set(MEMORY, $sda[0], $diff_usage);
+    $self->{cornerObj}->setColor(MEMORY, $sda[0], $diff_usage);
 };
 
 sub getNetworkUsage {
@@ -293,9 +216,8 @@ sub getNetworkUsage {
 
     $prev_rx = $rx_bytes;
 
-    $self->{createOverlay}(\$self, &NETWORK, $G_rend, $diff_usage, 3);
-    $self->{createHeaderOverlay}(\$self, "net", $G_rend, $diff_usage, $self->{LABELS}->{&NETWORK}, 0);
-
+    #$self->{headerObj}->set(NETWORK, "eth0", $diff_usage);
+    $self->{cornerObj}->setColor(NETWORK, "eth0", $diff_usage);
 
     #open(STAT, '/sys/class/net/eth0/speed');
     #{
@@ -311,35 +233,32 @@ sub getNetworkUsage {
 #   HANDLERS
 ####################################################
 
-sub on_init {
-    my ($self) = @_;
-
-    my $hotkey = $self->x_resource ("%") || "M-n";
-    $self->bind_action ($hotkey, "%:show") or warn "unable to register '$hotkey' as hotkey\n";
-
-    $hotkey = $self->x_resource ("%") || "M-l";
-    $self->bind_action ($hotkey, "%:show-labels") or warn "unable to register '$hotkey' as hotkey\n";
-
-    ()
-}
-
 sub on_action {
     my ($self, $action) = @_;
 
-    if ( $action eq "show") {
-        $self->{SHOWING} = !$self->{SHOWING};
+    if ( $action eq ACTION_SHOW) {
+        $self->{X_SHOWING} = !$self->{X_SHOWING};
         while ( my($key, $value) = each(%{$self->{overlays}}) ) {
-            $value->show if $key !~ /label/i and $self->{SHOWING};
-            $value->hide if ! $self->{SHOWING};
-            $value->show if $key =~ /label/i and $self->{SHOWING_LABELS} and $self->{SHOWING};
+            $value->show if $key !~ /label/i and $self->{X_SHOWING};
+            $value->hide if ! $self->{X_SHOWING};
+            $value->show if $key =~ /label/i and $self->{X_SHOWING_LABELS} and $self->{X_SHOWING};
         }
     }
 
-    if ( $action eq "show-labels" and $self->{SHOWING}) {
-        $self->{SHOWING_LABELS} = !$self->{SHOWING_LABELS};
+    if ( $action eq ACTION_SHOW_LABELS and $self->{X_SHOWING}) {
+        $self->{X_SHOWING_LABELS} = !$self->{X_SHOWING_LABELS};
         while ( my($key, $value) = each(%{$self->{overlays}}) ) {
-            $value->show if $key =~ /label/i and $self->{SHOWING_LABELS};
-            $value->hide if $key =~ /label/i and ! $self->{SHOWING_LABELS} ;
+            $value->show if $key =~ /label/i and $self->{X_SHOWING_LABELS};
+            $value->hide if $key =~ /label/i and ! $self->{X_SHOWING_LABELS} ;
+        }
+    }
+
+    if ( $action eq ACTION_SHOW_HEADER) {
+        $self->{X_SHOWING} = !$self->{X_SHOWING};
+        while ( my($key, $value) = each(%{$self->{overlays}}) ) {
+            $value->show if $key !~ /label/i and $self->{X_SHOWING};
+            $value->hide if ! $self->{X_SHOWING};
+            $value->show if $key =~ /label/i and $self->{X_SHOWING_LABELS} and $self->{X_SHOWING};
         }
     }
     ()
@@ -361,47 +280,55 @@ sub on_refresh_begin {
     }
 }
 
+
+####################################################
+#   MAIN
+####################################################
+
+sub on_init {
+    my ($self) = @_;
+
+    my $hotkey = $self->x_resource ("%") || "M-n";
+    $self->bind_action ($hotkey, "%:".ACTION_SHOW) or warn "unable to register '$hotkey' as hotkey\n";
+
+    $hotkey = $self->x_resource ("%") || "M-l";
+    $self->bind_action ($hotkey, "%:".ACTION_SHOW_LABELS) or warn "unable to register '$hotkey' as hotkey\n";
+
+    $hotkey = $self->x_resource ("%") || "M-h";
+    $self->bind_action ($hotkey, "%:".ACTION_SHOW_HEADER) or warn "unable to register '$hotkey' as hotkey\n";
+
+    ()
+}
+
 sub on_start {
     my ($self) = @_;
 
-    # $visibility{"cpu"} = true if ($self->x_resource('trc.cpu'));
-    # $visibility{"disk"} = true if ($self->x_resource('trc.disk'));
-    #$visibility{"ram"} = true if ($self->x_resource('trc.ram'));
-    # $visibility{"network"} = true if ($self->x_resource('trc.network'));
+    $self->{X_LABELS}->{&NETWORK} = $self->x_resource('%.label.network') // 'NETWORK';
+    $self->{X_LABELS}->{&DISK} = $self->x_resource('%.label.disk') // 'DISK';
+    $self->{X_LABELS}->{&CPU} = $self->x_resource('%.label.cpu') // 'CPU';
+    $self->{X_LABELS}->{&MEMORY} = $self->x_resource('%.label.ram') // 'RAM';
 
-    #$colors{"network"} = true if ($self->x_resource('trc.color.1'));
-    #$colors{"network"} = true if ($self->x_resource('trc.color.2'));
-    #$colors{"network"} = true if ($self->x_resource('trc.color.3'));
-    #$colors{"network"} = true if ($self->x_resource('trc.color.5'));
-
-    $self->{LABELS}->{&NETWORK} = $self->x_resource('%.label.network') // 'NETWORK';
-    $self->{LABELS}->{&DISK} = $self->x_resource('%.label.disk') // 'DISK';
-    $self->{LABELS}->{&CPU} = $self->x_resource('%.label.cpu') // 'CPU';
-    $self->{LABELS}->{&MEMORY} = $self->x_resource('%.label.ram') // 'RAM';
-
-    $self->{SHOWING} = $self->x_resource_boolean('%.showing') // 1;
-    $self->{SHOWING_LABELS} = $self->x_resource_boolean('%.showing-labels') // 0;
+    $self->{X_SHOWING} = $self->x_resource_boolean('%.showing') // 1;
+    $self->{X_SHOWING_LABELS} = $self->x_resource_boolean('%.showing-labels') // 0;
 
     $self->{HEADER_LABELS} = $self->x_resource('%.header-labels') // 'CPU,DISK,RAM,NETWORK';
     $self->{HEADER_LABELS} = [split(/[[:punct:],[:space:]]/, $self->{HEADER_LABELS})];
 
-    my @h = @{$self->{HEADER_LABELS}};
-    my @v = (values %{$self->{LABELS}});
-    foreach my $value (@h) {
-        if(! grep {$_ eq $value} @v or $#v != $#h) {
-            $self->{HEADER_LABELS} = [qw(CPU DISK RAM NETWORK)];
-            last;
-        }
-    }
+    # $self->{headerObj} = visuals::container->new($self, $G_rend, 0, 0, 1, 'x');
+    # $self->{headerObj}->add(CPU, [qw/cpu0 cpu1 cpu2 cpu3/]);
+    # $self->{headerObj}->add(DISK, [qw/sda sdb/]);
+    # $self->{headerObj}->add(MEMORY, ["MemAvailable:"]);
+    # $self->{headerObj}->add(NETWORK, ["eth0"]);
+    # $self->{headerObj}->create;
 
-    for (keys  %{$self->{LABELS}}) {
-        $self->{GAUGES}->{$self->{LABELS}->{$_}} = [];
-    }
+    $self->{cornerObj} = visuals::container->new($self, $G_rend, -1, 0, 1, 'y');
+    $self->{cornerObj}->add(CPU, ["cpu10"]);
+    $self->{cornerObj}->add(DISK, ["sda"]);
+    $self->{cornerObj}->add(MEMORY, ["MemAvailable:"]);
+    $self->{cornerObj}->add(NETWORK, ["eth0"]);
+    $self->{cornerObj}->create;
 
     $self->{createTimer} = \&createTimer;
-    $self->{createHeader} = \&createHeader;
-    $self->{createOverlay} = \&createOverlay;
-    $self->{createHeaderOverlay} = \&createHeaderOverlay;
 
     $self->{"sub_".&CPU} = sub { getCpuUsage \$self };
     $self->{"sub_".&DISK} = sub { getDiskUsage \$self };
@@ -413,29 +340,223 @@ sub on_start {
         $self->{createTimer}(\$self, $_);
     }
 
-    my @stats2 = (CPU, DISK, MEMORY, NETWORK);
-    my $xOff = 0;
-    foreach (@stats2) {
-        $xOff = $self->{createHeader}(\$self, $_, $xOff, 4, 3);
-    }
-
-    # $self->{createHeaderOverlay}();
     ()
 }
 
+package visuals::overlay{
+    use fields qw(overlay x y width height);
+    sub new {
+        my $self = shift;
+        $self = fields::new($self) unless ref $self;
 
-####################################################
-#   MAIN
-####################################################
+        @$self{qw(overlay x y width height)} = @_;
+        return $self;
+    }
+}
 
-sub createTimer {
-    my $self = shift;
-    $self = ${$self};
+package visuals::container{
+    use fields qw(sprites paddings padding term rendition x y align evenGauges);
 
-    my $p = shift;
-    $self->{$p} = urxvt::timer
-        ->new
-        ->start ( 1 + int urxvt::NOW )
-        ->interval ( 1 )
-        ->cb ( $self->{"sub_$p"} );
-};
+    my $xOff = 0;
+    my $yOff = 0;
+    my $m = 0;
+
+    sub new {
+        my $self = shift;
+        $self = fields::new($self) unless ref $self;
+
+        @$self{qw/term rendition x y padding align/} = @_;
+        $xOff = $self->{x};
+        $yOff = $self->{y};
+        $self->{evenGauges} = 1;
+        return $self;
+    }
+
+    sub addPadding {
+        my $self = shift;
+        my $r = urxvt::SET_BGCOLOR $self->{rendition}, 4;
+
+        $self->{paddings} = undef if shift;
+        if(defined $self->{sprites}) {
+            if ($self->{align} eq "x") {
+                pop @{$self->{paddings}};
+                push(@{$self->{paddings}}, $self->{term}->overlay( $xOff, $yOff, $self->{padding}, 1, $r, 0 ));
+                $xOff += $self->{padding};
+            }
+            $yOff += $self->{padding} if $self->{align} eq "y";
+        }
+    }
+
+    sub add {
+        my $self = shift;
+        my($label, $visuals) = @_;
+
+        $self->addPadding(0);
+
+        my $r = urxvt::SET_BGCOLOR $self->{rendition}, 4;
+
+        my $obj = visuals::visual->new($self->{term}, $self->{rendition}, $xOff, $yOff, $label, $visuals);
+        $self->{sprites}->{"$label"} = $obj;
+        if (@{$visuals} > $m && $self->{evenGauges}) {
+            $m = @{$visuals};
+            $xOff=0;
+            $self->addPadding(1);
+            while ( my($key, $value) = each(%{$self->{sprites}}) ) {
+                $value->setEvenGauges($m);
+                $xOff += $obj->{width} if $self->{align} eq "x";
+            }
+        }
+        $obj->setEvenGauges($m) if $self->{evenGauges};
+        $xOff += $obj->{width} if $self->{align} eq "x";
+
+        push(@{$self->{paddings}}, $self->{term}->overlay( $xOff, $yOff, $self->{term}->ncol-$xOff, 1, $r, 0 )) if $self->{align} eq "x";
+    }
+
+    sub create {
+        my $self = shift;
+        while ( my($key, $value) = each(%{$self->{sprites}}) ) {
+            $value->create;
+        }
+    }
+
+    sub set {
+        my $self = shift;
+        my $label = shift;
+        my $i = shift;
+        my $usage  = shift;
+        $self->{sprites}->{"$label"}->set($i, $usage);
+    }
+
+    sub setColor {
+        my $self = shift;
+        my $label = shift;
+        my $i = shift;
+        my $usage  = shift;
+        $self->{sprites}->{"$label"}->setColor($i, $usage);
+    }
+}
+
+package visuals::visual{
+    use fields qw(term x y rendition visuals label count width);
+    use constant BLOCKS => [ qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/ ];
+    use constant {GAUGE => '▪'};
+    use List::Util qw(max);
+    my $m = 0;
+
+    use constant {
+        RED => 3,
+        GREEN => 4,
+        PINK => 7,
+        YELLOW => 5,
+        BLUE => 6,
+        WHITE => 248,
+    };
+
+    sub getColor {
+        for(shift){
+            return RED if $_ > 80;
+            return YELLOW if $_ > 60;
+            return BLUE if $_ > 40;
+            return GREEN if $_ > 20;
+        }
+        WHITE;
+    };
+
+    sub new {
+        my $self = shift;
+        $self = fields::new($self) unless ref $self;
+
+        @$self{qw/term rendition x y label visuals/} = @_;
+
+        #my $l = max (map { length } @visuals);
+        $self->{width} = (length $self->{label}) + 2 + @{$self->{visuals}};
+        return $self;
+    }
+
+    sub setEvenGauges {
+        my $self = shift;
+        $m = shift;
+        $self->{width} += (-@{$self->{visuals}} + $m);
+
+    }
+    sub show {
+        my $self = shift;
+        for my $g (@{$self->{visuals}}) {
+            $g->{overlay}->show;
+        }
+    }
+
+    sub create {
+        my $self = shift;
+        my $w = (length $self->{label}) + 2;
+
+        my @visuals = @{$self->{visuals}};
+        $self->{visuals} = {};
+        $self->{x} = -($w + $m) if $self->{x} < 0;
+
+        $self->{rendition} = urxvt::SET_FGCOLOR $self->{rendition}, 5;
+        my $labelObj = visuals::overlay->new(
+            $self->{term}->overlay( $self->{x}, $self->{y}, $w, 1, $self->{rendition}, 0 ),
+            $self->{x},
+            $self->{y},
+            $w,
+            1
+        );
+        $labelObj->{overlay}->set ( 0, 0, $self->{label} );
+        $self->{visuals}->{$self->{label}} = $labelObj;
+
+        my $pos = 0;
+        my $width = 1;
+        for (@visuals) {
+            my $x = $self->{x}+$w+$pos++;
+
+            my $gauge = visuals::overlay->new(
+                $self->{term}->overlay( $x, $self->{y}, $width, 1, $self->{rendition}, 0 ),
+                $x,
+                $self->{y},
+                $width,
+                1
+            );
+            $gauge->{overlay}->set ( 0, 0, "x" );
+            $self->{visuals}->{"$_"} = $gauge;
+
+        }
+        say length $self->{label}, "  ", $self->{label}, "  ", $m, "  ", $self->{width}, "  ", $self->{x};
+    }
+
+    sub hide {
+        my $self = shift;
+        for my $g (@{$self->{visuals}}) {
+            $g->{overlay}->hide;
+        }
+    }
+
+    sub set {
+        my $self = shift;
+        my $i = shift;
+        my $usage  = shift;
+        $usage = $usage / 10 * 9 / 10;
+        $self->{visuals}->{"$i"}->{overlay}->set ( 0, 0, BLOCKS->[$usage] ) if $usage < 9 && $usage >= 0;
+    }
+
+    sub setColor {
+        my $self = shift;
+        my $i = shift;
+        my $usage  = shift;
+        $self->{rendition} = urxvt::SET_FGCOLOR $self->{rendition}, getColor($usage);
+
+        my $gauge = visuals::overlay->new(
+            $self->{term}->overlay( $self->{visuals}->{"$i"}->{x},
+                $self->{visuals}->{"$i"}->{y},
+                $self->{visuals}->{"$i"}->{width}, 1, $self->{rendition} , 0 ),
+            $self->{visuals}->{"$i"}->{x},
+            $self->{visuals}->{"$i"}->{y},
+            $self->{visuals}->{"$i"}->{width},
+            1
+        );
+
+        $self->{visuals}->{"$i"} = $gauge;
+
+        $self->{visuals}->{"$i"}->{overlay}->set ( 0, 0, GAUGE );
+    }
+}
