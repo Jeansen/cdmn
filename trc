@@ -35,7 +35,7 @@ $G_rend = urxvt::SET_FGCOLOR $G_rend, 255;
 #$rend = $rend | urxvt::RS_Bold;
 
 my $G_speed =
-`curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
+    `curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
 $G_speed =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
 $G_speed = $2 / 8;
 
@@ -94,28 +94,21 @@ sub getColor {
     WHITE;
 }
 
-sub createTimer {
-    my $self = shift;
-
-    my $p = shift;
-    $self->{$p} = urxvt::timer->new->start( 1 + int urxvt::NOW )->interval(1)->cb( $self->{"sub_$p"} );
-}
-
 sub setCaption {
     my $self = shift;
 
     for ( $self->{X_RESOURCE}->{CAPTION} ) {
         /$R_CAPTION_BAR/
-          and $self->{caption} = visuals::container->new(
+            and $self->{caption} = visuals::container->new(
             $self, $G_rend,
             $self->{X_RESOURCE}->{X},
             $self->{X_RESOURCE}->{Y},
             $self->{X_RESOURCE}->{PADDING},
             CAPTION_BAR, 0
-          );
+        );
         /$R_CAPTION_BLOCK/
-          and $self->{caption} =
-          visuals::container->new( $self, $G_rend, -1, $self->{X_RESOURCE}->{Y}, 0, CAPTION_BLOCK, 1 );
+            and $self->{caption} =
+            visuals::container->new( $self, $G_rend, -1, $self->{X_RESOURCE}->{Y}, 0, CAPTION_BLOCK, 1 );
     }
 
     for ( $self->{X_RESOURCE}->{GAUGES} ) {
@@ -125,15 +118,15 @@ sub setCaption {
                 $self->{caption}->add( DISK,    [qw/sda sdb/] );
                 $self->{caption}->add( MEMORY,  ["MemAvailable:"] );
                 $self->{caption}->add( NETWORK, ["eth0"] );
-              }
+            }
         }();
         /simple/ and &{
             sub {
-                $self->{caption}->add( CPU,     ["cpu10"] );
+                $self->{caption}->add( CPU,     ["cpu"] );
                 $self->{caption}->add( DISK,    ["sda"] );
                 $self->{caption}->add( MEMORY,  ["MemAvailable:"] );
                 $self->{caption}->add( NETWORK, ["eth0"] );
-              }
+            }
         }();
     }
 }
@@ -149,13 +142,13 @@ sub initFromResources {
     $self->{X_RESOURCE}->{SHOWING}        = $self->x_resource_boolean('%.showing')        // 1;
     $self->{X_RESOURCE}->{SHOWING_LABELS} = $self->x_resource_boolean('%.showing-labels') // 0;
 
-    $self->{X_RESOURCE}->{CAPTION} = $self->x_resource('%.captioin') // 'bar';    #block | bar
-          #$self->{X_RESOURCE}->{CAPTION} = $self->x_resource('%.captioin') // 'block'; #block | bar
-    $self->{X_RESOURCE}->{PADDING} = $self->x_resource('%.padding') // 2;     #Padding between visuals
-    $self->{X_RESOURCE}->{X}       = $self->x_resource('%.x')       // -1;    #positive from left, negativ from right
-    $self->{X_RESOURCE}->{Y}       = $self->x_resource('%.y')       // 0;     #positive from top, negativ from bottom
-          #$self->{X_RESOURCE}->{GAUGES} = $self->x_resource('%.gauges') // 'full'; #simple | full
-    $self->{X_RESOURCE}->{GAUGES} = $self->x_resource('%.gauges') // 'simple';    #simple | full
+    $self->{X_RESOURCE}->{CAPTION} = $self->x_resource('%.captioin') // 'bar';    #block | bar | solid-bar
+    #$self->{X_RESOURCE}->{CAPTION} = $self->x_resource('%.captioin') // 'block'; #block | bar
+    $self->{X_RESOURCE}->{PADDING} = $self->x_resource('%.padding') // 2;        #Padding between visuals
+    $self->{X_RESOURCE}->{X}       = $self->x_resource('%.x')       // -1;       #positive from left, negativ from right
+    $self->{X_RESOURCE}->{Y}       = $self->x_resource('%.y')       // 0;        #positive from top, negativ from bottom
+    $self->{X_RESOURCE}->{GAUGES}  = $self->x_resource('%.gauges')  // 'full';   #simple | full
+    #$self->{X_RESOURCE}->{GAUGES} = $self->x_resource('%.gauges') // 'simple';    #simple | full
 
     $self->{X_RESOURCE}->{GAUGES_ORDER} = $self->x_resource('%.header-labels') // 'CPU,DISK,RAM,NETWORK';
     $self->{X_RESOURCE}->{GAUGES_ORDER} = [ split( /[[:punct:],[:space:]]/, $self->{X_RESOURCE}->{GAUGES_ORDER} ) ];
@@ -166,9 +159,9 @@ sub initFromResources {
 ####################################################
 
 sub getCpuUsage {
-    my ($self) = @_;
-
+    state %cpus;
     my $diff_usage = 0;
+    my %results;
 
     open( my $f, '<', STAT );
     while (<$f>) {
@@ -179,42 +172,34 @@ sub getCpuUsage {
         my @cpu = split /\s+/;
         my $cpu = shift @cpu;
 
-        $self->{$cpu}{prev_idle}  = $self->{$cpu}{prev_idle}  // 0;
-        $self->{$cpu}{prev_total} = $self->{$cpu}{prev_total} // 0;
-        $self->{$cpu}{diff_total} = $self->{$cpu}{diff_total} // 0;
+        $cpus{$cpu} = {} if !defined $cpus{$cpu};
+
+        $cpus{$cpu}{prev_idle}  = $cpus{$cpu}{prev_idle}  // 0;
+        $cpus{$cpu}{prev_total} = $cpus{$cpu}{prev_total} // 0;
+        $cpus{$cpu}{diff_total} = $cpus{$cpu}{diff_total} // 0;
 
         my $idle  = $cpu[3];
         my $total = sum(@cpu);
 
-        my $diff_idle = $idle - $self->{$cpu}{prev_idle};
-        if ( $total != $self->{$cpu}{prev_total} ) {
-            $self->{$cpu}{diff_total} = $total - $self->{$cpu}{prev_total};
+        my $diff_idle = $idle - $cpus{$cpu}{prev_idle};
+        if ( $total != $cpus{$cpu}{prev_total} ) {
+            $cpus{$cpu}{diff_total} = $total - $cpus{$cpu}{prev_total};
         }
-        $diff_usage = 100 * ( $self->{$cpu}{diff_total} - $diff_idle ) / $self->{$cpu}{diff_total};
+        $diff_usage = 100 * ( $cpus{$cpu}{diff_total} - $diff_idle ) / $cpus{$cpu}{diff_total};
 
-        $self->{$cpu}{prev_idle}  = $idle;
-        $self->{$cpu}{prev_total} = $total;
+        $cpus{$cpu}{prev_idle}  = $idle;
+        $cpus{$cpu}{prev_total} = $total;
 
-        for ( $self->{X_RESOURCE}->{GAUGES} ) {
-            /$R_GAUGES_SIMPLE/ and &{
-                sub {
-                    $self->{caption}->set( CPU, "cpu10", $diff_usage ) if $cpu =~ /^cpu$/;
-                  }
-            }();
-            /$R_GAUGES_FULL/ and &{
-                sub {
-                    $self->{caption}->set( CPU, $cpu, $diff_usage ) if $cpu =~ /^cpu[0-9]/;
-                  }
-            }();
-        }
+        $results{$cpu} = $diff_usage;
     }
-    setBG $self;
+    return \%results;
 }
 
 sub getDiskUsage {
-    my ($self) = @_;
 
+    state %sda;
     my $diff_usage;
+    my %results;
 
     open( my $f, '<', DISKSTATS );
     while (<$f>) {
@@ -226,26 +211,22 @@ sub getDiskUsage {
         shift @sda;
         shift @sda;
 
-        $self->{ $sda[0] }{prev_sda} = $self->{ $sda[0] }{prev_sda} // 0;
+        $sda{ $sda[0] } = $sda{ $sda[0] } // 0;
 
-        my $diff_sda = $sda[10] - $self->{ $sda[0] }{prev_sda};
+        my $diff_sda = $sda[10] - $sda{ $sda[0] };
         $diff_usage = $diff_sda / 10;
 
-        $self->{ $sda[0] }{prev_sda} = $sda[10];
-        $self->{caption}->set( DISK, $sda[0], $diff_usage ) if $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_FULL;
+        $sda{ $sda[0] }     = $sda[10];
+        $results{ $sda[0] } = $diff_usage;
     }
-
-    $self->{caption}->set( DISK, "sda", $diff_usage ) if $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_SIMPLE;
-
-    setBG $self;
+    return \%results;
 }
 
 sub getMemoryUsage {
-    my ($self) = @_;
-
     my @sda;
     my $total     = 0;
     my $available = 0;
+    my %results;
 
     open( my $f, '<', MEMINFO );
     while (<$f>) {
@@ -259,16 +240,11 @@ sub getMemoryUsage {
         }
     }
 
-    my $diff_usage = 100 - ( 100 * $available / $total );
-
-    $self->{caption}->set( MEMORY, $sda[0], $diff_usage );
-
-    setBG $self;
+    $results{ $sda[0] } = 100 - ( 100 * $available / $total );
+    return \%results;
 }
 
 sub getNetworkUsage {
-    my ($self) = @_;
-
     my $rx_bytes = 0;
     state $prev_rx = 0;
 
@@ -283,9 +259,7 @@ sub getNetworkUsage {
 
     $prev_rx = $rx_bytes;
 
-    $self->{caption}->set( NETWORK, "eth0", $diff_usage );
-
-    setBG $self;
+    return { "eth0", $diff_usage };
 
     #open(STAT, '/sys/class/net/eth0/speed');
     #{
@@ -309,9 +283,9 @@ sub on_action {
             $value->show if $key !~ /label/i and $self->{X_RESOURCE}->{SHOWING};
             $value->hide if !$self->{X_RESOURCE}->{SHOWING};
             $value->show
-              if $key =~ /label/i
-              and $self->{X_RESOURCE}->{SHOWING_LABELS}
-              and $self->{X_RESOURCE}->{SHOWING};
+                if $key =~ /label/i
+                    and $self->{X_RESOURCE}->{SHOWING_LABELS}
+                    and $self->{X_RESOURCE}->{SHOWING};
         }
     }
 
@@ -329,9 +303,9 @@ sub on_action {
             $value->show if $key !~ /label/i and $self->{X_RESOURCE}->{SHOWING};
             $value->hide if !$self->{X_RESOURCE}->{SHOWING};
             $value->show
-              if $key =~ /label/i
-              and $self->{X_RESOURCE}->{SHOWING_LABELS}
-              and $self->{X_RESOURCE}->{SHOWING};
+                if $key =~ /label/i
+                    and $self->{X_RESOURCE}->{SHOWING_LABELS}
+                    and $self->{X_RESOURCE}->{SHOWING};
         }
     }
     ();
@@ -342,15 +316,10 @@ sub on_refresh_begin {
     if ( $self->{w_sizse} != $self->{term}->ncol ) {
         $self->{w_sizse} = $self->{term}->ncol;
         my @stats = ( CPU, DISK, MEMORY, NETWORK );
-        foreach (@stats) {
-            $self->{"$_"}->stop;
-        }
+        $self->{visuals_updater}->stop;
         setCaption $self;
         $self->{caption}->create;
-        foreach (@stats) {
-            $self->{"$_"}->start;
-        }
-
+        $self->{visuals_updater}->start;
     }
     my $empty = 1;
 
@@ -362,18 +331,16 @@ sub on_refresh_begin {
         /$R_CAPTION_BAR/ and &{
             sub {
                 if ( $self->ROW_t(0) !~ /^\s*$/ and $empty ) {
-
-                    #if ($self->ROW_t(0) =~ /.*d/){
                     $self->cmd_parse("\e[1T\e[1B");
 
                     #$self->view_start(-1);
                 }
-              }
+            }
         }();
         /$R_CAPTION_BLOCK/ and &{
             sub {
                 #Nothing to do yet!
-              }
+            }
         }();
     }
 }
@@ -387,13 +354,13 @@ sub setBG {
                 #my $r = urxvt::SET_BGCOLOR $G_rend, 4;
                 #$self->{bg} = visuals::overlay->new($self, 0, 0, $self->ncol, 1, $r);
                 $self->{bg} = visuals::overlay->new( $self, 0, 0, $self->ncol, 1, $G_rend );
-                $self->{bg}->create;
-              }
+                $self->{bg}->create("show");
+            }
         }();
         /$R_CAPTION_BLOCK/ and &{
             sub {
                 #Nothin to do yet.
-              }
+            }
         }();
     }
 }
@@ -426,15 +393,35 @@ sub on_start {
     $self->{caption}->create;
     $self->{createTimer} = \&createTimer;
 
-    $self->{ "sub_" . &CPU }     = sub { getCpuUsage $self };
-    $self->{ "sub_" . &DISK }    = sub { getDiskUsage $self };
-    $self->{ "sub_" . &MEMORY }  = sub { getMemoryUsage $self };
-    $self->{ "sub_" . &NETWORK } = sub { getNetworkUsage $self };
+    $self->{visuals_updater} = urxvt::timer->new->start( 1 + int urxvt::NOW )->interval(1)->cb(
+        sub {
+            my %r = %{&getCpuUsage};
+            if ( $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_FULL ) {
+                while ( my ( $key, $value ) = each %r ) {
+                    $self->{caption}->set( CPU, $key, $value ) if $key =~ /^cpu[0-9]/;
+                }
+            }
+            $self->{caption}->set( CPU, "cpu", $r{cpu} ) if $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_SIMPLE;
 
-    my @stats = ( CPU, DISK, MEMORY, NETWORK );
-    foreach (@stats) {
-        $self->{createTimer}( $self, $_ );
-    }
+            %r = %{&getDiskUsage};
+            while ( my ( $key, $value ) = each %r ) {
+                $self->{caption}->set( DISK, $key, $value ) if $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_FULL;
+            }
+            $self->{caption}->set( DISK, "sda", $r{sda} ) if $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_SIMPLE;
+
+            %r = %{&getMemoryUsage};
+            while ( my ( $key, $value ) = each %r ) {
+                $self->{caption}->set( MEMORY, $key, $value );
+            }
+
+            %r = %{&getNetworkUsage};
+            while ( my ( $key, $value ) = each %r ) {
+                $self->{caption}->set( NETWORK, $key, $value );
+            }
+
+            setBG $self;
+        }
+    );
 
     ();
 }
@@ -454,7 +441,7 @@ package visuals::overlay {
         my $self = shift;
         my $show = shift;
         $self->{overlay} =
-          $self->{term}->overlay( $self->{x}, $self->{y}, $self->{width}, $self->{height}, $self->{rendition}, 0 );
+            $self->{term}->overlay( $self->{x}, $self->{y}, $self->{width}, $self->{height}, $self->{rendition}, 0 );
         $self->set( $self->{caption} ) if defined $self->{caption};
         $self->hide if !$show;
     }
@@ -515,14 +502,14 @@ package visuals::container {
                 /${\($self->{term}->CAPTION_BAR)}/ and &{
                     sub {
                         $_->{x} = $self->{term}->ncol - $xOff + $_->{x} + $self->{x} + $self->{padding} + 1
-                          foreach ( values %{ $self->{sprites} } );
-                      }
+                            foreach ( values %{ $self->{sprites} } );
+                    }
                 }();
                 /${\($self->{term}->CAPTION_BLOCK)}/ and &{
                     sub {
                         $_->{x} = $self->{term}->ncol - $_->{x} - $_->{width} + $self->{x}
-                          foreach ( values %{ $self->{sprites} } );
-                      }
+                            foreach ( values %{ $self->{sprites} } );
+                    }
                 }();
             }
         }
@@ -605,7 +592,7 @@ package visuals::visual {
 
         $self->{rendition} = urxvt::SET_FGCOLOR $self->{rendition}, 5;
         my $labelObj =
-          visuals::overlay->new( $self->{term}, $self->{x}, $self->{y}, $w, 1, $self->{rendition}, $self->{label} );
+            visuals::overlay->new( $self->{term}, $self->{x}, $self->{y}, $w, 1, $self->{rendition}, $self->{label} );
         $labelObj->create("show");
         $self->{pictorials}->{ $self->{label} } = $labelObj;
 
@@ -623,16 +610,16 @@ package visuals::visual {
                     /${\($self->{term}->GAUGES_FULL)}/ and &{
                         sub {
                             $gauge =
-                              visuals::overlay->new( $self->{term}, $x, $self->{y}, $width, 1, $self->{rendition},
-                                BLOCKS->[0] );
-                          }
+                                visuals::overlay->new( $self->{term}, $x, $self->{y}, $width, 1, $self->{rendition},
+                                    BLOCKS->[0] );
+                        }
                     }();
                     /${\($self->{term}->GAUGES_SIMPLE)}/ and &{
                         sub {
                             $gauge =
-                              visuals::overlay->new( $self->{term}, $x, $self->{y}, $width, 1, $self->{rendition},
-                                GAUGE );
-                          }
+                                visuals::overlay->new( $self->{term}, $x, $self->{y}, $width, 1, $self->{rendition},
+                                    GAUGE );
+                        }
                     }();
                 }
                 $gauge->create;
@@ -661,12 +648,12 @@ package visuals::visual {
                 /${\($self->{term}->GAUGES_FULL)}/ and &{
                     sub {
                         $self->{pictorials}->{"$i"}->{"$color"}->set( BLOCKS->[$barIdx] );
-                      }
+                    }
                 }();
                 /${\($self->{term}->GAUGES_SIMPLE)}/ and &{
                     sub {
                         #Nothing to do yet.
-                      }
+                    }
                 }();
             }
         }
