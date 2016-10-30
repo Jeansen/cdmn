@@ -35,7 +35,7 @@ $G_rend = urxvt::SET_FGCOLOR $G_rend, 255;
 #$rend = $rend | urxvt::RS_Bold;
 
 my $G_speed =
-    `curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
+`curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
 $G_speed =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
 $G_speed = $2 / 8;
 
@@ -97,36 +97,45 @@ sub getColor {
 sub setCaption {
     my $self = shift;
 
-    for ( $self->{X_RESOURCE}->{CAPTION} ) {
+    my $cpu     = qr/${\($self->{XR}->{LABELS}->{&CPU})}/;
+    my $disk    = qr/${\($self->{XR}->{LABELS}->{&DISK})}/;
+    my $memory  = qr/${\($self->{XR}->{LABELS}->{&MEMORY})}/;
+    my $network = qr/${\($self->{XR}->{LABELS}->{&NETWORK})}/;
+
+    for ( $self->{XR}->{CAPTION} ) {
         /$R_CAPTION_BAR/
-            and $self->{caption} = visuals::container->new(
+          and $self->{caption} = visuals::container->new(
             $self, $G_rend,
-            $self->{X_RESOURCE}->{X},
-            $self->{X_RESOURCE}->{Y},
-            $self->{X_RESOURCE}->{PADDING},
+            $self->{XR}->{X},
+            $self->{XR}->{Y},
+            $self->{XR}->{PADDING},
             CAPTION_BAR, 0
-        );
+          );
         /$R_CAPTION_BLOCK/
-            and $self->{caption} =
-            visuals::container->new( $self, $G_rend, -1, $self->{X_RESOURCE}->{Y}, 0, CAPTION_BLOCK, 1 );
+          and $self->{caption} =
+          visuals::container->new( $self, $G_rend, -1, $self->{XR}->{Y}, 0, CAPTION_BLOCK, 1 );
     }
 
-    for ( $self->{X_RESOURCE}->{GAUGES} ) {
+    for ( $self->{XR}->{GAUGES} ) {
         /full/ and &{
             sub {
-                $self->{caption}->add( CPU,     [qw/cpu0 cpu1 cpu2 cpu3/] );
-                $self->{caption}->add( DISK,    [qw/sda sdb/] );
-                $self->{caption}->add( MEMORY,  ["MemAvailable:"] );
-                $self->{caption}->add( NETWORK, ["eth0"] );
-            }
+                for ( @{ $self->{XR}->{GAUGES_ORDER} } ) {
+                    /$cpu/     and $self->{caption}->add( $_, [qw/cpu0 cpu1 cpu2 cpu3/] );
+                    /$disk/    and $self->{caption}->add( $_, [qw/sda sdb/] );
+                    /$memory/  and $self->{caption}->add( $_, ["MemAvailable:"] );
+                    /$network/ and $self->{caption}->add( $_, ["eth0"] );
+                }
+              }
         }();
         /simple/ and &{
             sub {
-                $self->{caption}->add( CPU,     ["cpu"] );
-                $self->{caption}->add( DISK,    ["sda"] );
-                $self->{caption}->add( MEMORY,  ["MemAvailable:"] );
-                $self->{caption}->add( NETWORK, ["eth0"] );
-            }
+                for ( @{ $self->{XR}->{GAUGES_ORDER} } ) {
+                    /$cpu/     and $self->{caption}->add( $_, ["cpu"] );
+                    /$disk/    and $self->{caption}->add( $_, ["sda"] );
+                    /$memory/  and $self->{caption}->add( $_, ["MemAvailable:"] );
+                    /$network/ and $self->{caption}->add( $_, ["eth0"] );
+                }
+              }
         }();
     }
 }
@@ -134,24 +143,29 @@ sub setCaption {
 sub initFromResources {
     my $self = shift;
 
-    $self->{X_RESOURCE}->{LABELS}->{&NETWORK} = $self->x_resource('%.label.network') // 'NETWORK';
-    $self->{X_RESOURCE}->{LABELS}->{&DISK}    = $self->x_resource('%.label.disk')    // 'DISK';
-    $self->{X_RESOURCE}->{LABELS}->{&CPU}     = $self->x_resource('%.label.cpu')     // 'CPU';
-    $self->{X_RESOURCE}->{LABELS}->{&MEMORY}  = $self->x_resource('%.label.ram')     // 'RAM';
+    $self->{XR}->{LABELS}->{&NETWORK} = $self->x_resource('%.label.network') // 'NETWORK';
+    $self->{XR}->{LABELS}->{&DISK}    = $self->x_resource('%.label.disk')    // 'DISK';
+    $self->{XR}->{LABELS}->{&CPU}     = $self->x_resource('%.label.cpu')     // 'CPU';
+    $self->{XR}->{LABELS}->{&MEMORY}  = $self->x_resource('%.label.ram')     // 'RAM';
 
-    $self->{X_RESOURCE}->{SHOWING}        = $self->x_resource_boolean('%.showing')        // 1;
-    $self->{X_RESOURCE}->{SHOWING_LABELS} = $self->x_resource_boolean('%.showing-labels') // 0;
+    $self->{XR}->{SHOWING}            = $self->x_resource('%.showing')            // 1;
+    $self->{XR}->{SHOWING_LABELS}     = $self->x_resource('%.showing.labels')     // 1;
+    $self->{XR}->{SHOWING_BG} = $self->x_resource('%.showing.background') // 1;
 
-    $self->{X_RESOURCE}->{CAPTION} = $self->x_resource('%.captioin') // 'bar';    #block | bar | solid-bar
-    #$self->{X_RESOURCE}->{CAPTION} = $self->x_resource('%.captioin') // 'block'; #block | bar
-    $self->{X_RESOURCE}->{PADDING} = $self->x_resource('%.padding') // 2;        #Padding between visuals
-    $self->{X_RESOURCE}->{X}       = $self->x_resource('%.x')       // -1;       #positive from left, negativ from right
-    $self->{X_RESOURCE}->{Y}       = $self->x_resource('%.y')       // 0;        #positive from top, negativ from bottom
-    $self->{X_RESOURCE}->{GAUGES}  = $self->x_resource('%.gauges')  // 'full';   #simple | full
-    #$self->{X_RESOURCE}->{GAUGES} = $self->x_resource('%.gauges') // 'simple';    #simple | full
+    $self->{XR}->{CAPTION} = $self->x_resource('%.caption') // 'bar';    #block | bar | solid-bar
+          #$self->{XR}->{CAPTION}    = $self->x_resource('%.caption')            // 'block';    #block | bar
+    $self->{XR}->{CAPTION_BG} = $self->x_resource('%.caption-background') // '235';    #block | bar
 
-    $self->{X_RESOURCE}->{GAUGES_ORDER} = $self->x_resource('%.header-labels') // 'CPU,DISK,RAM,NETWORK';
-    $self->{X_RESOURCE}->{GAUGES_ORDER} = [ split( /[[:punct:],[:space:]]/, $self->{X_RESOURCE}->{GAUGES_ORDER} ) ];
+    $self->{XR}->{PADDING} = $self->x_resource('%.padding') // 2;        #Padding between visuals
+    $self->{XR}->{X}       = $self->x_resource('%.x')       // -1;       #positive from left, negativ from right
+    $self->{XR}->{Y}       = $self->x_resource('%.y')       // 0;        #positive from top, negativ from bottom
+    $self->{XR}->{GAUGES}  = $self->x_resource('%.gauges')  // 'full';   #simple | full
+          #$self->{XR}->{GAUGES} = $self->x_resource('%.gauges') // 'simple';    #simple | full
+
+    #TODO not yet working
+    $self->{XR}->{GAUGES_ORDER} = $self->x_resource('%.header-labels') // 'DISK,CPU,RAM,NETWORK';
+    $self->{XR}->{GAUGES_ORDER} = [ split( /[[:punct:],[:space:]]/, $self->{XR}->{GAUGES_ORDER} ) ];
+    $self->{XR}->{GAUGES_BG} = $self->x_resource('%.gauges-background') // '5';    #simple | full
 }
 
 ####################################################
@@ -278,36 +292,13 @@ sub on_action {
     my ( $self, $action ) = @_;
 
     if ( $action eq ACTION_SHOW ) {
-        $self->{X_RESOURCE}->{SHOWING} = !$self->{X_RESOURCE}->{SHOWING};
-        while ( my ( $key, $value ) = each( %{ $self->{overlays} } ) ) {
-            $value->show if $key !~ /label/i and $self->{X_RESOURCE}->{SHOWING};
-            $value->hide if !$self->{X_RESOURCE}->{SHOWING};
-            $value->show
-                if $key =~ /label/i
-                    and $self->{X_RESOURCE}->{SHOWING_LABELS}
-                    and $self->{X_RESOURCE}->{SHOWING};
-        }
+        $self->{caption}->{visible} ? $self->{caption}->hide : $self->{caption}->show;
     }
 
-    if ( $action eq ACTION_SHOW_LABELS and $self->{X_RESOURCE}->{SHOWING} ) {
-        $self->{X_RESOURCE}->{SHOWING_LABELS} = !$self->{X_RESOURCE}->{SHOWING_LABELS};
-        while ( my ( $key, $value ) = each( %{ $self->{overlays} } ) ) {
-            $value->show if $key =~ /label/i and $self->{X_RESOURCE}->{SHOWING_LABELS};
-            $value->hide if $key =~ /label/i and !$self->{X_RESOURCE}->{SHOWING_LABELS};
-        }
+    if ( $action eq ACTION_SHOW_LABELS and $self->{XR}->{SHOWING} ) {
+        $self->{caption}->{labelVisible} ? $self->{caption}->hideLabels : $self->{caption}->showLabels;
     }
 
-    if ( $action eq ACTION_SHOW_HEADER ) {
-        $self->{X_RESOURCE}->{SHOWING} = !$self->{X_RESOURCE}->{SHOWING};
-        while ( my ( $key, $value ) = each( %{ $self->{overlays} } ) ) {
-            $value->show if $key !~ /label/i and $self->{X_RESOURCE}->{SHOWING};
-            $value->hide if !$self->{X_RESOURCE}->{SHOWING};
-            $value->show
-                if $key =~ /label/i
-                    and $self->{X_RESOURCE}->{SHOWING_LABELS}
-                    and $self->{X_RESOURCE}->{SHOWING};
-        }
-    }
     ();
 }
 
@@ -315,7 +306,6 @@ sub on_refresh_begin {
     my ($self) = @_;
     if ( $self->{w_sizse} != $self->{term}->ncol ) {
         $self->{w_sizse} = $self->{term}->ncol;
-        my @stats = ( CPU, DISK, MEMORY, NETWORK );
         $self->{visuals_updater}->stop;
         setCaption $self;
         $self->{caption}->create;
@@ -327,40 +317,18 @@ sub on_refresh_begin {
         $empty = 0 if $self->ROW_t($i) !~ /^\s*$/;
     }
 
-    for ( $self->{X_RESOURCE}->{CAPTION} ) {
+    for ( $self->{XR}->{CAPTION} ) {
         /$R_CAPTION_BAR/ and &{
             sub {
                 if ( $self->ROW_t(0) !~ /^\s*$/ and $empty ) {
                     $self->cmd_parse("\e[1T\e[1B");
-
-                    #$self->view_start(-1);
                 }
-            }
+              }
         }();
         /$R_CAPTION_BLOCK/ and &{
             sub {
                 #Nothing to do yet!
-            }
-        }();
-    }
-}
-
-sub setBG {
-    my $self = shift;
-
-    for ( $self->{X_RESOURCE}->{CAPTION} ) {
-        /$R_CAPTION_BAR/ and &{
-            sub {
-                #my $r = urxvt::SET_BGCOLOR $G_rend, 4;
-                #$self->{bg} = visuals::overlay->new($self, 0, 0, $self->ncol, 1, $r);
-                $self->{bg} = visuals::overlay->new( $self, 0, 0, $self->ncol, 1, $G_rend );
-                $self->{bg}->create("show");
-            }
-        }();
-        /$R_CAPTION_BLOCK/ and &{
-            sub {
-                #Nothin to do yet.
-            }
+              }
         }();
     }
 }
@@ -396,30 +364,36 @@ sub on_start {
     $self->{visuals_updater} = urxvt::timer->new->start( 1 + int urxvt::NOW )->interval(1)->cb(
         sub {
             my %r = %{&getCpuUsage};
-            if ( $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_FULL ) {
+            if ( $self->{XR}->{GAUGES} =~ $R_GAUGES_FULL ) {
                 while ( my ( $key, $value ) = each %r ) {
-                    $self->{caption}->set( CPU, $key, $value ) if $key =~ /^cpu[0-9]/;
+                    if ( $key =~ /^cpu[0-9]/ ) {
+                        $self->{caption}->set( $self->{XR}->{LABELS}->{&CPU}, $key, $value );
+                    }
                 }
             }
-            $self->{caption}->set( CPU, "cpu", $r{cpu} ) if $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_SIMPLE;
+            if ( $self->{XR}->{GAUGES} =~ $R_GAUGES_SIMPLE ) {
+                $self->{caption}->set( $self->{XR}->{LABELS}->{&CPU}, "cpu", $r{cpu} );
+            }
 
             %r = %{&getDiskUsage};
             while ( my ( $key, $value ) = each %r ) {
-                $self->{caption}->set( DISK, $key, $value ) if $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_FULL;
+                if ( $self->{XR}->{GAUGES} =~ $R_GAUGES_FULL ) {
+                    $self->{caption}->set( $self->{XR}->{LABELS}->{&DISK}, $key, $value );
+                }
             }
-            $self->{caption}->set( DISK, "sda", $r{sda} ) if $self->{X_RESOURCE}->{GAUGES} =~ $R_GAUGES_SIMPLE;
+            if ( $self->{XR}->{GAUGES} =~ $R_GAUGES_SIMPLE ) {
+                $self->{caption}->set( $self->{XR}->{LABELS}->{&DISK}, "sda", $r{sda} );
+            }
 
             %r = %{&getMemoryUsage};
             while ( my ( $key, $value ) = each %r ) {
-                $self->{caption}->set( MEMORY, $key, $value );
+                $self->{caption}->set( $self->{XR}->{LABELS}->{&MEMORY}, $key, $value );
             }
 
             %r = %{&getNetworkUsage};
             while ( my ( $key, $value ) = each %r ) {
-                $self->{caption}->set( NETWORK, $key, $value );
+                $self->{caption}->set( $self->{XR}->{LABELS}->{&NETWORK}, $key, $value );
             }
-
-            setBG $self;
         }
     );
 
@@ -441,7 +415,8 @@ package visuals::overlay {
         my $self = shift;
         my $show = shift;
         $self->{overlay} =
-            $self->{term}->overlay( $self->{x}, $self->{y}, $self->{width}, $self->{height}, $self->{rendition}, 0 );
+          $self->{term}->overlay( $self->{x}, $self->{y}, $self->{width}, $self->{height}, $self->{rendition}, 0 );
+
         $self->set( $self->{caption} ) if defined $self->{caption};
         $self->hide if !$show;
     }
@@ -464,7 +439,15 @@ package visuals::overlay {
 }
 
 package visuals::container {
-    use fields qw(sprites padding term rendition x y align evenGauges);
+    use fields qw(
+      term
+      sprites padding rendition
+      x y
+      align evenGauges
+      visible labelVisible backgroundVisible
+      bg type
+    );
+
     my ( $xOff, $yOff, $m ) = ( 0, 0, 0 );
 
     sub new {
@@ -479,9 +462,10 @@ package visuals::container {
 
     sub add {
         my ( $self, $label, $visuals ) = @_;
-        my $visual = visuals::visual->new( $self->{term}, $self->{rendition}, $xOff, $yOff, $label, $visuals );
+        my $visual = visuals::visual->new( $self->{term}, $self->{rendition}, $xOff, $yOff, $label, $visuals,
+            $self->{term}->{XR}->{CAPTION_BG} );
 
-        $self->{sprites}->{"$label"} = $visual;
+        $self->{sprites}->{$label} = $visual;
         if ( @{$visuals} > $m && $self->{evenGauges} ) {
             $m = @{$visuals};
             foreach ( values %{ $self->{sprites} } ) {
@@ -498,18 +482,18 @@ package visuals::container {
         my $self = shift;
 
         if ( $self->{x} < 0 ) {
-            for ( $self->{term}->{X_RESOURCE}->{CAPTION} ) {
+            for ( $self->{term}->{XR}->{CAPTION} ) {
                 /${\($self->{term}->CAPTION_BAR)}/ and &{
                     sub {
                         $_->{x} = $self->{term}->ncol - $xOff + $_->{x} + $self->{x} + $self->{padding} + 1
-                            foreach ( values %{ $self->{sprites} } );
-                    }
+                          foreach ( values %{ $self->{sprites} } );
+                      }
                 }();
                 /${\($self->{term}->CAPTION_BLOCK)}/ and &{
                     sub {
                         $_->{x} = $self->{term}->ncol - $_->{x} - $_->{width} + $self->{x}
-                            foreach ( values %{ $self->{sprites} } );
-                    }
+                          foreach ( values %{ $self->{sprites} } );
+                      }
                 }();
             }
         }
@@ -517,24 +501,101 @@ package visuals::container {
             $_->{x} += $self->{x} foreach values %{ $self->{sprites} };
         }
         $_->create foreach values %{ $self->{sprites} };
+
+        #Background
+        for ( $self->{term}->{XR}->{CAPTION} ) {
+            /$R_CAPTION_BAR/ and &{
+                sub {
+                    #my $r = urxvt::SET_BGCOLOR $G_rend, 4;
+                    #$self->{bg} = visuals::overlay->new( $self->{term}, 0, 0, $self->{term}->ncol, 1, $r );
+                    $self->{bg} = visuals::overlay->new( $self->{term}, 0, 0, $self->{term}->ncol, 1, $G_rend );
+                    $self->{bg}->create("show");
+                    $self->{type} = $self->{term}->CAPTION_BAR;
+                  }
+            }();
+            /$R_CAPTION_BLOCK/ and &{
+                sub {
+                    $self->{type} = $self->{term}->CAPTION_BLOCK;
+                  }
+            }();
+        }
+
+        $self->{visible}           = $self->{term}->{XR}->{SHOWING};
+        $self->{labelVisible}      = $self->{term}->{XR}->{SHOWING_LABELS};
+        $self->{backgroundVisible} = $self->{term}->{XR}->{SHOWING_BG};
     }
 
     sub set {
         my ( $self, $label, $i, $usage ) = (@_);
-        $self->{sprites}->{"$label"}->set( $i, $usage );
+        if ( $self->{visible} ) {
+            $self->{sprites}->{$label}->set( $i, $usage );
+            $self->{labelVisible} ? $self->showLabels : $self->hideLabels;
+            $self->refreshBackground;
+        }
     }
 
     sub setColor {
-        my $self  = shift;
-        my $label = shift;
-        my $i     = shift;
-        my $usage = shift;
-        $self->{sprites}->{"$label"}->setColor( $i, $usage );
+        my ( $self, $label, $i, $usage ) = @_;
+        $self->{sprites}->{$label}->setColor( $i, $usage );
     }
+
+    sub show {
+        my ( $self, $visible ) = @_;
+        $visible = $visible // 1;
+        foreach ( values %{ $self->{sprites} } ) {
+            $visible ? $_->show : $_->hide;
+        }
+        $visible ? $self->showLabels     : $self->hideLabels;
+        $visible ? $self->showBackground : $self->hideBackground;
+        $self->{visible} = $visible;
+    }
+
+    sub hide {
+        my ($self) = @_;
+        $self->show(0);
+    }
+
+    sub showLabels {
+        my ( $self, $visible ) = @_;
+        $visible = $visible // 1;
+        foreach ( values %{ $self->{sprites} } ) {
+            $visible ? $_->showLabel : $_->hideLabel;
+        }
+        $self->refreshBackground;
+        $self->{labelVisible} = $visible;
+    }
+
+    sub hideLabels {
+        my ($self) = @_;
+        $self->showLabels(0);
+    }
+
+    sub showBackground {
+        my ( $self, $visible ) = @_;
+        $visible = $visible // 1;
+        if ( $self->{type} eq $self->{term}->CAPTION_BAR ) {
+            $visible ? $self->{bg}->show : $self->{bg}->hide;
+            $self->{backgroundVisible} = $visible;
+        }
+    }
+
+    sub refreshBackground {
+        my ($self) = @_;
+        if ( $self->{backgroundVisible} ) {
+            $self->hideBackground;
+            $self->showBackground;
+        }
+    }
+
+    sub hideBackground {
+        my ($self) = @_;
+        $self->showBackground(0);
+    }
+
 }
 
 package visuals::visual {
-    use fields qw(term x y rendition pictorials label count width height);
+    use fields qw(term x y rendition pictorials label count width height pictorials_bg);
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
     use constant { GAUGE => '▪' };
     use List::Util qw(max);
@@ -563,9 +624,8 @@ package visuals::visual {
         my $self = shift;
         $self = fields::new($self) unless ref $self;
 
-        @$self{qw/term rendition x y label pictorials/} = @_;
+        @$self{qw/term rendition x y label pictorials pictorials_bg/} = @_;
 
-        #my $l = max (map { length } @visuals);
         $self->{width}  = ( length $self->{label} ) + 1 + @{ $self->{pictorials} };
         $self->{height} = 1;
         return $self;
@@ -574,12 +634,6 @@ package visuals::visual {
     sub setEvenGauges {
         my ( $self, $m ) = @_;
         $self->{width} += ( -@{ $self->{pictorials} } + $m );
-
-    }
-
-    sub show {
-        my $self = shift;
-        $_->{overlay}->show foreach @{ $self->{pictorials} };
     }
 
     sub create {
@@ -592,13 +646,15 @@ package visuals::visual {
 
         $self->{rendition} = urxvt::SET_FGCOLOR $self->{rendition}, 5;
         my $labelObj =
-            visuals::overlay->new( $self->{term}, $self->{x}, $self->{y}, $w, 1, $self->{rendition}, $self->{label} );
+          visuals::overlay->new( $self->{term}, $self->{x}, $self->{y}, $w, $self->{height}, $self->{rendition},
+            $self->{label} );
+
         $labelObj->create("show");
-        $self->{pictorials}->{ $self->{label} } = $labelObj;
+        $self->{label} = $labelObj;
 
         my $pos   = 0;
         my $width = 1;
-        $self->{rendition} = urxvt::SET_BGCOLOR $self->{rendition}, 235;
+        $self->{rendition} = urxvt::SET_BGCOLOR $self->{rendition}, $self->{pictorials_bg};
         for my $i (@visuals) {
             my $x = $self->{x} + $w + $pos++;
 
@@ -606,20 +662,20 @@ package visuals::visual {
                 $self->{rendition} = urxvt::SET_FGCOLOR $self->{rendition}, $_;
                 my $gauge;
 
-                for ( $self->{term}->{X_RESOURCE}->{GAUGES} ) {
+                for ( $self->{term}->{XR}->{GAUGES} ) {
                     /${\($self->{term}->GAUGES_FULL)}/ and &{
                         sub {
                             $gauge =
-                                visuals::overlay->new( $self->{term}, $x, $self->{y}, $width, 1, $self->{rendition},
-                                    BLOCKS->[0] );
-                        }
+                              visuals::overlay->new( $self->{term}, $x, $self->{y}, $width, 1, $self->{rendition},
+                                BLOCKS->[0] );
+                          }
                     }();
                     /${\($self->{term}->GAUGES_SIMPLE)}/ and &{
                         sub {
                             $gauge =
-                                visuals::overlay->new( $self->{term}, $x, $self->{y}, $width, 1, $self->{rendition},
-                                    GAUGE );
-                        }
+                              visuals::overlay->new( $self->{term}, $x, $self->{y}, $width, 1, $self->{rendition},
+                                GAUGE );
+                          }
                     }();
                 }
                 $gauge->create;
@@ -628,9 +684,30 @@ package visuals::visual {
         }
     }
 
+    sub show {
+        my ( $self, $visible ) = @_;
+        $visible = $visible // 1;
+        for ( values %{ $self->{pictorials} } ) {
+            for ( values %{$_} ) {
+                $visible ? $_->show : $_->hide;
+            }
+        }
+    }
+
     sub hide {
-        my $self = shift;
-        $_->{overlay}->hide foreach @{ $self->{pictorials} };
+        my ($self) = @_;
+        $self->show(0);
+    }
+
+    sub showLabel {
+        my ( $self, $visible ) = @_;
+        $visible = $visible // 1;
+        $visible ? $self->{label}->show : $self->{label}->hide;
+    }
+
+    sub hideLabel {
+        my ($self) = @_;
+        $self->showLabel(0);
     }
 
     sub set {
@@ -644,16 +721,16 @@ package visuals::visual {
         if ( $barIdx <= 8 && $barIdx >= 0 ) {
             $self->{pictorials}->{"$i"}->{"$color"}->show;
 
-            for ( $self->{term}->{X_RESOURCE}->{GAUGES} ) {
+            for ( $self->{term}->{XR}->{GAUGES} ) {
                 /${\($self->{term}->GAUGES_FULL)}/ and &{
                     sub {
                         $self->{pictorials}->{"$i"}->{"$color"}->set( BLOCKS->[$barIdx] );
-                    }
+                      }
                 }();
                 /${\($self->{term}->GAUGES_SIMPLE)}/ and &{
                     sub {
                         #Nothing to do yet.
-                    }
+                      }
                 }();
             }
         }
