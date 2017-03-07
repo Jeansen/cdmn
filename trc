@@ -304,8 +304,8 @@ package term {
               trc::visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, "■" x $u . "□" x $f . " $ref->{per}%" );
         }
 
-        for ( my $i = 1 ; $i < @data ; $i++ ) {
-            $data[$i]->create("show");
+        for ( my $j = 1 ; $j < @data ; $j++ ) {
+            $data[$j]->create("show");
         }
         $data[0]->create("show");
     }
@@ -539,8 +539,8 @@ package trc::visuals::visual {
     }
 
     sub setEvenGauges {
-        my ( $self, $m ) = @_;
-        $self->{width} += ( -@{ $self->{pictorials} } + $m );
+        my ( $self, $max ) = @_;
+        $self->{width} += ( -@{ $self->{pictorials} } + $max );
     }
 
     sub create {
@@ -656,7 +656,7 @@ package trc::visuals::overlay {
     }
 
     for my $h (qw(hide show)) {
-        eval qq{sub $h {my \$s = shift; \$s->{overlay}->$h;}};
+        eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } }; ## no critic
     }
 }
 
@@ -807,15 +807,12 @@ sub on_configure_notify {
 
 #just to be save
 for my $h (qw(key_press key_release)) {
-    eval qq {
-        sub on_$h {
-            1;
-        }
-    };
+    ## no critic
+    eval qq { sub on_$h { 1; } };
 }
 
 for my $h (qw(focus_in focus_out)) {
-    eval qq{sub on_$h {(shift)->{eterm}->{term}->$h; 1;}};
+    eval qq{ sub on_$h { (shift)->{eterm}->{term}->$h; 1; } }; ## no critic
 }
 
 sub on_wm_delete_window {
