@@ -28,17 +28,17 @@ package PROC {
     use List::Util qw(sum max min);
 
     my $NETSPEED =
-        `curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
+`curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
     $NETSPEED =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
     $NETSPEED = $2 / 8;
 
     use constant {
-        PARTITIONS => '/proc/partitions',
-        MOUNTS     => '/proc/mounts',
+        PARTITIONS  => '/proc/partitions',
+        MOUNTS      => '/proc/mounts',
         STAT        => '/proc/stat',
         DISKSTATS   => '/proc/diskstats',
         MEMINFO     => '/proc/meminfo',
-        RX_BYTES    => '/sys/class/net/eth0/statistics/rx_bytes', #TODO
+        RX_BYTES    => '/sys/class/net/eth0/statistics/rx_bytes',    #TODO
         CPU_PRESENT => '/sys/devices/system/cpu/present',
     };
 
@@ -47,7 +47,7 @@ package PROC {
         my @a;
         my %a;
         while (<$f>) {
-            push @a, /(^\/dev\S*)\s+([a-zA-Z-_\/]+)/;    #TODO this regex is too simple
+            push @a, /(^\/dev\S*)\s+([a-zA-Z-_\/]+)/;                #TODO this regex is too simple
             %a = (@a);
         }
         return %a;
@@ -108,7 +108,7 @@ package PROC {
             $cpus =~ /-([0-9]+)/;
             return $1 + 1;
         }
-    };
+    }
 
     sub getDiskUsage {
 
@@ -136,6 +136,7 @@ package PROC {
         }
         return \%results;
     }
+
     sub getMemoryUsage {
         my @sda;
         my $total     = 0;
@@ -410,9 +411,6 @@ package visuals::container {
         #Background
         for ( $s->{term}->XR->{caption} ) {
             if ( $_ eq $s->{term}->CAPTION_BAR ) {
-
-                #my $r = urxvt::SET_BGCOLOR $G_rend, 4;
-                #$s->{bg} = visuals::overlay->new( $s->{term}, 0, 0, $s->{term}->ncol, 1, $r );
                 $s->{bg} = visuals::overlay->new( $s->{term}, 0, 0, $s->{term}->ncol, 1, $s->{term}->REND );
                 $s->{bg}->create("show");
                 $s->{type} = $s->{term}->CAPTION_BAR;
@@ -501,15 +499,14 @@ package visuals::container {
 }
 
 package visuals::visual {
+    use List::Util qw(max);
+
     use fields qw(
       term rendition x y label pictorials pictorials_bg
       count width height );
-    use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
-    use constant { GAUGE => '▪' };
-    use constant { TRUE => 1, FALSE => 0 };
-    use List::Util qw(max);
-    my $m = 0;
 
+    use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
+    use constant { TRUE => 1, FALSE => 0 };
     use constant {
         RED    => 3,
         GREEN  => 4,
@@ -518,6 +515,8 @@ package visuals::visual {
         BLUE   => 6,
         WHITE  => 248,
     };
+
+    my $m = 0;
 
     sub getColor {
         for (shift) {
@@ -569,14 +568,7 @@ package visuals::visual {
                 $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
                 my $pictorial;
                 for ( $s->{term}->XR->{gauges} ) {
-                    $pictorial = do {
-                        if ( $_ eq $s->{term}->GAUGES_FULL ) {
-                            visuals::overlay->new( $s->{term}, $x, $s->{y}, 1, 1, $s->{rendition}, BLOCKS->[0] );
-                        }
-                        elsif ( $_ eq $s->{term}->GAUGES_SIMPLE ) {
-                            visuals::overlay->new( $s->{term}, $x, $s->{y}, 1, 1, $s->{rendition}, GAUGE );
-                        }
-                    };
+                    $pictorial = visuals::overlay->new( $s->{term}, $x, $s->{y}, 1, 1, $s->{rendition}, BLOCKS->[0] );
                 }
                 $pictorial->create;
                 $s->{pictorials}{"$i"}{"$_"} = $pictorial;
@@ -622,7 +614,7 @@ package visuals::visual {
             $s->{pictorials}{"$i"}{"$color"}->show;
 
             for ( $s->{term}->XR->{gauges} ) {
-                $s->{pictorials}{"$i"}{"$color"}->set( BLOCKS->[$barIdx] ) if $_ eq $s->{term}->GAUGES_FULL;
+                $s->{pictorials}{"$i"}{"$color"}->set( BLOCKS->[$barIdx] );
             }
         }
     }
@@ -683,8 +675,6 @@ use constant {
 use constant {
     CAPTION_BLOCK => 'block',
     CAPTION_BAR   => 'bar',
-    GAUGES_SIMPLE => 'simple',
-    GAUGES_FULL   => 'full',
 };
 
 use constant XR => resources->new();
@@ -696,7 +686,6 @@ use constant XR => resources->new();
 sub setCaption {
     my $s = shift;
     my $caption;
-
 
     local *addGauges = sub {
         for ( @{ XR->{gauges_order} } ) {
@@ -721,17 +710,11 @@ sub setCaption {
     state $cpus = PROC::getCpuCount() - 1;
 
     for ( XR->{gauges} ) {
-        if ( $_ eq GAUGES_FULL ) {
-            addGauges( [ map "cpu" . $_, 0 .. $cpus ], XR->{gauges_disks}, ["MemAvailable:"], XR->{gauges_nics} );
-        }
-        if ( $_ eq GAUGES_SIMPLE ) {
-            addGauges( ["cpu"], ["sda"], ["MemAvailable:"], ["eth0"] );
-        }
+        addGauges( [ map "cpu" . $_, 0 .. $cpus ], XR->{gauges_disks}, ["MemAvailable:"], XR->{gauges_nics} );
     }
 
     return $caption;
 }
-
 
 ####################################################
 #   HANDLERS
@@ -863,15 +846,14 @@ sub on_init {
     XR->{caption}            = $s->x_resource('%.caption')            // 'bar';       #block | bar | solid-bar
     XR->{caption_background} = $s->x_resource('%.caption-background') // '235';
     XR->{padding}            = $s->x_resource('%.padding')            // 2;           #Padding between visuals
-    XR->{x}      = $s->x_resource('%.x')      // -1;        #positive from left, negativ from right
-    XR->{y}      = $s->x_resource('%.y')      // -1;        #positive from top, negativ from bottom
-    XR->{gauges} = $s->x_resource('%.gauges') // 'full';    #simple | full
+    XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
+    XR->{y} = $s->x_resource('%.y') // -1;    #positive from top, negativ from bottom
 
-    my $disks = $s->x_resource('%.gauges.disks') // 'sda';  #Can be a list, e.g. 'a,b,c' or 'a b c'
+    my $disks = $s->x_resource('%.gauges.disks') // 'sda';    #Can be a list, e.g. 'a,b,c' or 'a b c'
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
     XR->{gauges_disks} = PROC::getDisks;
 
-    my $nics = $s->x_resource('%.gauges.nics') // 'eth0';    #Can be a list, e.g. 'a,b,c' or 'a b c'
+    my $nics = $s->x_resource('%.gauges.nics') // 'eth0';     #Can be a list, e.g. 'a,b,c' or 'a b c'
     $nics = [ split( /[[:punct:],[:space:]]/, $nics ) ];
     XR->{gauges_nics} = $nics;
 
@@ -904,32 +886,18 @@ sub on_start {
     $s->{eterm2}->hide;
     $s->{eterm}->show;
 
-    if ( XR->{caption} eq CAPTION_BLOCK ) {
-        $s->{eterm}->hide;
-    }
+    $s->{eterm}->hide if ( XR->{caption} eq CAPTION_BLOCK );
 
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(1)->cb(
         sub {
             my %r = %{&PROC::getCpuUsage};
-            if ( XR->{gauges} eq GAUGES_FULL ) {
-                while ( my ( $key, $value ) = each %r ) {
-                    if ( $key =~ /^cpu[0-9]/ ) {
-                        $s->{caption}->set( XR->{label_cpu}, $key, $value );
-                    }
-                }
-            }
-            if ( XR->{gauges} eq GAUGES_SIMPLE ) {
-                $s->{caption}->set( XR->{label_cpu}, "cpu", $r{cpu} );
+            while ( my ( $key, $value ) = each %r ) {
+                $s->{caption}->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
             }
 
             %r = %{&PROC::getDiskUsage};
             foreach ( @{ XR->{gauges_disks} } ) {
-                if ( XR->{gauges} eq GAUGES_FULL ) {
-                    $s->{caption}->set( XR->{label_disk}, $_, $r{$_} );
-                }
-            }
-            if ( XR->{gauges} eq GAUGES_SIMPLE ) {
-                $s->{caption}->set( XR->{label_disk}, "sda", $r{sda} );    #TODO
+                $s->{caption}->set( XR->{label_disk}, $_, $r{$_} );
             }
 
             %r = %{&PROC::getMemoryUsage};
@@ -941,7 +909,6 @@ sub on_start {
             while ( my ( $key, $value ) = each %r ) {
                 $s->{caption}->set( XR->{label_network}, $key, $value );
             }
-
         }
     );
 
