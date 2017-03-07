@@ -24,7 +24,7 @@ use strict;
 use warnings FATAL => 'all';
 use utf8;
 
-package PROC {
+package trc::proc {
     use List::Util qw(sum max min);
 
     my $NETSPEED =
@@ -225,7 +225,6 @@ package term {
     }
 
     sub on_user_command {
-
         #my ($s, $a) = ($_[0], $_[1] =~ /([a-zA-Z-]*$)/);
         my $s = shift;
         $s->{term}->{termclass}->{parent}->user_command(@_);
@@ -234,8 +233,8 @@ package term {
 
     sub on_init {
         my $s = shift;
-        $s->bind_action( 'M-h', 'perl:' . &resources::ACTION_SHOW );
-        $s->bind_action( 'M-l', 'perl:' . &resources::ACTION_SHOW_SIDEBAR );
+        $s->bind_action( 'M-h', 'perl:' . &trc::resources::ACTION_SHOW );
+        $s->bind_action( 'M-l', 'perl:' . &trc::resources::ACTION_SHOW_SIDEBAR );
     }
 
     sub on_tt_write {
@@ -285,24 +284,24 @@ package term {
 
     sub setContent {
         my $s      = shift;
-        my %mounts = PROC::getMounts;
+        my %mounts = trc::proc::getMounts;
 
         my $r = urxvt::SET_FGCOLOR $s->{parent}->REND, 240;    #TODO
 
-        $data[0] = visuals::overlay->new( $s->{term}, 0, 0, 1, $root->{parent}->nrow, $r, "│" );
+        $data[0] = trc::visuals::overlay->new( $s->{term}, 0, 0, 1, $root->{parent}->nrow, $r, "│" );
         $r = urxvt::SET_FGCOLOR $s->{parent}->REND, 250;       #TODO
 
         my $i = 1;
-        push @data, visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, 'FS USAGE' );
+        push @data, trc::visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, 'FS USAGE' );
         for ( keys %mounts ) {
             my $ref = df( $mounts{$_} );
             my $u   = ceil( 25 * $ref->{per} / 100 );
             my $f   = floor( 25 - 25 * $ref->{per} / 100 );
 
             $i++;
-            push @data, visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, $mounts{$_} );
+            push @data, trc::visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, $mounts{$_} );
             push @data,
-              visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, "■" x $u . "□" x $f . " $ref->{per}%" );
+              trc::visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, "■" x $u . "□" x $f . " $ref->{per}%" );
         }
 
         for ( my $i = 1 ; $i < @data ; $i++ ) {
@@ -327,7 +326,7 @@ package term {
     }
 }
 
-package resources {
+package trc::resources {
     use fields qw(
       x  y  padding
       showing  showing_labels  showing_background
@@ -351,7 +350,7 @@ package resources {
     }
 }
 
-package visuals::container {
+package trc::visuals::container {
     use fields qw(
       term rendition padding align evenGauges x y
       sprites visible labelVisible backgroundVisible bg type
@@ -373,7 +372,7 @@ package visuals::container {
     #TODO no Reference for visuals?
     sub add {
         my ( $s, $label, $visuals ) = @_;
-        my $visual = visuals::visual->new( $s->{term}, $s->{rendition}, $xOff, $yOff, $label, $visuals,
+        my $visual = trc::visuals::visual->new( $s->{term}, $s->{rendition}, $xOff, $yOff, $label, $visuals,
             $s->{term}->XR->{caption_background} );
 
         $s->{sprites}->{$label} = $visual;
@@ -411,7 +410,7 @@ package visuals::container {
         #Background
         for ( $s->{term}->XR->{caption} ) {
             if ( $_ eq $s->{term}->CAPTION_BAR ) {
-                $s->{bg} = visuals::overlay->new( $s->{term}, 0, 0, $s->{term}->ncol, 1, $s->{term}->REND );
+                $s->{bg} = trc::visuals::overlay->new( $s->{term}, 0, 0, $s->{term}->ncol, 1, $s->{term}->REND );
                 $s->{bg}->create("show");
                 $s->{type} = $s->{term}->CAPTION_BAR;
             }
@@ -498,7 +497,7 @@ package visuals::container {
     }
 }
 
-package visuals::visual {
+package trc::visuals::visual {
     use List::Util qw(max);
 
     use fields qw(
@@ -554,7 +553,7 @@ package visuals::visual {
         $s->{rendition}  = urxvt::SET_FGCOLOR $s->{rendition}, 5;    #TODO
 
         my $labelObj =
-          visuals::overlay->new( $s->{term}, $s->{x}, $s->{y}, $w, $s->{height}, $s->{rendition}, $s->{label} );
+          trc::visuals::overlay->new( $s->{term}, $s->{x}, $s->{y}, $w, $s->{height}, $s->{rendition}, $s->{label} );
 
         $labelObj->create("show");
         $s->{label} = $labelObj;
@@ -568,7 +567,7 @@ package visuals::visual {
                 $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
                 my $pictorial;
                 for ( $s->{term}->XR->{gauges} ) {
-                    $pictorial = visuals::overlay->new( $s->{term}, $x, $s->{y}, 1, 1, $s->{rendition}, BLOCKS->[0] );
+                    $pictorial = trc::visuals::overlay->new( $s->{term}, $x, $s->{y}, 1, 1, $s->{rendition}, BLOCKS->[0] );
                 }
                 $pictorial->create;
                 $s->{pictorials}{"$i"}{"$_"} = $pictorial;
@@ -620,7 +619,7 @@ package visuals::visual {
     }
 }
 
-package visuals::overlay {
+package trc::visuals::overlay {
     use fields qw(
       term x y
       width height
@@ -677,7 +676,7 @@ use constant {
     CAPTION_BAR   => 'bar',
 };
 
-use constant XR => resources->new();
+use constant XR => trc::resources->new();
 
 ####################################################
 #   UTILITY METHODS
@@ -699,15 +698,15 @@ sub setCaption {
     for ( XR->{caption} ) {
         $caption = do {
             if ( $_ eq CAPTION_BAR ) {
-                visuals::container->new( $s, REND, XR->{x}, XR->{y}, XR->{padding}, $_, 0 );
+                trc::visuals::container->new( $s, REND, XR->{x}, XR->{y}, XR->{padding}, $_, 0 );
             }
             elsif ( $_ eq CAPTION_BLOCK ) {
-                visuals::container->new( $s, REND, -1, XR->{y}, 0, $_, 1 );
+                trc::visuals::container->new( $s, REND, -1, XR->{y}, 0, $_, 1 );
             }
         };
     }
 
-    state $cpus = PROC::getCpuCount() - 1;
+    state $cpus = trc::proc::getCpuCount() - 1;
 
     for ( XR->{gauges} ) {
         addGauges( [ map "cpu" . $_, 0 .. $cpus ], XR->{gauges_disks}, ["MemAvailable:"], XR->{gauges_nics} );
@@ -723,7 +722,7 @@ sub setCaption {
 sub user_command {
     my ( $s, $action ) = (@_);
 
-    if ( $action eq &resources::ACTION_SHOW ) {
+    if ( $action eq &trc::resources::ACTION_SHOW ) {
         my $h = $s->fheight * ( $s->nrow - 1 );
         my $w = $s->width;
         my $x = 0;
@@ -741,11 +740,11 @@ sub user_command {
         #$s->{caption}->{visible} ? $s->{caption}->hide : $s->{caption}->show;
     }
 
-    if ( $action eq &resources::ACTION_SHOW_LABELS and XR->{showing} ) {
+    if ( $action eq &trc::resources::ACTION_SHOW_LABELS and XR->{showing} ) {
         $s->{caption}->{labelVisible} ? $s->{caption}->hideLabels : $s->{caption}->showLabels;
     }
 
-    if ( $action eq &resources::ACTION_SHOW_SIDEBAR and XR->{showing} ) {
+    if ( $action eq &trc::resources::ACTION_SHOW_SIDEBAR and XR->{showing} ) {
         $s->{eterm2}->toggle;
     }
 
@@ -851,7 +850,7 @@ sub on_init {
 
     my $disks = $s->x_resource('%.gauges.disks') // 'sda';    #Can be a list, e.g. 'a,b,c' or 'a b c'
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
-    XR->{gauges_disks} = PROC::getDisks;
+    XR->{gauges_disks} = trc::proc::getDisks;
 
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0';     #Can be a list, e.g. 'a,b,c' or 'a b c'
     $nics = [ split( /[[:punct:],[:space:]]/, $nics ) ];
@@ -890,22 +889,22 @@ sub on_start {
 
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(1)->cb(
         sub {
-            my %r = %{&PROC::getCpuUsage};
+            my %r = %{&trc::proc::getCpuUsage};
             while ( my ( $key, $value ) = each %r ) {
                 $s->{caption}->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
             }
 
-            %r = %{&PROC::getDiskUsage};
+            %r = %{&trc::proc::getDiskUsage};
             foreach ( @{ XR->{gauges_disks} } ) {
                 $s->{caption}->set( XR->{label_disk}, $_, $r{$_} );
             }
 
-            %r = %{&PROC::getMemoryUsage};
+            %r = %{&trc::proc::getMemoryUsage};
             while ( my ( $key, $value ) = each %r ) {
                 $s->{caption}->set( XR->{label_ram}, $key, $value );
             }
 
-            %r = %{&PROC::getNetworkUsage};
+            %r = %{&trc::proc::getNetworkUsage};
             while ( my ( $key, $value ) = each %r ) {
                 $s->{caption}->set( XR->{label_network}, $key, $value );
             }
