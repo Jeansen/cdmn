@@ -759,13 +759,19 @@ sub user_command {
 
 sub on_refresh_begin {
     my ($s) = @_;
+
     if ( $s->{w_sizse} != $s->{term}->ncol ) {
+        my $visible_0 = $s->{caption}[0]->{visible};
+        my $visible_1 = $s->{caption}[1]->{visible};
+
         $s->{w_sizse} = $s->{term}->ncol;
         $s->{visuals_updater}->stop;
         $s->{caption}[0] = setCaption $s->{eterm}->{term};
         $s->{caption}[1] = setCaption $s;
         $s->{caption}[0]->create;
         $s->{caption}[1]->create;
+        $visible_0 ? $s->{caption}[0]->show : $s->{caption}[0]->hide;
+        $visible_1 ? $s->{caption}[1]->show : $s->{caption}[1]->hide;
         $s->{visuals_updater}->start;
     }
     1;
