@@ -58,6 +58,7 @@ package trc::proc {
         my @a;
         while (<$f>) {
             push @a, /(sd[a-z]$)/;
+            push @a, /(nvme\dn\d$)/;
         }
 
         return \@a;
@@ -118,7 +119,7 @@ package trc::proc {
 
         open( my $f, '<', DISKSTATS );
         while (<$f>) {
-            if ( !/\bsd(a|b|c)\b/ ) {
+            if ( !/\bsd(a|b|c)|nvme\dn\d\b/ ) {
                 next;
             }
             my @sda = split /\s+/, $_;
@@ -222,10 +223,10 @@ package trc::resources {
 }
 
 package trc::term {
-    use fields qw(x y w h term parent bg_color content is_root resource maximized);
     use Filesys::Df;
     use POSIX qw(ceil floor);
 
+    use fields qw(x y w h term parent bg_color content is_root resource maximized);
     use constant { REND => trc::constants::REND, };
 
     my @terminals;
