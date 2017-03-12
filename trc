@@ -207,13 +207,11 @@ package trc::resources {
     use fields qw(
       x  y  padding
       showing  showing_labels  showing_background
-      caption  caption_background
+      caption  caption_bg
       label_network  label_disk  label_cpu  label_ram
       gauges  gauges_disks  gauges_nics  gauges_order  gauges_background
       actions
     );
-
-
 
     sub new {
         my $s = shift;
@@ -263,10 +261,9 @@ package trc::term {
     }
 
     sub on_user_command {
-
         #my ($s, $a) = ($_[0], $_[1] =~ /([a-zA-Z-]*$)/);
         my $s = shift;
-        $s->{term}->{termclass}->{parent}->user_command(@_);
+        $s->{term}{termclass}{parent}->user_command(@_);
         1;
     }
 
@@ -279,7 +276,7 @@ package trc::term {
 
     sub on_tt_write {
         my $s = shift;
-        if ( !$s->{term}->{parent} ) {
+        if ( !$s->{term}{parent} ) {
             $root->{term}->tt_write(shift);
             return 1;
         }
@@ -288,7 +285,7 @@ package trc::term {
 
     sub on_refresh_begin {
         my $s = shift;
-        if ( !$s->{term}->{parent} ) {
+        if ( !$s->{term}{parent} ) {
             my $str = $s->{term}->locale_encode("\e[0;0H\e[K");
             $s->{term}->cmd_parse($str);    #do not show the cursor!
             return 1;
@@ -366,10 +363,8 @@ package trc::term {
 }
 
 package trc::visuals::container {
-    use fields qw(
-      term rendition padding align evenGauges x y
-      sprites visible bg type
-    );
+    use fields qw( term rendition padding align evenGauges x y );
+    use fields qw( sprites visible bg type );
 
     use constant {
         TRUE          => 1,
@@ -395,7 +390,7 @@ package trc::visuals::container {
         my ( $s, $label, $visuals, $captbg ) = @_;
         my $visual = trc::visuals::visual->new( $s->{term}, $s->{rendition}, $xOff, $yOff, $label, $visuals, $captbg );
 
-        $s->{sprites}->{$label} = $visual;
+        $s->{sprites}{$label} = $visual;
         if ( @{$visuals} > $m && $s->{evenGauges} ) {
             $m = @{$visuals};
             foreach ( values %{ $s->{sprites} } ) {
@@ -443,13 +438,13 @@ package trc::visuals::container {
     sub set {
         my ( $s, $label, $i, $usage ) = (@_);
         if ( $s->{visible} ) {
-            $s->{sprites}->{$label}->set( $i, $usage );
+            $s->{sprites}{$label}->set( $i, $usage );
         }
     }
 
     sub setColor {
         my ( $s, $label, $i, $usage ) = @_;
-        $s->{sprites}->{$label}->setColor( $i, $usage );
+        $s->{sprites}{$label}->setColor( $i, $usage );
     }
 
     sub show {
@@ -516,9 +511,8 @@ package trc::visuals::container {
 package trc::visuals::visual {
     use List::Util qw(max);
 
-    use fields qw(
-      term rendition x y label pictorials pictorials_bg
-      count width height );
+    use fields qw( term rendition x y label pictorials pictorials_bg );
+    use fields qw( count width height );
 
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
     use constant { TRUE => 1, FALSE => 0 };
@@ -631,13 +625,8 @@ package trc::visuals::visual {
 }
 
 package trc::visuals::overlay {
-    use fields qw(
-      term x y
-      width height
-      rendition caption
-
-      overlay
-    );
+    use fields qw( term x y width height rendition caption );
+    use fields qw( overlay );
 
     sub new {
         my $s = shift;
@@ -691,10 +680,10 @@ sub setCaption {
 
     local *addGauges = sub {
         for ( @{ XR->{gauges_order} } ) {
-            $_ eq XR->{label_cpu}     and $caption->add( $_, $_[0], XR->{caption_background} );
-            $_ eq XR->{label_disk}    and $caption->add( $_, $_[1], XR->{caption_background} );
-            $_ eq XR->{label_ram}     and $caption->add( $_, $_[2], XR->{caption_background} );
-            $_ eq XR->{label_network} and $caption->add( $_, $_[3], XR->{caption_background} );
+            $_ eq XR->{label_cpu}     and $caption->add( $_, $_[0], XR->{caption_bg} );
+            $_ eq XR->{label_disk}    and $caption->add( $_, $_[1], XR->{caption_bg} );
+            $_ eq XR->{label_ram}     and $caption->add( $_, $_[2], XR->{caption_bg} );
+            $_ eq XR->{label_network} and $caption->add( $_, $_[3], XR->{caption_bg} );
         }
     };
 
@@ -728,25 +717,25 @@ sub user_command {
         my $w = $s->width;
         my $x = 0;
         my $y = XR->{y} >= 0 ? $s->fheight : -1;
-        if ( $s->{eterm}->{maximized} ) {
-            $s->{eterm}->bounds( $x, $y + 1, $w + 4, $h + 4 );    #TODO why add 4?
-            $s->{eterm}->{maximized} = 0;
+        if ( $s->{xterms}{main}{maximized} ) {
+            $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 );    #TODO why add 4?
+            $s->{xterms}{main}{maximized} = 0;
             $s->{caption}[0]->hide;
         }
         else {
-            $s->{eterm}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
-            $s->{eterm}->{maximized} = 1;
+            $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
+            $s->{xterms}{main}{maximized} = 1;
         }
     }
 
     if ( $action eq &trc::constants::ACTION_SHOW_TRANSPARENT ) {
-        if ( $s->{eterm}->{maximized} ) {
+        if ( $s->{xterms}{main}{maximized} ) {
             $s->{caption}[0]->{visible} ? $s->{caption}[0]->hide : $s->{caption}[0]->show;
         }
     }
 
     if ( $action eq &trc::constants::ACTION_SHOW_SIDEBAR and XR->{showing} ) {
-        $s->{eterm2}->toggle;
+        $s->{xterms}{sidebar}->toggle;
     }
 
     1;
@@ -761,7 +750,7 @@ sub on_refresh_begin {
 
         $s->{w_sizse} = $s->{term}->ncol;
         $s->{visuals_updater}->stop;
-        $s->{caption}[0] = setCaption $s->{eterm}->{term};
+        $s->{caption}[0] = setCaption $s->{xterms}{main}{term};
         $s->{caption}[1] = setCaption $s;
         $s->{caption}[0]->create;
         $s->{caption}[1]->create;
@@ -783,14 +772,14 @@ sub on_configure_notify {
     my $x = 0;
     my $y = XR->{y} >= 0 ? $s->fheight : -1;
 
-    if ( $s->{eterm}->{maximized} ) {
-        $s->{eterm}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
+    if ( $s->{xterms}{main}{maximized} ) {
+        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
     }
     else {
-        $s->{eterm}->bounds( $x, $y + 1, $w + 4, $h );                 #TODO why add 4?
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );                 #TODO why add 4?
     }
-    $s->{eterm2}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );    #TODO why add 4?
-    $s->{eterm2}->setContent;
+    $s->{xterms}{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );    #TODO why add 4?
+    $s->{xterms}{sidebar}->setContent;
     1;
 }
 
@@ -801,7 +790,7 @@ for my $h (qw(key_press key_release)) {
 }
 
 for my $h (qw(focus_in focus_out)) {
-    eval qq{ sub on_$h { (shift)->{eterm}->{term}->$h; 1; } };                               ## no critic
+    eval qq{ sub on_$h { (shift)->{xterms}{main}{term}->$h; 1; } };                               ## no critic
 }
 
 sub on_wm_delete_window {
@@ -810,7 +799,7 @@ sub on_wm_delete_window {
 }
 
 sub on_tt_write {
-    (shift)->{eterm}->{term}->tt_write(shift);
+    (shift)->{xterms}{main}{term}->tt_write(shift);
     1;
 }
 
@@ -829,7 +818,7 @@ sub on_init {
     XR->{showing_labels}     = $s->x_resource('%.showing.labels')     // 1;
     XR->{showing_background} = $s->x_resource('%.showing.background') // 1;
     XR->{caption}            = $s->x_resource('%.caption')            // 'bar';       #block | bar | solid-bar
-    XR->{caption_background} = $s->x_resource('%.caption-background') // '235';
+    XR->{caption_bg} = $s->x_resource('%.caption-background') // '235';
     XR->{padding}            = $s->x_resource('%.padding')            // 2;           #Padding between visuals
     XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
     XR->{y} = $s->x_resource('%.y') // -1;    #positive from top, negativ from bottom
@@ -856,24 +845,24 @@ sub on_start {
     my @argv = $s->argv;
 
     #TODO maybe just create with 0 and handle everything else in config_notify
-    $s->{eterm} = trc::term->new(
+    $s->{xterms}{main} = trc::term->new(
         $s, XR, 0, XR->{y} >= 0 ? $s->fheight : 0,
         $s->width, $s->fheight * ( $s->nrow - 1 ),
         4, 1, @argv
     );
 
-    $s->{eterm}->{maximized} = 1 if XR->{caption} eq trc::constants::CAPTION_BAR;
-    $s->{eterm2} =
+    $s->{xterms}{main}{maximized} = 1 if XR->{caption} eq trc::constants::CAPTION_BAR;
+    $s->{xterms}{sidebar} =
       trc::term->new( $s, XR, $s->width / 2, 0, $s->width / 2 + 1, $s->fheight * ( $s->nrow ), 5, 0, @argv );
-    $s->{eterm2}->disableCursor;
-    $s->{eterm2}->setContent;
-    $s->{eterm2}->hide;
-    $s->{eterm}->show;
+    $s->{xterms}{sidebar}->disableCursor;
+    $s->{xterms}{sidebar}->setContent;
+    $s->{xterms}{sidebar}->hide;
+    $s->{xterms}{main}->show;
 
-    $s->{eterm}->hide if ( XR->{caption} eq trc::constants::CAPTION_BLOCK );
+    $s->{xterms}{main}->hide if ( XR->{caption} eq trc::constants::CAPTION_BLOCK );
 
     $s->{w_sizse}    = $s->{term}->ncol;
-    $s->{caption}[0] = setCaption $s->{eterm}->{term};
+    $s->{caption}[0] = setCaption $s->{xterms}{main}{term};
     $s->{caption}[1] = setCaption $s;
     $s->{caption}[0]->create;
     $s->{caption}[1]->create;
