@@ -28,13 +28,6 @@ package trc::proc {
     use List::Util qw(sum max min);
     use Data::Dumper;
 
-    my $NETSPEED =
-`curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
-    my $NETSPEED_DOWN = $NETSPEED =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
-    $NETSPEED_DOWN = $2 / 8;
-    my $NETSPEED_UP = $NETSPEED =~ /.*(NewLayer1UpstreamMaxBitRate)>([0-9]+)/;
-    $NETSPEED_UP = $2 / 8;
-
     use constant {
         PARTITIONS  => '/proc/partitions',
         MOUNTS      => '/proc/mounts',
@@ -164,7 +157,6 @@ package trc::proc {
 
     sub getNetworkUsage {
         my $direction = shift;
-        my $wan = &getWanInterface;
 
         my %results;
         my $rx_bytes = 0;
@@ -190,10 +182,6 @@ package trc::proc {
                 my $diff_usage = 100 * $diff_rx / &getInterfaceSpeed($nic);
                 $results{$nic.($direction eq 'rx_bytes' ? '_rx' : '_tx')} = $diff_usage;
 
-                if ($nic eq $wan) {
-                    $diff_usage = 100 * $diff_rx / ($direction eq 'rx_bytes' ? $NETSPEED_DOWN : $NETSPEED_UP);
-                    $results{($direction eq 'rx_bytes' ? 'wan_rx' : 'wan_tx')} = $diff_usage;
-                }
             }
         }
         closedir $dh;
@@ -202,7 +190,7 @@ package trc::proc {
     }
 
     sub getWanInterface {
-        open my $fh, '/proc/net/route';
+        open(my $fh, '<', '/proc/net/route');
 
         my $if = <$fh>;
         $if = <$fh>;
@@ -213,7 +201,7 @@ package trc::proc {
 
     sub getInterfaceSpeed {
         my $if = shift;
-        open(my $fh, "/sys/class/net/$if/speed");
+        open(my $fh, '<', "/sys/class/net/$if/speed");
         my $speed = <$fh>;
         $speed *= 1000000 / 8;
         return $speed;
@@ -862,7 +850,7 @@ sub on_init {
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
     XR->{gauges_disks} = trc::proc::getDisks;
 
-    my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx,wan_tx,wan_rx';     #Can be a list,
+    my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';     #Can be a list,
     # e.g. 'a,b,c'
     #  or 'a
     # b c'
