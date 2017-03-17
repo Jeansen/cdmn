@@ -26,11 +26,14 @@ use utf8;
 
 package trc::proc {
     use List::Util qw(sum max min);
+    use Data::Dumper;
 
     my $NETSPEED =
 `curl -s "http://fritz.box:49000/igd2upnp/control/WANCommonIFC1" -H "Content-Type: text/xml; charset="utf-8"" -H "SoapAction:urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1#GetCommonLinkProperties" -d '<?xml version="1.0" encoding="utf-8"?><s:Envelope s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/" xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body><u:GetCommonLinkProperties xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1" /></s:Body></s:Envelope>'`;
-    $NETSPEED =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
-    $NETSPEED = $2 / 8;
+    my $NETSPEED_DOWN = $NETSPEED =~ /.*(NewLayer1DownstreamMaxBitRate)>([0-9]+)/;
+    $NETSPEED_DOWN = $2 / 8;
+    my $NETSPEED_UP = $NETSPEED =~ /.*(NewLayer1UpstreamMaxBitRate)>([0-9]+)/;
+    $NETSPEED_UP = $2 / 8;
 
     use constant {
         PARTITIONS  => '/proc/partitions',
@@ -38,7 +41,6 @@ package trc::proc {
         STAT        => '/proc/stat',
         DISKSTATS   => '/proc/diskstats',
         MEMINFO     => '/proc/meminfo',
-        RX_BYTES    => '/sys/class/net/eth0/statistics/rx_bytes',    #TODO
         CPU_PRESENT => '/sys/devices/system/cpu/present',
     };
 
@@ -78,11 +80,9 @@ package trc::proc {
             my @cpu = split /\s+/;
             my $cpu = shift @cpu;
 
-            $cpus{$cpu} = {} if !defined $cpus{$cpu};
-
-            $cpus{$cpu}{prev_idle}  = $cpus{$cpu}{prev_idle}  // 0;
-            $cpus{$cpu}{prev_total} = $cpus{$cpu}{prev_total} // 0;
-            $cpus{$cpu}{diff_total} = $cpus{$cpu}{diff_total} // 0;
+            if (!defined $cpus{$cpu}) {
+                $cpus{$cpu}{$_} = 0 for qw/prev_idle prev_total diff_total/;
+            }
 
             my $idle  = $cpu[3];
             my $total = sum(@cpu);
@@ -160,30 +160,63 @@ package trc::proc {
         return \%results;
     }
 
+
+
     sub getNetworkUsage {
+        my $direction = shift;
+        my $wan = &getWanInterface;
+
+        my %results;
         my $rx_bytes = 0;
-        state $prev_rx = 0;
+        state %nics;
 
-        open( my $f, '<', RX_BYTES );
-        {
-            local $/;
-            $rx_bytes = <$f>;
+        opendir(my $dh, '/sys/class/net');
+        while (readdir $dh) {
+            my $nic = $_;
+            if (!/^\.|^l/) {
+                if (!defined $nics{$nic}) {
+                    $nics{$nic}{$_} = 0 for qw/rx_bytes tx_bytes/;
+                }
+
+                open( my $f, '<', "/sys/class/net/$_/statistics/$direction" );
+                {
+                    local $/;
+                    $rx_bytes = <$f>;
+                }
+
+                my $diff_rx    = $rx_bytes - $nics{$nic}{$direction} ;
+                $nics{$nic}{$direction} = $rx_bytes;
+
+                my $diff_usage = 100 * $diff_rx / &getInterfaceSpeed($nic);
+                $results{$nic.($direction eq 'rx_bytes' ? '_rx' : '_tx')} = $diff_usage;
+
+                if ($nic eq $wan) {
+                    $diff_usage = 100 * $diff_rx / ($direction eq 'rx_bytes' ? $NETSPEED_DOWN : $NETSPEED_UP);
+                    $results{($direction eq 'rx_bytes' ? 'wan_rx' : 'wan_tx')} = $diff_usage;
+                }
+            }
         }
+        closedir $dh;
 
-        my $diff_rx    = $rx_bytes - $prev_rx;
-        my $diff_usage = 100 * $diff_rx / $NETSPEED;
+        return \%results;;
+    }
 
-        $prev_rx = $rx_bytes;
+    sub getWanInterface {
+        open my $fh, '/proc/net/route';
 
-        return { "eth0", $diff_usage };
+        my $if = <$fh>;
+        $if = <$fh>;
 
-        #open(STAT, '/sys/class/net/eth0/speed');
-        #{
-        #    local $/;
-        #    $speed = <STAT>;
-        #    $speed = 11 * 1000000 / 8
-        #}
-        #close STAT;
+        my @x = split /\s+/, $if;
+        return $x[0];;
+    }
+
+    sub getInterfaceSpeed {
+        my $if = shift;
+        open(my $fh, "/sys/class/net/$if/speed");
+        my $speed = <$fh>;
+        $speed *= 1000000 / 8;
+        return $speed;
     }
 }
 
@@ -824,12 +857,16 @@ sub on_init {
     XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
     XR->{y} = $s->x_resource('%.y') // -1;    #positive from top, negativ from bottom
 
+    #TODO / not using disks defined here, yet - check
     my $disks = $s->x_resource('%.gauges.disks') // 'sda';    #Can be a list, e.g. 'a,b,c' or 'a b c'
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
     XR->{gauges_disks} = trc::proc::getDisks;
 
-    my $nics = $s->x_resource('%.gauges.nics') // 'eth0';     #Can be a list, e.g. 'a,b,c' or 'a b c'
-    $nics = [ split( /[[:punct:],[:space:]]/, $nics ) ];
+    my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx,wan_tx,wan_rx';     #Can be a list,
+    # e.g. 'a,b,c'
+    #  or 'a
+    # b c'
+    $nics = [ split( /[,[:space:]]/, $nics ) ];
     XR->{gauges_nics} = $nics;
 
     #TODO not yet working
@@ -891,7 +928,13 @@ sub on_start {
                 $s->{caption}[1]->set( XR->{label_ram}, $key, $value );
             }
 
-            %r = %{&trc::proc::getNetworkUsage};
+            %r = %{&trc::proc::getNetworkUsage("rx_bytes")};
+            while ( my ( $key, $value ) = each %r ) {
+                $s->{caption}[0]->set( XR->{label_network}, $key, $value );
+                $s->{caption}[1]->set( XR->{label_network}, $key, $value );
+            }
+
+            %r = %{&trc::proc::getNetworkUsage("tx_bytes")};
             while ( my ( $key, $value ) = each %r ) {
                 $s->{caption}[0]->set( XR->{label_network}, $key, $value );
                 $s->{caption}[1]->set( XR->{label_network}, $key, $value );
