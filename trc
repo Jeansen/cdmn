@@ -1,4 +1,4 @@
-#!/usr/bin/perl
+#! perl
 
 # TopRightCorner (TRC) is an extension written for urxvt that shows
 # utilizations of different system resoureces like cpu, disk i/o, ram,
@@ -20,7 +20,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-use 5.24.1;
+use 5.10.1;
 use strict;
 use warnings FATAL => 'all';
 use utf8;
@@ -106,7 +106,6 @@ package trc::proc {
     }
 
     sub getDiskUsage {
-
         state %sda;
         my $diff_usage;
         my %results;
@@ -154,13 +153,11 @@ package trc::proc {
         return \%results;
     }
 
-
-
     sub getNetworkUsage {
         my $direction = shift;
 
         my %results;
-        my $rx_bytes = 0;
+        my $bytes = 0;
         state %nics;
 
         opendir(my $dh, '/sys/class/net');
@@ -174,15 +171,14 @@ package trc::proc {
                 open( my $f, '<', "/sys/class/net/$_/statistics/$direction" );
                 {
                     local $/;
-                    $rx_bytes = <$f>;
+                    $bytes = <$f>;
                 }
 
-                my $diff_rx    = $rx_bytes - $nics{$nic}{$direction} ;
-                $nics{$nic}{$direction} = $rx_bytes;
+                my $diff_rx    = $bytes - $nics{$nic}{$direction} ;
+                $nics{$nic}{$direction} = $bytes;
 
                 my $diff_usage = 100 * $diff_rx / &getInterfaceSpeed($nic);
                 $results{$nic.($direction eq 'rx_bytes' ? '_rx' : '_tx')} = $diff_usage;
-
             }
         }
         closedir $dh;
@@ -851,10 +847,8 @@ sub on_init {
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
     XR->{gauges_disks} = trc::proc::getDisks;
 
-    my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';     #Can be a list,
-    # e.g. 'a,b,c'
-    #  or 'a
-    # b c'
+    #Can be a list, e.g. 'a,b,c' or 'a b c'
+    my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
     $nics = [ split( /[,[:space:]]/, $nics ) ];
     XR->{gauges_nics} = $nics;
 
