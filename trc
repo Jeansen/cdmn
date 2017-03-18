@@ -842,6 +842,7 @@ sub on_init {
     XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
     XR->{y} = $s->x_resource('%.y') // -1;    #positive from top, negativ from bottom
 
+
     #TODO / not using disks defined here, yet - check
     my $disks = $s->x_resource('%.gauges.disks') // 'sda';    #Can be a list, e.g. 'a,b,c' or 'a b c'
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
@@ -852,10 +853,26 @@ sub on_init {
     $nics = [ split( /[,[:space:]]/, $nics ) ];
     XR->{gauges_nics} = $nics;
 
-    #TODO not yet working
     my $order = $s->x_resource('%.header-labels') // 'DISK,CPU,RAM,NETWORK';
     $order = [ split( /[[:punct:],[:space:]]/, $order ) ];
-    XR->{gauges_order} = $order;
+
+    my @order_default;
+    for (qw/label_network label_disk label_cpu label_ram/) {
+        push(@order_default, XR->{$_});
+    }
+
+    my %gauges = map { $_ => 0 } @order_default;
+    while ( my ( $key, $value ) = each @$order ) {
+        if ( ! grep( /^$value$/, @order_default ) ) {
+            splice @$order, $key, $key;
+        }
+        else { $gauges{$value} = 1 }
+    }
+
+    XR->{gauges}=\%gauges;
+
+    (scalar @$order > 0) ? (XR->{gauges_order} = $order) : (XR->{gauges_order} = \@order_default);
+
     XR->{gauges_background} = $s->x_resource('%.gauges-background') // '5';    #simple | full
 
     ();
@@ -893,34 +910,40 @@ sub on_start {
 
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(1)->cb(
         sub {
-            my %r = %{&trc::proc::getCpuUsage};
-            while ( my ( $key, $value ) = each %r ) {
-                $s->{caption}[0]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
-                $s->{caption}[1]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
+            my %r;
+            if ( XR->{gauges}{XR->{label_cpu}}) {
+                %r = %{&trc::proc::getCpuUsage};
+                while ( my ( $key, $value ) = each %r ) {
+                    $s->{caption}[0]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
+                    $s->{caption}[1]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
+                }
             }
 
-            %r = %{&trc::proc::getDiskUsage};
-            foreach ( @{ XR->{gauges_disks} } ) {
-                $s->{caption}[0]->set( XR->{label_disk}, $_, $r{$_} );
-                $s->{caption}[1]->set( XR->{label_disk}, $_, $r{$_} );
+            if ( XR->{gauges}{XR->{label_disk}}) {
+                %r = %{&trc::proc::getDiskUsage};
+                foreach ( @{ XR->{gauges_disks} } ) {
+                    $s->{caption}[0]->set( XR->{label_disk}, $_, $r{$_} );
+                    $s->{caption}[1]->set( XR->{label_disk}, $_, $r{$_} );
+                }
             }
 
-            %r = %{&trc::proc::getMemoryUsage};
-            while ( my ( $key, $value ) = each %r ) {
-                $s->{caption}[0]->set( XR->{label_ram}, $key, $value );
-                $s->{caption}[1]->set( XR->{label_ram}, $key, $value );
+            if ( XR->{gauges}{XR->{label_ram}}) {
+                %r = %{&trc::proc::getMemoryUsage};
+                while ( my ( $key, $value ) = each %r ) {
+                    $_->set( XR->{label_ram}, $key, $value ) foreach @{$s->{caption}};
+                }
             }
 
-            %r = %{&trc::proc::getNetworkUsage("rx_bytes")};
-            while ( my ( $key, $value ) = each %r ) {
-                $s->{caption}[0]->set( XR->{label_network}, $key, $value );
-                $s->{caption}[1]->set( XR->{label_network}, $key, $value );
-            }
+            if ( XR->{gauges}{XR->{label_network}}) {
+                %r = %{&trc::proc::getNetworkUsage("rx_bytes")};
+                while ( my ( $key, $value ) = each %r ) {
+                    $_->set( XR->{label_network}, $key, $value ) foreach @{$s->{caption}};
+                }
 
-            %r = %{&trc::proc::getNetworkUsage("tx_bytes")};
-            while ( my ( $key, $value ) = each %r ) {
-                $s->{caption}[0]->set( XR->{label_network}, $key, $value );
-                $s->{caption}[1]->set( XR->{label_network}, $key, $value );
+                %r = %{&trc::proc::getNetworkUsage("tx_bytes")};
+                while ( my ( $key, $value ) = each %r ) {
+                    $_->set( XR->{label_network}, $key, $value ) foreach @{$s->{caption}};
+                }
             }
         }
     );
