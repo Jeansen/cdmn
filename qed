@@ -1,10 +1,10 @@
 #! perl
 
-# TopRightCorner (TRC) is an extension written for urxvt that shows
+# QED is an extension written for the rxvt terminal emulator that shows
 # utilizations of different system resoureces like cpu, disk i/o, ram,
 # network (and more).
 
-# Copyright (C) 2016 Marcel Lautenbach
+# Copyright (C) 2016-2017 Marcel Lautenbach
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
