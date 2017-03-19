@@ -30,19 +30,19 @@ And here is another example of the additional panel with very simple filesystem 
 
 
 # Installation
-Install urxvt with `sudo apt-get install rxvt-unicode-256color`
+Install urxvt with `sudo apt-get install rxvt-unicode-256color`.<br>
 Install Perl library Filesys::Df with `sudo apt-get install libfilesys-df-perl`
 
-Then clone this repository to a place of your liking and call `urxvt -pe /path/to/git-project/qed`. 
+Then clone this repository to a place of your liking and call `urxvt -pe /path/to/cloned-project/qed`. 
 
 If you do not want to always provide the full path to a perl extension you can set the resource `URxvt*perl-lib`. For
  instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<username>/.urxvt/` and load the changes with 
  `xrdb -load ~/.Xresources`. Then put a symlink in `~/.urxvt` with `ln -s /path/to/git-project/qed ~/.urxvt/qed`. 
  
-From now on you can call rxvt with `urxvt -pe qed`. Make sure you check for updates on a regular basis to enjoy new 
+From now on you can call rxvt with `urxvt -pe qed`. Make sure you update the git clone on a regular basis to enjoy new 
 features and improved stability.
  
-Of course you can have the extension being loaded automatically by adding the resource `URxvt*perl-ext-common: qed` 
+Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: qed` 
 to your .Xresources file. But I would not recommend it at the moment.
 
 #Default keysyms
@@ -59,7 +59,7 @@ visible, just hide QED for a moment. This is what the `Meta-o` binding is for.
 
 On the other hand, if you don't want QED to blank out some of the terminals output or interfere with your current 
 typing, then simply use the *bar* style. In this mode a complete line will be reserved for QED. You can switch to this 
-style with `Meta-h`. This binding will also toggle the visibility of QED whille using the bar style.
+style with `Meta-h`. This binding will also toggle the visibility of QED while using the bar style.
 
 If you want to return to the overlay style just make QED invisible and use the `Meta-o` binding again.
 
@@ -72,8 +72,7 @@ Normally the Meta key maps to the the ALT key. If the bindings do not work, plea
 TODO
 
 # Please note
-As you might already see from the explanations above: There is no release, yet. This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation 
-instructions above it should run on any Debian based distribution, though. 
+This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation instructions above it should run on any Debian based distribution, though. 
 
 # What am I working on currently?
 Most of the configurations in use are in code. Currently I am in the process to make things work via .Xresources 
@@ -83,7 +82,7 @@ and document the settings here.
 - Clean the code, remove magic numbers, add comments, level-up the code quality, resolve TODOs, improve documentation - 
 these are constant tasks ...
 - Make QED more aware of hardware changes. For instance, the current implementation will show you any harddisk, even if
- no mountpoints exist for it. In addition, if a harddisk is hot-plugged, QED will not be aware of it.
+ no mount points exist for it. In addition, if a harddisk is hot-plugged, QED will not be aware of it.
 - QED only gives you some short information on what is going on. I plan to add more details to the panel. 
 - Create a .deb package (and hopefully others, too).
 - Add battery status
