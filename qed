@@ -19,7 +19,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 use 5.10.1;
 use strict;
 use warnings FATAL => 'all';
@@ -40,8 +39,8 @@ package trc::proc {
 
     sub getNics {
         my @a;
-        opendir(my $dh, '/sys/class/net');
-        while (readdir $dh) {
+        opendir( my $dh, '/sys/class/net' );
+        while ( readdir $dh ) {
             my $nic = $_;
             if (!/^\.|^l/) {
                 push @a, $_."_rx";
@@ -56,7 +55,7 @@ package trc::proc {
         my @a;
         my %a;
         while (<$f>) {
-            push @a, /(^\/dev\S*)\s+([a-zA-Z-_\/]+)/;                #TODO this regex is too simple
+            push @a, /(^\/dev\S*)\s+([a-zA-Z-_\/]+)/;    #TODO this regex is too simple
             %a = (@a);
         }
         return %a;
@@ -173,8 +172,8 @@ package trc::proc {
         my $bytes = 0;
         state %nics;
 
-        opendir(my $dh, '/sys/class/net');
-        while (readdir $dh) {
+        opendir( my $dh, '/sys/class/net' );
+        while ( readdir $dh ) {
             my $nic = $_;
             if (!/^\.|^l/) {
                 if (!defined $nics{$nic}) {
@@ -187,31 +186,31 @@ package trc::proc {
                     $bytes = <$f>;
                 }
 
-                my $diff_rx    = $bytes - $nics{$nic}{$direction} ;
+                my $diff_rx = $bytes - $nics{$nic}{$direction};
                 $nics{$nic}{$direction} = $bytes;
 
                 my $diff_usage = 100 * $diff_rx / &getInterfaceSpeed($nic);
-                $results{$nic.($direction eq 'rx_bytes' ? '_rx' : '_tx')} = $diff_usage;
+                $results{ $nic.( $direction eq 'rx_bytes' ? '_rx' : '_tx' ) } = $diff_usage;
             }
         }
         closedir $dh;
 
-        return \%results;;
+        return \%results;
     }
 
     sub getWanInterface {
-        open(my $fh, '<', '/proc/net/route');
+        open( my $fh, '<', '/proc/net/route' );
 
         my $if = <$fh>;
         $if = <$fh>;
 
         my @x = split /\s+/, $if;
-        return $x[0];;
+        return $x[0];
     }
 
     sub getInterfaceSpeed {
         my $if = shift;
-        open(my $fh, '<', "/sys/class/net/$if/speed");
+        open( my $fh, '<', "/sys/class/net/$if/speed" );
         my $speed = <$fh>;
         $speed *= 1000000 / 8;
         return $speed;
@@ -293,6 +292,7 @@ package trc::term {
     }
 
     sub on_user_command {
+
         #my ($s, $a) = ($_[0], $_[1] =~ /([a-zA-Z-]*$)/);
         my $s = shift;
         $s->{term}{termclass}{parent}->user_command(@_);
@@ -457,7 +457,7 @@ package trc::visuals::container {
         #Background
         for ( $s->{align} ) {
             if ( $_ eq CAPTION_BAR ) {
-                $s->{bg} = trc::visuals::overlay->new( $s->{term}, -1, 0, $xOff-1, 1, REND );
+                $s->{bg} = trc::visuals::overlay->new( $s->{term}, - 1, 0, $xOff - 1, 1, REND );
                 $s->{bg}->create("show");
                 $s->{backgroundVisible} = 1;
             }
@@ -820,7 +820,7 @@ for my $h (qw(key_press key_release)) {
 }
 
 for my $h (qw(focus_in focus_out)) {
-    eval qq{ sub on_$h { (shift)->{xterms}{main}{term}->$h; 1; } };                               ## no critic
+    eval qq{ sub on_$h { (shift)->{xterms}{main}{term}->$h; 1; } };                                   ## no critic
 }
 
 sub on_wm_delete_window {
@@ -851,17 +851,17 @@ sub on_init {
     XR->{caption_bg} = $s->x_resource('%.caption-background') // '235';
     XR->{padding}            = $s->x_resource('%.padding')            // 2;           #Padding between visuals
     XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
-    XR->{y} = $s->x_resource('%.y') // 0;    #positive from top, negativ from bottom
-
+    XR->{y} = $s->x_resource('%.y') // 0;     #positive from top, negativ from bottom
 
     my $disks = $s->x_resource('%.gauges.disks') // 'sda';    #Can be a list, e.g. 'a,b,c' or 'a b c'
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
-    XR->{gauges_disks} = trc::proc::getDisks; #TODO remove this overwrite and make it a tolerant default
+    XR->{gauges_disks} = trc::proc::getDisks;                 #TODO remove this overwrite and make it a tolerant default
 
     #Can be a list, e.g. 'a,b,c' or 'a b c'
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
+
     #$nics = [ split( /[,[:space:]]/, $nics ) ];
-    $nics = [ trc::proc->getNics ]; #TODO remove this overwrite and make it a tolerant default
+    $nics = [ trc::proc->getNics ];                           #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_nics} = $nics;
 
     my $order = $s->x_resource('%.header-labels') // 'DISK,CPU,RAM,NETWORK';
@@ -869,20 +869,20 @@ sub on_init {
 
     my @order_default;
     for (qw/label_network label_disk label_cpu label_ram/) {
-        push(@order_default, XR->{$_});
+        push( @order_default, XR->{$_} );
     }
 
     my %gauges = map { $_ => 0 } @order_default;
     while ( my ( $key, $value ) = each @$order ) {
-        if ( ! grep( /^$value$/, @order_default ) ) {
+        if (!grep( /^$value$/, @order_default )) {
             splice @$order, $key, $key;
         }
         else { $gauges{$value} = 1 }
     }
 
-    XR->{gauges}=\%gauges;
+    XR->{gauges} = \%gauges;
 
-    (scalar @$order > 0) ? (XR->{gauges_order} = $order) : (XR->{gauges_order} = \@order_default);
+    ( scalar @$order > 0 ) ? ( XR->{gauges_order} = $order ) : ( XR->{gauges_order} = \@order_default );
 
     XR->{gauges_background} = $s->x_resource('%.gauges-background') // '5';    #simple | full
 
@@ -925,7 +925,7 @@ sub on_start {
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(1)->cb(
         sub {
             my %r;
-            if ( XR->{gauges}{XR->{label_cpu}}) {
+            if (XR->{gauges}{ XR->{label_cpu} }) {
                 %r = %{&trc::proc::getCpuUsage};
                 while ( my ( $key, $value ) = each %r ) {
                     $s->{caption}[0]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
@@ -933,7 +933,7 @@ sub on_start {
                 }
             }
 
-            if ( XR->{gauges}{XR->{label_disk}}) {
+            if (XR->{gauges}{ XR->{label_disk} }) {
                 %r = %{&trc::proc::getDiskUsage};
                 foreach ( @{ XR->{gauges_disks} } ) {
                     $s->{caption}[0]->set( XR->{label_disk}, $_, $r{$_} );
@@ -941,22 +941,22 @@ sub on_start {
                 }
             }
 
-            if ( XR->{gauges}{XR->{label_ram}}) {
+            if (XR->{gauges}{ XR->{label_ram} }) {
                 %r = %{&trc::proc::getMemoryUsage};
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( XR->{label_ram}, $key, $value ) foreach @{$s->{caption}};
+                    $_->set( XR->{label_ram}, $key, $value ) foreach @{ $s->{caption} };
                 }
             }
 
-            if ( XR->{gauges}{XR->{label_network}}) {
-                %r = %{&trc::proc::getNetworkUsage("rx_bytes")};
+            if (XR->{gauges}{ XR->{label_network} }) {
+                %r = %{ &trc::proc::getNetworkUsage("rx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( XR->{label_network}, $key, $value ) foreach @{$s->{caption}};
+                    $_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
 
-                %r = %{&trc::proc::getNetworkUsage("tx_bytes")};
+                %r = %{ &trc::proc::getNetworkUsage("tx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( XR->{label_network}, $key, $value ) foreach @{$s->{caption}};
+                    $_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
             }
         }
