@@ -38,38 +38,38 @@ package trc::proc {
     };
 
     sub getNics {
-        my @a;
+        my @nics;
         opendir( my $dh, '/sys/class/net' );
         while ( readdir $dh ) {
             my $nic = $_;
             if (!/^\.|^l/) {
-                push @a, $_."_rx";
-                push @a, $_."_tx";
+                push @nics, $_."_rx";
+                push @nics, $_."_tx";
             }
         }
-        return @a;
+        return @nics;
     }
 
     sub getMounts {
         open( my $f, '<', MOUNTS );
-        my @a;
-        my %a;
+        my @mounts;
+        my %mounts;
         while (<$f>) {
-            push @a, /(^\/dev\S*)\s+([a-zA-Z-_\/]+)/;    #TODO this regex is too simple
-            %a = (@a);
+            push @mounts, /(^\/dev\S*)\s+([a-zA-Z-_\/]+)/;    #TODO this regex is too simple
+            %mounts = (@mounts);
         }
-        return %a;
+        return %mounts;
     }
 
     sub getDisks {
         open( my $f, '<', PARTITIONS );
-        my @a;
+        my @disks;
         while (<$f>) {
-            push @a, /(sd[a-z]$)/;
-            push @a, /(nvme\dn\d$)/;
+            push @disks, /(sd[a-z]$)/;
+            push @disks, /(nvme\dn\d$)/;
         }
 
-        return \@a;
+        return \@disks;
     }
 
     sub getCpuUsage {
@@ -204,8 +204,8 @@ package trc::proc {
         my $if = <$fh>;
         $if = <$fh>;
 
-        my @x = split /\s+/, $if;
-        return $x[0];
+        my @wif = split /\s+/, $if;
+        return $wif[0];
     }
 
     sub getInterfaceSpeed {
