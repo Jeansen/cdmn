@@ -277,7 +277,7 @@ package trc::term {
             my ($term) = @_;
             $term->{termclass} = $s;
             $term->{parent} = $s->{parent} if $s->{is_root};
-            $term->resource( perl_ext_2 => "-qed" );    #TODO
+            $term->resource( perl_ext_2 => "-qed" );    #TODO remove magic name
         };
 
         push @urxvt::TERM_EXT, __PACKAGE__;
@@ -352,10 +352,10 @@ package trc::term {
         my $s      = shift;
         my %mounts = trc::proc::getMounts;
 
-        my $r = urxvt::SET_FGCOLOR REND, 240;         #TODO
+        my $r = urxvt::SET_FGCOLOR REND, 240;         #TODO remove magic number/hard-coded value
 
         $data[0] = trc::visuals::overlay->new( $s->{term}, 0, 0, 1, $root->{parent}->nrow, $r, "│" );
-        $r = urxvt::SET_FGCOLOR REND, 250;            #TODO
+        $r = urxvt::SET_FGCOLOR REND, 250;            #TODO remove magic number/hard-coded value
         $r = $r | urxvt::RS_Uline;
 
         my $i = 1;
@@ -590,7 +590,7 @@ package trc::visuals::visual {
 
         $s->{pictorials} = {};
         $s->{x}          = -( $w + $m ) if $s->{x} < 0;
-        $s->{rendition}  = urxvt::SET_FGCOLOR $s->{rendition}, 5;    #TODO
+        $s->{rendition}  = urxvt::SET_FGCOLOR $s->{rendition}, 5;    #TODO remove magic number/hard-coded value
 
         my $labelObj =
           trc::visuals::overlay->new( $s->{term}, $s->{x}, $s->{y}, $w, $s->{height}, $s->{rendition}, $s->{label} );
@@ -824,7 +824,7 @@ for my $h (qw(focus_in focus_out)) {
 }
 
 sub on_wm_delete_window {
-    trc::term::destroy_All;    #TODO works, but I don't understand why since destroy is not defined ...
+    trc::term::destroy_All;
     1;
 }
 
@@ -854,15 +854,14 @@ sub on_init {
     XR->{y} = $s->x_resource('%.y') // 0;    #positive from top, negativ from bottom
 
 
-    #TODO / not using disks defined here, yet - check
     my $disks = $s->x_resource('%.gauges.disks') // 'sda';    #Can be a list, e.g. 'a,b,c' or 'a b c'
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
-    XR->{gauges_disks} = trc::proc::getDisks;
+    XR->{gauges_disks} = trc::proc::getDisks; #TODO remove this overwrite and make it a tolerant default
 
     #Can be a list, e.g. 'a,b,c' or 'a b c'
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
     #$nics = [ split( /[,[:space:]]/, $nics ) ];
-    $nics = [ trc::proc->getNics ];
+    $nics = [ trc::proc->getNics ]; #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_nics} = $nics;
 
     my $order = $s->x_resource('%.header-labels') // 'DISK,CPU,RAM,NETWORK';
