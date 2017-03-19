@@ -3,11 +3,10 @@
 ![](https://rawgit.com/Jeansen/assets/master/project-status.svg)
 ![](https://rawgit.com/Jeansen/assets/master/rxvt.svg)
 ![](https://rawgit.com/Jeansen/assets/master/version.svg)
-[![Build Status](https://travis-ci.org/Jeansen/trc.svg?branch=master)](https://travis-ci.org/Jeansen/trc)
+<!--[![Build Status](https://travis-ci.org/Jeansen/trc.svg?branch=master)](https://travis-ci.org/Jeansen/trc)-->
 
 # QED
-QED is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the 
-utilization of different system resources, namely:
+QED (in relation to the Latin phrase [quod erat demonstrandum](https://en.wikipedia.org/wiki/Q.E.D.)) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources, namely:
 
 - CPU
 - DISK
@@ -56,7 +55,7 @@ to your .Xresources file. But I would not recommend it at the moment.
 # How to use QED
 QED offers two visual styles. The *overlay* style simply does what the name already implies. It creates an 
 overlay on top of the current terminal. This style will not interfere with your terminal output. If some text is not 
-visible, just hide QED for a moment. This is what the `Meta-o` binding is for.
+visible, just hide QED for a moment. This is what the `Meta-o` binding is for. 
 
 On the other hand, if you don't want QED to blank out some of the terminals output or interfere with your current 
 typing, then simply use the *bar* style. In this mode a complete line will be reserved for QED. You can switch to this 
@@ -67,23 +66,30 @@ If you want to return to the overlay style just make QED invisible and use the `
 Additional information can be accessed with the `Meta-l` binding. At the moment this will only show some simple 
 filesystem information. But there are already plans for more ...
 
+Normally the Meta key maps to the the ALT key. If the bindings do not work, please check your system mappings.
+
+# Hot to customize QED
+TODO
+
 # Please note
-As you might already see from the explanations above: There is no release, yet. This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often) and I only have tested it on my Linux machine which is running 
-[DebianStretch](https://wiki.debian.org/DebianStretch).
+As you might already see from the explanations above: There is no release, yet. This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation 
+instructions above it should run on any Debian based distribution, though. 
 
 # What am I working on currently?
 Most of the configurations in use are in code. Currently I am in the process to make things work via .Xresources 
 and document the settings here.
 
 # What's next (without priority)
-- Clean the code, remove magic numbers, add comments, level-up the code quality - these are constant tasks ...
-- Make QED more aware of hardware changes. For instance, at the moment QED will show you any harddisk, though no 
-mountpoints exist for it. In addition, if a harddisk is hot-plugged, QED will not be aware of it.
-- QED only gives you some short information on what is going on. I plan to add more details to the panel. For 
-instance one cannot tell at the moment which disk or network interface is being used. One option will be to add 
-additional labels and the other option is to add all those details in an additional panel (or mace the current one 
-scrollable).
+- Clean the code, remove magic numbers, add comments, level-up the code quality, resolve TODOs, improve documentation - 
+these are constant tasks ...
+- Make QED more aware of hardware changes. For instance, the current implementation will show you any harddisk, even if
+ no mountpoints exist for it. In addition, if a harddisk is hot-plugged, QED will not be aware of it.
+- QED only gives you some short information on what is going on. I plan to add more details to the panel. 
 - Create a .deb package (and hopefully others, too).
+- Add battery status
+- Add entry points for other extensions, introduce a plug-in API
+- Add diffrent visual styles
+- Add time graphs
 
 # Contributing
 Fork it, make a Pull Request, create an Issue with suggestions, bugs ore questions ... You are always welcome to 
