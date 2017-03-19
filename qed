@@ -38,6 +38,19 @@ package trc::proc {
         CPU_PRESENT => '/sys/devices/system/cpu/present',
     };
 
+    sub getNics {
+        my @a;
+        opendir(my $dh, '/sys/class/net');
+        while (readdir $dh) {
+            my $nic = $_;
+            if (!/^\.|^l/) {
+                push @a, $_."_rx";
+                push @a, $_."_tx";
+            }
+        }
+        return @a;
+    }
+
     sub getMounts {
         open( my $f, '<', MOUNTS );
         my @a;
@@ -207,10 +220,10 @@ package trc::proc {
 
 package trc::constants {
     use constant {
-        ACTION_SHOW             => 'trc:show',
-        ACTION_SHOW_LABELS      => 'trc:show-labels',
-        ACTION_SHOW_SIDEBAR     => 'trc:show-sidebar',
-        ACTION_SHOW_TRANSPARENT => 'trc:action-show-transparent',
+        ACTION_SHOW             => 'qed:show',
+        ACTION_SHOW_LABELS      => 'qed:show-labels',
+        ACTION_SHOW_SIDEBAR     => 'qed:show-sidebar',
+        ACTION_SHOW_TRANSPARENT => 'qed:action-show-transparent',
     };
 
     use constant {
@@ -264,7 +277,7 @@ package trc::term {
             my ($term) = @_;
             $term->{termclass} = $s;
             $term->{parent} = $s->{parent} if $s->{is_root};
-            $term->resource( perl_ext_2 => "-trc" );    #TODO
+            $term->resource( perl_ext_2 => "-qed" );    #TODO
         };
 
         push @urxvt::TERM_EXT, __PACKAGE__;
@@ -383,7 +396,7 @@ package trc::term {
 
 package trc::visuals::container {
     use fields qw( term rendition padding align evenGauges x y );
-    use fields qw( sprites visible bg type );
+    use fields qw( sprites visible bg backgroundVisible labelVisible);
 
     use constant {
         TRUE          => 1,
@@ -442,16 +455,13 @@ package trc::visuals::container {
         $_->create foreach values %{ $s->{sprites} };
 
         #Background
-        #for ( $s->{align} ) {
-        #    if ( $_ eq CAPTION_BAR ) {
-        #        $s->{bg} = trc::visuals::overlay->new( $s->{term}, 0, 0, $s->{term}->ncol, 1, REND );
-        #        $s->{bg}->create("show");
-        #        $s->{type} = CAPTION_BAR;
-        #    }
-        #    if ( $_ eq CAPTION_BLOCK ) {
-        #        $s->{type} = CAPTION_BLOCK;
-        #    }
-        #}
+        for ( $s->{align} ) {
+            if ( $_ eq CAPTION_BAR ) {
+                $s->{bg} = trc::visuals::overlay->new( $s->{term}, -1, 0, $xOff-1, 1, REND );
+                $s->{bg}->create("show");
+                $s->{backgroundVisible} = 1;
+            }
+        }
     }
 
     sub set {
@@ -459,6 +469,7 @@ package trc::visuals::container {
         if ( $s->{visible} ) {
             $s->{sprites}{$label}->set( $i, $usage );
         }
+        $s->refreshBackground;
     }
 
     sub setColor {
@@ -474,7 +485,7 @@ package trc::visuals::container {
         }
         $visible ? $s->showLabels : $s->hideLabels;
 
-        #$visible ? $s->showBackground : $s->hideBackground;
+        $visible ? $s->showBackground : $s->hideBackground;
         $s->{visible} = $visible;
     }
 
@@ -495,8 +506,8 @@ package trc::visuals::container {
             $visible ? $_->showLabel : $_->hideLabel;
         }
 
-        #$s->refreshBackground;
-        #$s->{labelVisible} = $visible;
+        $s->refreshBackground;
+        $s->{labelVisible} = $visible;
     }
 
     sub hideLabels {
@@ -504,27 +515,27 @@ package trc::visuals::container {
         $s->showLabels(FALSE);
     }
 
-    #sub showBackground {
-    #    my ( $s, $visible ) = @_;
-    #    $visible = $visible // 1;
-    #    if ( $s->{type} eq $s->{term}->CAPTION_BAR ) {
-    #        $visible ? $s->{bg}->show : $s->{bg}->hide;
-    #        $s->{backgroundVisible} = $visible;
-    #    }
-    #}
-    #
-    #sub refreshBackground {
-    #    my ($s) = @_;
-    #    if ( $s->{backgroundVisible} ) {
-    #        $s->hideBackground;
-    #        $s->showBackground;
-    #    }
-    #}
-    #
-    #sub hideBackground {
-    #    my ($s) = @_;
-    #    $s->showBackground(FALSE);
-    #}
+    sub showBackground {
+        my ( $s, $visible ) = @_;
+        $visible = $visible // 1;
+        if ( $s->{align} eq CAPTION_BAR ) {
+            $visible ? $s->{bg}->show : $s->{bg}->hide;
+            $s->{backgroundVisible} = $visible;
+        }
+    }
+
+    sub refreshBackground {
+        my ($s) = @_;
+        if ( $s->{backgroundVisible} ) {
+            $s->hideBackground;
+            $s->showBackground;
+        }
+    }
+
+    sub hideBackground {
+        my ($s) = @_;
+        $s->showBackground(FALSE);
+    }
 }
 
 package trc::visuals::visual {
@@ -840,7 +851,7 @@ sub on_init {
     XR->{caption_bg} = $s->x_resource('%.caption-background') // '235';
     XR->{padding}            = $s->x_resource('%.padding')            // 2;           #Padding between visuals
     XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
-    XR->{y} = $s->x_resource('%.y') // -1;    #positive from top, negativ from bottom
+    XR->{y} = $s->x_resource('%.y') // 0;    #positive from top, negativ from bottom
 
 
     #TODO / not using disks defined here, yet - check
@@ -850,7 +861,8 @@ sub on_init {
 
     #Can be a list, e.g. 'a,b,c' or 'a b c'
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
-    $nics = [ split( /[,[:space:]]/, $nics ) ];
+    #$nics = [ split( /[,[:space:]]/, $nics ) ];
+    $nics = [ trc::proc->getNics ];
     XR->{gauges_nics} = $nics;
 
     my $order = $s->x_resource('%.header-labels') // 'DISK,CPU,RAM,NETWORK';
@@ -904,6 +916,9 @@ sub on_start {
     $s->{caption}[1] = setCaption $s;
     $s->{caption}[0]->create;
     $s->{caption}[1]->create;
+
+    $s->cmd_parse("\e[1T\e[1B");
+    $s->cmd_parse("\e[1T\e[1B");
 
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
     do { shift @argv; } while @argv && $argv[0] ne "-e";    #urxvt [options] [-e command [ args ]]
