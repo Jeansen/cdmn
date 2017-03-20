@@ -5,13 +5,15 @@
 ![](https://rawgit.com/Jeansen/assets/master/version.svg)
 <!--[![Build Status](https://travis-ci.org/Jeansen/trc.svg?branch=master)](https://travis-ci.org/Jeansen/trc)-->
 
-# QED
-QED (in relation to the Latin phrase [quod erat demonstrandum](https://en.wikipedia.org/wiki/Q.E.D.)) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources, namely:
+# cdmn
+*cdmn* is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources, namely:
 
-- CPU
-- DISK
-- RAM
-- NETWORK
+- **C**PU
+- **D**ISK
+- **M**EMORY
+- **N**ETWORK
+
+Hence the name **cdmn**.
 
 Originally I just wanted to have some LED-like indicators but soon decided to make this extension more verbose and 
 changed the simple LED look to animated bars. With time, increasing knowledge and a lot of trial and error, I 
@@ -52,23 +54,23 @@ to your .Xresources file. But I would not recommend it at the moment.
 | Meta-o    | Toggle visibility in overlay style |
 | Meta-h    | Toggle visibility in bar style <br> Switch from overlay to bar style <br> |
 
-# How to use QED
-QED offers two visual styles. The *overlay* style simply does what the name already implies. It creates an 
+# How to use cdmn
+*cdmn* offers two visual styles. The *overlay* style simply does what the name already implies. It creates an 
 overlay on top of the current terminal. This style will not interfere with your terminal output. If some text is not 
-visible, just hide QED for a moment. This is what the `Meta-o` binding is for. 
+visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
 
-On the other hand, if you don't want QED to blank out some of the terminals output or interfere with your current 
-typing, then simply use the *bar* style. In this mode a complete line will be reserved for QED. You can switch to this 
-style with `Meta-h`. This binding will also toggle the visibility of QED while using the bar style.
+On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current 
+typing, then simply use the *bar* style. In this mode a complete line will be reserved for *cdmn*. You can switch to this 
+style with `Meta-h`. This binding will also toggle the visibility of *cdmn* while using the bar style.
 
-If you want to return to the overlay style just make QED invisible and use the `Meta-o` binding again.
+If you want to return to the overlay style just make *cdmn* invisible and use the `Meta-o` binding again.
 
 Additional information can be accessed with the `Meta-l` binding. At the moment this will only show some simple 
 filesystem information. But there are already plans for more ...
 
 Normally the Meta key maps to the the ALT key. If the bindings do not work, please check your system mappings.
 
-# Hot to customize QED
+# Hot to customize cdmn
 TODO
 
 # Please note
@@ -81,9 +83,9 @@ and document the settings here.
 # What's next (without priority)
 - Clean the code, remove magic numbers, add comments, level-up the code quality, resolve TODOs, improve documentation - 
 these are constant tasks ...
-- Make QED more aware of hardware changes. For instance, the current implementation will show you any harddisk, even if
- no mount points exist for it. In addition, if a harddisk is hot-plugged, QED will not be aware of it.
-- QED only gives you some short information on what is going on. I plan to add more details to the panel. 
+- Make *cdmn* more aware of hardware changes. For instance, the current implementation will show you any harddisk, even if
+ no mount points exist for it. In addition, if a harddisk is hot-plugged, *cdmn* will not be aware of it.
+- *cdmn* only gives you some short information on what is going on. I plan to add more details to the panel. 
 - Create a .deb package (and hopefully others, too).
 - Add battery status
 - Add entry points for other extensions, introduce a plug-in API

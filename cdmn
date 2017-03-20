@@ -219,10 +219,10 @@ package trc::proc {
 
 package trc::constants {
     use constant {
-        ACTION_SHOW             => 'qed:show',
-        ACTION_SHOW_LABELS      => 'qed:show-labels',
-        ACTION_SHOW_SIDEBAR     => 'qed:show-sidebar',
-        ACTION_SHOW_TRANSPARENT => 'qed:action-show-transparent',
+        ACTION_SHOW             => 'cdmn:show',
+        ACTION_SHOW_LABELS      => 'cdmn:show-labels',
+        ACTION_SHOW_SIDEBAR     => 'cdmn:show-sidebar',
+        ACTION_SHOW_TRANSPARENT => 'cdmn:action-show-transparent',
     };
 
     use constant {
@@ -276,7 +276,7 @@ package trc::term {
             my ($term) = @_;
             $term->{termclass} = $s;
             $term->{parent} = $s->{parent} if $s->{is_root};
-            $term->resource( perl_ext_2 => "-qed" );    #TODO remove magic name
+                $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
         };
 
         push @urxvt::TERM_EXT, __PACKAGE__;
