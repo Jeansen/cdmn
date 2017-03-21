@@ -6,14 +6,7 @@
 <!--[![Build Status](https://travis-ci.org/Jeansen/trc.svg?branch=master)](https://travis-ci.org/Jeansen/trc)-->
 
 # cdmn
-*cdmn* is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources, namely:
-
-- **C**PU
-- **D**ISK
-- **M**EMORY
-- **N**ETWORK
-
-Hence the name **cdmn**.
+*cdmn* (**c**pu, **d**isk, **m**emory, **n**etwork) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources.
 
 Originally I just wanted to have some LED-like indicators but soon decided to make this extension more verbose and 
 changed the simple LED look to animated bars. With time, increasing knowledge and a lot of trial and error, I 
@@ -35,16 +28,16 @@ And here is another example of the additional panel with very simple filesystem 
 Install urxvt with `sudo apt-get install rxvt-unicode-256color`.<br>
 Install Perl library Filesys::Df with `sudo apt-get install libfilesys-df-perl`
 
-Then clone this repository to a place of your liking and call `urxvt -pe /path/to/cloned-project/qed`. 
+Then clone this repository to a place of your liking and call `urxvt -pe /path/to/cloned-project/cdmn`. 
 
 If you do not want to always provide the full path to a perl extension you can set the resource `URxvt*perl-lib`. For
  instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<username>/.urxvt/` and load the changes with 
- `xrdb -load ~/.Xresources`. Then put a symlink in `~/.urxvt` with `ln -s /path/to/git-project/qed ~/.urxvt/qed`. 
+ `xrdb -load ~/.Xresources`. Then put a symlink in `~/.urxvt` with `ln -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
  
-From now on you can call rxvt with `urxvt -pe qed`. Make sure you update the git clone on a regular basis to enjoy new 
+From now on you can call rxvt with `urxvt -pe cdmn`. Make sure you update the git clone on a regular basis to enjoy new 
 features and improved stability.
  
-Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: qed` 
+Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: cdmn` 
 to your .Xresources file. But I would not recommend it at the moment.
 
 #Default keysyms
@@ -52,7 +45,7 @@ to your .Xresources file. But I would not recommend it at the moment.
 | --------- | --------- |
 | Meta-l    | Show left panel |
 | Meta-o    | Toggle visibility in overlay style |
-| Meta-h    | Toggle visibility in bar style <br> Switch from overlay to bar style <br> |
+| Meta-h    | Toggle visibility in bar style <br> Switch from overlay to bar style |
 
 # How to use cdmn
 *cdmn* offers two visual styles. The *overlay* style simply does what the name already implies. It creates an 
@@ -60,8 +53,8 @@ overlay on top of the current terminal. This style will not interfere with your 
 visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
 
 On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current 
-typing, then simply use the *bar* style. In this mode a complete line will be reserved for *cdmn*. You can switch to this 
-style with `Meta-h`. This binding will also toggle the visibility of *cdmn* while using the bar style.
+typing, then simply use the *bar* style. With this style a complete line will be reserved for *cdmn*. You can switch to 
+this style with `Meta-h`. This binding will also toggle the visibility of *cdmn* while using the bar style.
 
 If you want to return to the overlay style just make *cdmn* invisible and use the `Meta-o` binding again.
 
@@ -70,19 +63,19 @@ filesystem information. But there are already plans for more ...
 
 Normally the Meta key maps to the the ALT key. If the bindings do not work, please check your system mappings.
 
-# Hot to customize cdmn
+# How to customize cdmn
 TODO
 
 # Please note
-This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation instructions above it should run on any Debian based distribution, though. 
+This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation instructions above it should run on any Debian based distribution, though.
 
 # What am I working on currently?
 Most of the configurations in use are in code. Currently I am in the process to make things work via .Xresources 
 and document the settings here.
 
 # What's next (without priority)
-- Clean the code, remove magic numbers, add comments, level-up the code quality, resolve TODOs, improve documentation - 
-these are constant tasks ...
+- Cleanup the code, remove magic numbers, add comments, level-up the code quality, resolve TODOs, improve 
+documentation - these are constant tasks ...
 - Make *cdmn* more aware of hardware changes. For instance, the current implementation will show you any harddisk, even if
  no mount points exist for it. In addition, if a harddisk is hot-plugged, *cdmn* will not be aware of it.
 - *cdmn* only gives you some short information on what is going on. I plan to add more details to the panel. 
@@ -93,11 +86,11 @@ these are constant tasks ...
 - Add time graphs
 
 # Contributing
-Fork it, make a Pull Request, create an Issue with suggestions, bugs ore questions ... You are always welcome to 
+Fork it, make a Pull Request, create Issues with suggestions, bugs ore questions ... You are always welcome to 
 contribute!
 
 # Self-Promotion
-Like QED? Follow me and/or the repository on GitHub.
+Like cdmn? Follow me and/or the repository on GitHub.
 
 # License
 GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
