@@ -1,6 +1,6 @@
 #! perl
 
-# QED is an extension written for the rxvt terminal emulator that shows
+# cdmn is an extension written for the rxvt terminal emulator that shows
 # utilizations of different system resoureces like cpu, disk i/o, ram,
 # network (and more).
 
