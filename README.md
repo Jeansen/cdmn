@@ -69,14 +69,14 @@ Here are some settings, that already work with more to come:
 
 | Resource | Function | Default |
 | --- | --- | --- |
-| URxvt.cdmn.caption-order | List of Captions to show and their order. This list must contain existing labels, otherwise the caption will be ignored. | DISK,CPU,RAM,NETWORK |
-| URxvt.cdmn.label.disk | Label you would like to see next to the disk gauges. | DISK |
-| URxvt.cdmn.label.cpu | Label you would like to see next to the cpu gauges. | CPU  |
-| URxvt.cdmn.label.ram | Label you would like to see next to the memory gauges. | RAM |
-| URxvt.cdmn.label.network | Label you would like to see next to the network gauges. | NETWORK |
-| URxvt.cdmn.padding | How much space (in characters) you would like to have between each caption. | 2 |
-| URxvt.cdmn.x | Horizontal position (by character) where values >= 0 will result in a left alignment and negative numbers in a right alignment. | -1 |
-| URxvt.cdmn.y | Vertical position (by row) where 0 will be the first line and -1 the last. | 0 |
+| `URxvt.cdmn.caption-order` | List of Captions to show and their order. This list must contain existing labels, otherwise the caption will be ignored. | DISK,CPU,RAM,NETWORK |
+| `URxvt.cdmn.label.disk` | Label you would like to see next to the disk gauges. | DISK |
+| `URxvt.cdmn.label.cpu` | Label you would like to see next to the cpu gauges. | CPU  |
+| `URxvt.cdmn.label.ram` | Label you would like to see next to the memory gauges. | RAM |
+| `URxvt.cdmn.label.network` | Label you would like to see next to the network gauges. | NETWORK |
+| `URxvt.cdmn.padding | How much space (in characters) you would like to have between each caption. | 2 |
+| `URxvt.cdmn.x` | Horizontal position (by character) where values >= 0 will result in a left alignment and negative numbers in a right alignment. | -1 |
+| `URxvt.cdmn.y` | Vertical position (by row) where 0 will be the first line and -1 the last. | 0 |
 
 Here is an excerpt of the default settings. You can use this as a starting point for your custom overwrites in your 
 **.Xresources** file.
