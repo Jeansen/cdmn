@@ -24,7 +24,7 @@ use strict;
 use warnings FATAL => 'all';
 use utf8;
 
-package trc::proc {
+package cdmn::proc {
     use List::Util qw(sum max min);
     use Data::Dumper;
 
@@ -217,7 +217,7 @@ package trc::proc {
     }
 }
 
-package trc::constants {
+package cdmn::constants {
     use constant {
         ACTION_SHOW             => 'cdmn:show',
         ACTION_SHOW_LABELS      => 'cdmn:show-labels',
@@ -234,7 +234,7 @@ package trc::constants {
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
 }
 
-package trc::resources {
+package cdmn::resources {
     use fields qw(
       x  y  padding
       showing  showing_labels  showing_background
@@ -252,12 +252,12 @@ package trc::resources {
     }
 }
 
-package trc::term {
+package cdmn::term {
     use Filesys::Df;
     use POSIX qw(ceil floor);
 
     use fields qw(x y w h term parent bg_color content is_root resource maximized);
-    use constant { REND => trc::constants::REND, };
+    use constant { REND => cdmn::constants::REND, };
 
     my @terminals;
     my $root;
@@ -301,9 +301,9 @@ package trc::term {
 
     sub on_init {
         my $s = shift;
-        $s->bind_action( 'M-h', 'perl:' . &trc::constants::ACTION_SHOW );
-        $s->bind_action( 'M-l', 'perl:' . &trc::constants::ACTION_SHOW_SIDEBAR );
-        $s->bind_action( 'M-o', 'perl:' . &trc::constants::ACTION_SHOW_TRANSPARENT );
+        $s->bind_action( 'M-h', 'perl:'.&cdmn::constants::ACTION_SHOW );
+        $s->bind_action( 'M-l', 'perl:'.&cdmn::constants::ACTION_SHOW_SIDEBAR );
+        $s->bind_action( 'M-o', 'perl:'.&cdmn::constants::ACTION_SHOW_TRANSPARENT );
     }
 
     sub on_tt_write {
@@ -350,16 +350,16 @@ package trc::term {
 
     sub setContent {
         my $s      = shift;
-        my %mounts = trc::proc::getMounts;
+        my %mounts = cdmn::proc::getMounts;
 
         my $r = urxvt::SET_FGCOLOR REND, 240;         #TODO remove magic number/hard-coded value
 
-        $data[0] = trc::visuals::overlay->new( $s->{term}, 0, 0, 1, $root->{parent}->nrow, $r, "│" );
+        $data[0] = cdmn::visuals::overlay->new( $s->{term}, 0, 0, 1, $root->{parent}->nrow, $r, "│" );
         $r = urxvt::SET_FGCOLOR REND, 250;            #TODO remove magic number/hard-coded value
         $r = $r | urxvt::RS_Uline;
 
         my $i = 1;
-        push @data, trc::visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, 'FS USAGE' );
+        push @data, cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, 'FS USAGE' );
         $r = urxvt::SET_FGCOLOR REND, 250;
         for ( keys %mounts ) {
             my $ref = df( $mounts{$_} );
@@ -367,9 +367,9 @@ package trc::term {
             my $f   = floor( 25 - 25 * $ref->{per} / 100 );
 
             $i++;
-            push @data, trc::visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, $mounts{$_} );
+            push @data, cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, $mounts{$_} );
             push @data,
-              trc::visuals::overlay->new( $s->{term}, -1, $i++, 32, 1, $r, "■" x $u . "□" x $f . " $ref->{per}%" );
+                cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, "■" x $u."□" x $f." $ref->{per}%" );
         }
 
         for ( my $j = 1 ; $j < @data ; $j++ ) {
@@ -394,16 +394,16 @@ package trc::term {
     }
 }
 
-package trc::visuals::container {
+package cdmn::visuals::container {
     use fields qw( term rendition padding align evenGauges x y );
     use fields qw( sprites visible bg backgroundVisible labelVisible);
 
     use constant {
         TRUE          => 1,
         FALSE         => 0,
-        CAPTION_BAR   => trc::constants::CAPTION_BAR,
-        CAPTION_BLOCK => trc::constants::CAPTION_BLOCK,
-        REND          => trc::constants::REND,
+        CAPTION_BAR   => cdmn::constants::CAPTION_BAR,
+        CAPTION_BLOCK => cdmn::constants::CAPTION_BLOCK,
+        REND          => cdmn::constants::REND,
     };
 
     my ( $xOff, $yOff, $m ) = ( 0, 0, 0 );
@@ -420,7 +420,7 @@ package trc::visuals::container {
     #TODO no Reference for visuals?
     sub add {
         my ( $s, $label, $visuals, $captbg ) = @_;
-        my $visual = trc::visuals::visual->new( $s->{term}, $s->{rendition}, $xOff, $yOff, $label, $visuals, $captbg );
+        my $visual = cdmn::visuals::visual->new( $s->{term}, $s->{rendition}, $xOff, $yOff, $label, $visuals, $captbg );
 
         $s->{sprites}{$label} = $visual;
         if ( @{$visuals} > $m && $s->{evenGauges} ) {
@@ -457,7 +457,7 @@ package trc::visuals::container {
         #Background
         for ( $s->{align} ) {
             if ( $_ eq CAPTION_BAR ) {
-                $s->{bg} = trc::visuals::overlay->new( $s->{term}, - 1, 0, $xOff - 1, 1, REND );
+                $s->{bg} = cdmn::visuals::overlay->new( $s->{term}, - 1, 0, $xOff - 1, 1, REND );
                 $s->{bg}->create("show");
                 $s->{backgroundVisible} = 1;
             }
@@ -538,7 +538,7 @@ package trc::visuals::container {
     }
 }
 
-package trc::visuals::visual {
+package cdmn::visuals::visual {
     use List::Util qw(max);
 
     use fields qw( term rendition x y label pictorials pictorials_bg );
@@ -593,7 +593,7 @@ package trc::visuals::visual {
         $s->{rendition}  = urxvt::SET_FGCOLOR $s->{rendition}, 5;    #TODO remove magic number/hard-coded value
 
         my $labelObj =
-          trc::visuals::overlay->new( $s->{term}, $s->{x}, $s->{y}, $w, $s->{height}, $s->{rendition}, $s->{label} );
+            cdmn::visuals::overlay->new( $s->{term}, $s->{x}, $s->{y}, $w, $s->{height}, $s->{rendition}, $s->{label} );
 
         $labelObj->create("show");
         $s->{label} = $labelObj;
@@ -606,7 +606,7 @@ package trc::visuals::visual {
             foreach ( &RED, &GREEN, &BLUE, &YELLOW, &WHITE, &PINK ) {
                 $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
                 my $pictorial =
-                  trc::visuals::overlay->new( $s->{term}, $x, $s->{y}, 1, 1, $s->{rendition}, BLOCKS->[0] );
+                    cdmn::visuals::overlay->new( $s->{term}, $x, $s->{y}, 1, 1, $s->{rendition}, BLOCKS->[0] );
                 $pictorial->create;
                 $s->{pictorials}{"$i"}{"$_"} = $pictorial;
             }
@@ -654,7 +654,7 @@ package trc::visuals::visual {
     }
 }
 
-package trc::visuals::overlay {
+package cdmn::visuals::overlay {
     use fields qw( term x y width height rendition caption );
     use fields qw( overlay );
 
@@ -695,10 +695,10 @@ use constant {
     MEMORY  => 'memory',
     NETWORK => 'network',
     DISK    => 'disk',
-    REND    => trc::constants::REND,
+    REND    => cdmn::constants::REND,
 };
 
-use constant XR => trc::resources->new();
+use constant XR => cdmn::resources->new();
 
 ####################################################
 #   UTILITY METHODS
@@ -719,16 +719,16 @@ sub setCaption {
 
     for ( XR->{caption} ) {
         $caption = do {
-            if ( $_ eq trc::constants::CAPTION_BAR ) {
-                trc::visuals::container->new( $s, REND, XR->{x}, XR->{y}, XR->{padding}, $_, 0, XR->{showing} );
+            if ($_ eq cdmn::constants::CAPTION_BAR) {
+                cdmn::visuals::container->new( $s, REND, XR->{x}, XR->{y}, XR->{padding}, $_, 0, XR->{showing} );
             }
-            elsif ( $_ eq trc::constants::CAPTION_BLOCK ) {
-                trc::visuals::container->new( $s, REND, -1, XR->{y}, 0, $_, 1, XR->{showing} );
+            elsif ($_ eq cdmn::constants::CAPTION_BLOCK) {
+                cdmn::visuals::container->new( $s, REND, - 1, XR->{y}, 0, $_, 1, XR->{showing} );
             }
         };
     }
 
-    state $cpus = trc::proc::getCpuCount() - 1;
+    state $cpus = cdmn::proc::getCpuCount() - 1;
 
     addGauges( [ map "cpu" . $_, 0 .. $cpus ], XR->{gauges_disks}, ["MemAvailable:"], XR->{gauges_nics} );
 
@@ -742,7 +742,7 @@ sub setCaption {
 sub user_command {
     my ( $s, $action ) = (@_);
 
-    if ( $action eq &trc::constants::ACTION_SHOW ) {
+    if ($action eq &cdmn::constants::ACTION_SHOW) {
         my $h = $s->fheight * ( $s->nrow - 1 );
         my $w = $s->width;
         my $x = 0;
@@ -758,13 +758,13 @@ sub user_command {
         }
     }
 
-    if ( $action eq &trc::constants::ACTION_SHOW_TRANSPARENT ) {
+    if ($action eq &cdmn::constants::ACTION_SHOW_TRANSPARENT) {
         if ( $s->{xterms}{main}{maximized} ) {
             $s->{caption}[0]->{visible} ? $s->{caption}[0]->hide : $s->{caption}[0]->show;
         }
     }
 
-    if ( $action eq &trc::constants::ACTION_SHOW_SIDEBAR and XR->{showing} ) {
+    if ($action eq &cdmn::constants::ACTION_SHOW_SIDEBAR and XR->{showing}) {
         $s->{xterms}{sidebar}->toggle;
     }
 
@@ -824,7 +824,7 @@ for my $h (qw(focus_in focus_out)) {
 }
 
 sub on_wm_delete_window {
-    trc::term::destroy_All;
+    cdmn::term::destroy_All;
     1;
 }
 
@@ -855,13 +855,13 @@ sub on_init {
 
     my $disks = $s->x_resource('%.gauges.disks') // 'sda';    #Can be a list, e.g. 'a,b,c' or 'a b c'
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
-    XR->{gauges_disks} = trc::proc::getDisks;                 #TODO remove this overwrite and make it a tolerant default
+    XR->{gauges_disks} = cdmn::proc::getDisks;                 #TODO remove this overwrite and make it a tolerant default
 
     #Can be a list, e.g. 'a,b,c' or 'a b c'
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
 
     #$nics = [ split( /[,[:space:]]/, $nics ) ];
-    $nics = [ trc::proc->getNics ];                           #TODO remove this overwrite and make it a tolerant default
+    $nics = [ cdmn::proc->getNics ];                           #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_nics} = $nics;
 
     my $order = $s->x_resource('%.header-labels') // 'DISK,CPU,RAM,NETWORK';
@@ -894,21 +894,21 @@ sub on_start {
     my @argv = $s->argv;
 
     #TODO maybe just create with 0 and handle everything else in config_notify
-    $s->{xterms}{main} = trc::term->new(
+    $s->{xterms}{main} = cdmn::term->new(
         $s, XR, 0, XR->{y} >= 0 ? $s->fheight : 0,
         $s->width, $s->fheight * ( $s->nrow - 1 ),
         4, 1, @argv
     );
 
-    $s->{xterms}{main}{maximized} = 1 if XR->{caption} eq trc::constants::CAPTION_BAR;
+    $s->{xterms}{main}{maximized} = 1 if XR->{caption} eq cdmn::constants::CAPTION_BAR;
     $s->{xterms}{sidebar} =
-      trc::term->new( $s, XR, $s->width / 2, 0, $s->width / 2 + 1, $s->fheight * ( $s->nrow ), 5, 0, @argv );
+        cdmn::term->new( $s, XR, $s->width / 2, 0, $s->width / 2 + 1, $s->fheight * ( $s->nrow ), 5, 0, @argv );
     $s->{xterms}{sidebar}->disableCursor;
     $s->{xterms}{sidebar}->setContent;
     $s->{xterms}{sidebar}->hide;
     $s->{xterms}{main}->show;
 
-    $s->{xterms}{main}->hide if ( XR->{caption} eq trc::constants::CAPTION_BLOCK );
+    $s->{xterms}{main}->hide if ( XR->{caption} eq cdmn::constants::CAPTION_BLOCK );
 
     $s->{w_sizse}    = $s->{term}->ncol;
     $s->{caption}[0] = setCaption $s->{xterms}{main}{term};
@@ -926,7 +926,7 @@ sub on_start {
         sub {
             my %r;
             if (XR->{gauges}{ XR->{label_cpu} }) {
-                %r = %{&trc::proc::getCpuUsage};
+                %r = %{&cdmn::proc::getCpuUsage};
                 while ( my ( $key, $value ) = each %r ) {
                     $s->{caption}[0]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
                     $s->{caption}[1]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
@@ -934,7 +934,7 @@ sub on_start {
             }
 
             if (XR->{gauges}{ XR->{label_disk} }) {
-                %r = %{&trc::proc::getDiskUsage};
+                %r = %{&cdmn::proc::getDiskUsage};
                 foreach ( @{ XR->{gauges_disks} } ) {
                     $s->{caption}[0]->set( XR->{label_disk}, $_, $r{$_} );
                     $s->{caption}[1]->set( XR->{label_disk}, $_, $r{$_} );
@@ -942,19 +942,19 @@ sub on_start {
             }
 
             if (XR->{gauges}{ XR->{label_ram} }) {
-                %r = %{&trc::proc::getMemoryUsage};
+                %r = %{&cdmn::proc::getMemoryUsage};
                 while ( my ( $key, $value ) = each %r ) {
                     $_->set( XR->{label_ram}, $key, $value ) foreach @{ $s->{caption} };
                 }
             }
 
             if (XR->{gauges}{ XR->{label_network} }) {
-                %r = %{ &trc::proc::getNetworkUsage("rx_bytes") };
+                %r = %{ &cdmn::proc::getNetworkUsage("rx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
                     $_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
 
-                %r = %{ &trc::proc::getNetworkUsage("tx_bytes") };
+                %r = %{ &cdmn::proc::getNetworkUsage("tx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
                     $_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
