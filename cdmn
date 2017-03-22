@@ -864,7 +864,7 @@ sub on_init {
     $nics = [ cdmn::proc->getNics ];                           #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_nics} = $nics;
 
-    my $order = $s->x_resource('%.header-labels') // 'DISK,CPU,RAM,NETWORK';
+    my $order = $s->x_resource('%.caption-order') // 'DISK,CPU,RAM,NETWORK';
     $order = [ split( /[[:punct:],[:space:]]/, $order ) ];
 
     my @order_default;

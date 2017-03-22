@@ -63,8 +63,18 @@ filesystem information. But there are already plans for more ...
 
 Normally the Meta key maps to the the ALT key. If the bindings do not work, please check your system mappings.
 
-# How to customize cdmn
-TODO
+# How to customize cdmn (so far)
+
+Here are some settings, that already work with more to come:
+
+| Resource                 | Function                                               | Default                     |
+| ------------------------ | ------------------------------------------------------ | --------------------------- |
+| URxvt.cdmn.caption-order | List of Captions to show and their order. This list must contain existing labels, 
+otherwise the caption will be ignored. | DISK,CPU,RAM,NETWORK |
+
+
+
+
 
 # Please note
 This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation instructions above it should run on any Debian based distribution, though.
