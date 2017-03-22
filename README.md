@@ -29,10 +29,11 @@ Install urxvt with `sudo apt-get install rxvt-unicode-256color`.<br>
 Install Perl library Filesys::Df with `sudo apt-get install libfilesys-df-perl`
 
 Then clone this repository to a place of your liking and set the resource `URxvt*perl-lib`.
-For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<username>/.urxvt/` and load the changes with 
- `xrdb -load ~/.Xresources`. Then put a symlink in `~/.urxvt` with `ln -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
+For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<username>/.urxvt/` and 
+load the changes with `xrdb -load ~/.Xresources`. Then create the folder `mkdir ~/.urxvt` and put a symlink in it `ln
+ -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
  
-From now on you can call rxvt with `urxvt -pe cdmn`. Make sure you update the git clone on a regular basis to enjoy new 
+Now, when you call rxvt with `urxvt -pe cdmn`. Make sure you update the git clone on a regular basis to enjoy new 
 features and improved stability.
  
 Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: cdmn` 
