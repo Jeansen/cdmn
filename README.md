@@ -38,7 +38,7 @@ features and improved stability.
 Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: cdmn` 
 to your .Xresources file. But I would not recommend it at the moment.
 
-#Default keysyms
+# Default keysyms
 
 | Keysym    | Function  |
 | --------- | --------- |
