@@ -28,10 +28,8 @@ And here is another example of the additional panel with very simple filesystem 
 Install urxvt with `sudo apt-get install rxvt-unicode-256color`.<br>
 Install Perl library Filesys::Df with `sudo apt-get install libfilesys-df-perl`
 
-Then clone this repository to a place of your liking and call `urxvt -pe /path/to/cloned-project/cdmn`. 
-
-If you do not want to always provide the full path to a perl extension you can set the resource `URxvt*perl-lib`. For
- instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<username>/.urxvt/` and load the changes with 
+Then clone this repository to a place of your liking and set the resource `URxvt*perl-lib`.
+For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<username>/.urxvt/` and load the changes with 
  `xrdb -load ~/.Xresources`. Then put a symlink in `~/.urxvt` with `ln -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
  
 From now on you can call rxvt with `urxvt -pe cdmn`. Make sure you update the git clone on a regular basis to enjoy new 
