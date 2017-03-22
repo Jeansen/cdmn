@@ -17,11 +17,11 @@ library. I plan to remove this dependency in the future.
 
 Here's a screenshot of what it looks like:
 
-![](https://rawgit.com/Jeansen/assets/master/examples/qed_1.png)
+![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_1.png)
 
 And here is another example of the additional panel with very simple filesystem information:
 
-![](https://rawgit.com/Jeansen/assets/master/examples/qed_2.png)
+![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
 
 
 # Installation
