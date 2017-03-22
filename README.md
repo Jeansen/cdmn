@@ -69,7 +69,7 @@ Here are some settings, that already work with more to come:
 
 | Resource | Function | Default |
 | --- | --- | --- |
-| `URxvt.cdmn.caption-order` | List of Captions to show and their order. This list must contain existing labels, otherwise the caption will be ignored. | DISK,CPU,RAM,NETWORK |
+| `URxvt.cdmn.caption-order` | List of captions to show and their order. This list must contain existing labels, otherwise the caption will be ignored. | DISK,CPU,RAM,NETWORK |
 | `URxvt.cdmn.label.disk` | Label you would like to see next to the disk gauges. | DISK |
 | `URxvt.cdmn.label.cpu` | Label you would like to see next to the cpu gauges. | CPU  |
 | `URxvt.cdmn.label.ram` | Label you would like to see next to the memory gauges. | RAM |
