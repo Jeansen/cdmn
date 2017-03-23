@@ -55,7 +55,7 @@ package cdmn::proc {
         my @mounts;
         my %mounts;
         while (<$f>) {
-            push @mounts, /(^\/dev\S*)\s+([a-zA-Z-_\/]+)/;    #TODO this regex is too simple
+            push @mounts, /(^\/dev\S*)\s+([a-zA-Z0-9-_.\/]+)/;   #TODO this regex is too simple
             %mounts = (@mounts);
         }
         return %mounts;

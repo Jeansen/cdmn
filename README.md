@@ -107,7 +107,6 @@ This extension is with relevance to its current stage [bleeding edge alpha](http
 
 # Known Issues (To be fixed soon!)
 - The network gauges may not work, if there are NICs like docker0 (and maybe others)
-- Some calculation fails for the filesystem usage with optical devices.
 
 # What am I working on currently?
 Most of the configurations in use are in code. Currently I am in the process to make things work via .Xresources 
