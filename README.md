@@ -23,13 +23,13 @@ And here is another example of the additional panel with very simple filesystem 
 
 ![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
 
-
 # Installation
-Install urxvt with `sudo apt-get install rxvt-unicode-256color`.<br>
+Install urxvt with `sudo apt-get install rxvt-unicode-256color`. **Make sure the version is 9.22. Anything else may 
+not work!**<br>
 Install Perl library Filesys::Df with `sudo apt-get install libfilesys-df-perl`
 
 Then clone this repository to a place of your liking and set the resource `URxvt*perl-lib`.
-For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<username>/.urxvt/` and 
+For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<USERNAME>/.urxvt/` and 
 load the changes with `xrdb -load ~/.Xresources`. Then create the folder `mkdir ~/.urxvt` and put a symlink in it `ln
  -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
  
@@ -90,9 +90,24 @@ Here is an excerpt of the default settings. You can use this as a starting point
     URxvt.cdmn.x: -1
     URxvt.cdmn.y: 0
 
+In addition you should set scrollbars to be invisible, activate 32bit colors and make the background black. Here is 
+an suggestion of the minimal settings necessary. 
+
+    URxvt*scrollBar:        false
+    URxvt*background:       rgba:0000/0000/0000/f000
+    URxvt*depth:            32
+    URxvt*perl-lib:         /home/<USERNAME>/.urxvt/
+    
+I have put an example .Xresouces file with the minimal necessary settings, including some color overwrites to make it
+ look like in the example screenshots. Make sure you adapt the line `URxvt*perl-lib: /home/<USERNAME>/.urxvt/` 
+ accordingly.
 
 # Please note
 This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation instructions above it should run on any Debian based distribution, though.
+
+# Known Issues (To be fixed soon!)
+- The network gauges may not work, if there are NICs like docker0 (and maybe others)
+- Some calculation fails for the filesystem usage with optical devices.
 
 # What am I working on currently?
 Most of the configurations in use are in code. Currently I am in the process to make things work via .Xresources 
