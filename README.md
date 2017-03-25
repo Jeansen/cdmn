@@ -24,7 +24,7 @@ And here is another example of the additional panel with very simple filesystem 
 ![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
 
 # Known Issues (To be fixed soon!)
-- The extension may not work if any wifi interface is present. I am working on this, but it is actually harder 
+The extension may not work if any wifi interface is present. I am working on this, but it is actually harder 
 than expected. In the meantime, set `URxvt.cdmn.caption-order` to only contain your labels for cpu, disk and memory. 
 If you did not change the defaults, this would be `URxvt.cdmn.caption-order: CPU,DISK,RAM`. Network gauges 
 will be missing, but anything else should work.
