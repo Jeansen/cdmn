@@ -23,6 +23,12 @@ And here is another example of the additional panel with very simple filesystem 
 
 ![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
 
+# Known Issues (To be fixed soon!)
+- The extension may not work if any wifi interface is present. I am working on this, but it is actually harder 
+than expected. In the meantime, set `URxvt.cdmn.caption-order` to only contain your labels for cpu, disk and memory. 
+If you did not change the defaults, this would be `URxvt.cdmn.caption-order: CPU,DISK,RAM`. Network gauges 
+will be missing, but anything else should work.
+
 # Installation
 Install urxvt with `sudo apt-get install rxvt-unicode-256color`. **Make sure the version is 9.22. Anything else may 
 not work!**<br>
@@ -104,9 +110,6 @@ I have put an example .Xresouces file with the minimal necessary settings, inclu
 
 # Please note
 This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation instructions above it should run on any Debian based distribution, though.
-
-# Known Issues (To be fixed soon!)
-- The network gauges may not work, if there are NICs like docker0 (and maybe others)
 
 # What am I working on currently?
 Most of the configurations in use are in code. Currently I am in the process to make things work via .Xresources 
