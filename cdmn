@@ -37,14 +37,25 @@ package cdmn::proc {
         CPU_PRESENT => '/sys/devices/system/cpu/present',
     };
 
+    sub isWifi {
+        opendir( my $dh, "/sys/class/net/$_" );
+        while ( readdir $dh ) {
+            if (/wireless/) {
+                return 1;
+            }
+        }
+        0;
+    };
+
     sub getNics {
         my @nics;
         opendir( my $dh, '/sys/class/net' );
         while ( readdir $dh ) {
             my $nic = $_;
             if (!/^\.|^l/) {
-                push @nics, $_."_rx";
-                push @nics, $_."_tx";
+                next if (isWifi($nic));
+                push @nics, $nic."_rx";
+                push @nics, $nic."_tx";
             }
         }
         return @nics;
@@ -176,11 +187,12 @@ package cdmn::proc {
         while ( readdir $dh ) {
             my $nic = $_;
             if (!/^\.|^l/) {
+                next if isWifi($nic);
                 if (!defined $nics{$nic}) {
                     $nics{$nic}{$_} = 0 for qw/rx_bytes tx_bytes/;
                 }
 
-                open( my $f, '<', "/sys/class/net/$_/statistics/$direction" );
+                open( my $f, '<', "/sys/class/net/$nic/statistics/$direction" );
                 {
                     local $/;
                     $bytes = <$f>;
