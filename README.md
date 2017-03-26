@@ -24,10 +24,11 @@ And here is another example of the additional panel with very simple filesystem 
 ![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
 
 # Known Issues (To be fixed soon!)
-The extension may not work if any wifi interface is present. I am working on this, but it is actually harder 
-than expected. In the meantime, set `URxvt.cdmn.caption-order` to only contain your labels for cpu, disk and memory. 
-If you did not change the defaults, this would be `URxvt.cdmn.caption-order: CPU,DISK,RAM`. Network gauges 
-will be missing, but anything else should work.
+Wifi interfaces are being ignored for now. It is astonishingly hard to query the max bitrate for wifi interfaces 
+because this information is not available through sysfs or procfs. In addition, commands like iwlist or iwfonfig are 
+not reliable. Calling iw would work but it requires root privileges. Netlink and nl80211 are the other way to go but 
+require a lot of knowledge I do not have, yet. And frankly I would only switch one requirement (root privilege) with 
+another dependency (tree). For now I will go with calling iw but I hope I will find a better solution later on ...
 
 # Installation
 Install urxvt with `sudo apt-get install rxvt-unicode-256color`. **Make sure the version is 9.22. Anything else may 
