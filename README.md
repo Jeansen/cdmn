@@ -133,6 +133,7 @@ improve documentation - these are constant tasks ...
 - Add entry points for other extensions, introduce a plug-in API
 - Add diffrent visual styles
 - Add time graphs
+- WAN gauge - for (home) workstations it might be of interest to see the current speed used.
 
 # Contributing
 Fork it, make a Pull Request, create Issues with suggestions, bugs ore questions ... You are always welcome to 
