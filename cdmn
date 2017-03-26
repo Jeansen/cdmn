@@ -204,6 +204,7 @@ package cdmn::proc {
 
                 my $diff_usage = 100 * $diff_rx / &getInterfaceSpeed($nic);
                 $results{ $nic.( $direction eq 'rx_bytes' ? '_rx' : '_tx' ) } = $diff_usage;
+
             }
         }
         closedir $dh;
@@ -224,9 +225,20 @@ package cdmn::proc {
     sub getInterfaceSpeed {
         my $if = shift;
         my $speed;
+        state $refresh = 4;
+        state $wifispeed;
+
         if (isWifi($if)) {
-            my $c = qx/sudo iw dev wlan0 link/;
-            ($speed) = $c =~ /tx bitrate:\s*(\d*\.\d*)\s*MBit/;
+            if ($refresh >= 4) {
+                $refresh = 0;
+                my $c = qx/sudo iw dev wlan0 station dump/;
+                ($wifispeed) = $c =~ /expected throughput:\s*(\d*\.\d*)/;
+                $speed = $wifispeed;
+            }
+            else {
+                $refresh++;
+                $speed = $wifispeed;
+            }
         }
         else {
             open( my $fh, '<', "/sys/class/net/$if/speed" );
