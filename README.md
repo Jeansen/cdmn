@@ -24,11 +24,7 @@ And here is another example of the additional panel with very simple filesystem 
 ![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
 
 # Known Issues (To be fixed soon!)
-Wifi interfaces are being ignored for now. It is astonishingly hard to query the max bitrate for wifi interfaces 
-because this information is not available through sysfs or procfs. In addition, commands like iwlist or iwfonfig are 
-not reliable. Calling iw would work but it requires root privileges. Netlink and nl80211 are the other way to go but 
-require a lot of knowledge I do not have, yet. And frankly I would only switch one requirement (root privilege) with 
-another dependency (tree). For now I will go with calling iw but I hope I will find a better solution later on ...
+None, so far ...
 
 # Installation
 Install urxvt with `sudo apt-get install rxvt-unicode-256color`. **Make sure the version is 9.22. Anything else may 
@@ -45,6 +41,14 @@ features and improved stability.
  
 Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: cdmn` 
 to your .Xresources file. But I would not recommend it at the moment.
+
+## Using cdmn with wireless NICs
+Wireless is a bit of a speciality because there is no constant maximal rx/tx speed. The value is constantly evaluated 
+and unfortunately not available via *sysfs* or *procfs*. Therefore cdmn uses `iw` as part of its calculation. 
+Unfortunately this requires root privileges. To make thinks work, put the following in `/et/sudoers`:
+
+    <username> ALL = NOPASSWD: /sbin/iw
+    
 
 # Default keysyms
 
@@ -113,15 +117,17 @@ I have put an example .Xresouces file with the minimal necessary settings, inclu
 This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation instructions above it should run on any Debian based distribution, though.
 
 # What am I working on currently?
-Most of the configurations in use are in code. Currently I am in the process to make things work via .Xresources 
+- Most of the configurations in use are in code. Currently I am in the process to make things work via .Xresources 
 and document the settings here.
+- Make handling of deactivated/disconnected NICs configurable, that is: Do not show such interfaces or use visual 
+cues for their state.
 
 # What's next (without priority)
-- Cleanup the code, remove magic numbers, add comments, level-up the code quality, resolve TODOs, improve 
-documentation - these are constant tasks ...
+- Cleanup the code, remove magic numbers, add comments, improve robustness, level-up the code quality, resolve TODOs, 
+improve documentation - these are constant tasks ...
 - Make *cdmn* more aware of hardware changes. For instance, the current implementation will show you any harddisk, even if
  no mount points exist for it. In addition, if a harddisk is hot-plugged, *cdmn* will not be aware of it.
-- *cdmn* only gives you some short information on what is going on. I plan to add more details to the panel. 
+- *cdmn* only gives you some short information on what is going on. I plan to add more details to the panel.
 - Create a .deb package (and hopefully others, too).
 - Add battery status
 - Add entry points for other extensions, introduce a plug-in API
