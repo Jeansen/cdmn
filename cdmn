@@ -78,6 +78,7 @@ package cdmn::proc {
         while (<$f>) {
             push @disks, /(sd[a-z]$)/;
             push @disks, /(nvme\dn\d$)/;
+            push @disks, /(mmcblk\dn\d$)/;
         }
 
         return \@disks;
