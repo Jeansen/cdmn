@@ -136,7 +136,7 @@ package cdmn::proc {
 
         open( my $f, '<', DISKSTATS );
         while (<$f>) {
-            if ( !/\bsd(a|b|c)|nvme\dn\d\b/ ) {
+            if (!/\bsd(a|b|c)|nvme\dn\d\b|mmcblk\d\b/) {
                 next;
             }
             my @sda = split /\s+/, $_;
