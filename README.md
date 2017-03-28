@@ -44,10 +44,10 @@ to your .Xresources file. But I would not recommend it at the moment.
 
 ## Using cdmn with wireless NICs
 Wireless is a bit of a speciality because there is no constant maximal rx/tx speed. The value is constantly evaluated 
-and unfortunately not available via *sysfs* or *procfs*. Therefore cdmn uses `iw` as part of its calculation. 
+and unfortunately not available via *sysfs* or *procfs*. Therefore cdmn uses `iwconfig` as part of its calculation. 
 Unfortunately this requires root privileges. To make thinks work, put the following in `/et/sudoers`:
 
-    <username> ALL = NOPASSWD: /sbin/iw
+    <username> ALL = NOPASSWD: /sbin/iwconfig
     
 
 # Default keysyms
