@@ -27,7 +27,6 @@ use utf8;
 package cdmn::proc {
     use List::Util qw(sum max min);
     use Data::Dumper;
-    use Capture::Tiny ':all';
 
     use constant {
         PARTITIONS  => '/proc/partitions',
@@ -231,8 +230,8 @@ package cdmn::proc {
         if (isWifi($if)) {
             if ($refresh >= 4) {
                 $refresh = 0;
-                my $c = qx/sudo iw dev wlan0 station dump/;
-                ($wifispeed) = $c =~ /expected throughput:\s*(\d*\.\d*)/;
+                my $c = qx/sudo iwconfig wlan0/;
+                ($wifispeed) = $c =~ /Bit Rate=(\d*\.{0,1}\d*)/;
                 $speed = $wifispeed;
             }
             else {
