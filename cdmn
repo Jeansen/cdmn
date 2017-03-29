@@ -38,24 +38,30 @@ package cdmn::proc {
     };
 
     sub isWifi {
-        opendir( my $dh, "/sys/class/net/$_" );
+        my $nic = shift;
+        opendir( my $dh, "/sys/class/net/$nic" );
         while ( readdir $dh ) {
             if (/wireless/) {
                 return 1;
             }
         }
         0;
-    };
+    }
 
     sub getNics {
         my @nics;
         opendir( my $dh, '/sys/class/net' );
         while ( readdir $dh ) {
             my $nic = $_;
-            if (!/^\.|^l/) {
-                #next if (isWifi($nic));
-                push @nics, $nic."_rx";
-                push @nics, $nic."_tx";
+            if (!/^\./) {
+                if (!isWifi $nic) {
+                    open( my $f, '<', "/sys/class/net/$nic/speed" );
+                    chomp(my @lines = <$f>);
+                    if ((scalar @lines) > 0) {
+                        #next if (isWifi($nic));
+                        push @nics, $nic;
+                    }
+                }
             }
         }
         return @nics;
@@ -184,31 +190,24 @@ package cdmn::proc {
         my $bytes = 0;
         state %nics;
 
-        opendir( my $dh, '/sys/class/net' );
-        while ( readdir $dh ) {
+        for (getNics) {
             my $nic = $_;
-            if (!/^\.|^l/) {
-                #next if isWifi($nic);
-                if (!defined $nics{$nic}) {
-                    $nics{$nic}{$_} = 0 for qw/rx_bytes tx_bytes/;
-                }
-
-                open( my $f, '<', "/sys/class/net/$nic/statistics/$direction" );
-                {
-                    local $/;
-                    $bytes = <$f>;
-                }
-
-                my $diff_rx = $bytes - $nics{$nic}{$direction};
-                $nics{$nic}{$direction} = $bytes;
-
-                my $diff_usage = 100 * $diff_rx / &getInterfaceSpeed($nic);
-                $results{ $nic.( $direction eq 'rx_bytes' ? '_rx' : '_tx' ) } = $diff_usage;
-
+            if (!defined $nics{$nic}) {
+                $nics{$nic}{$_} = 0 for qw/rx_bytes tx_bytes/;
             }
-        }
-        closedir $dh;
 
+            open( my $f, '<', "/sys/class/net/$nic/statistics/$direction" );
+            {
+                local $/;
+                $bytes = <$f>;
+            }
+
+            my $diff_rx = $bytes - $nics{$nic}{$direction};
+            $nics{$nic}{$direction} = $bytes;
+
+            my $diff_usage = 100 * $diff_rx / &getInterfaceSpeed($nic);
+            $results{ $nic.( $direction eq 'rx_bytes' ? '_rx' : '_tx' ) } = $diff_usage;
+        }
         return \%results;
     }
 
@@ -227,7 +226,6 @@ package cdmn::proc {
         my $speed;
         state $refresh = 4;
         state $wifispeed;
-
         if (isWifi($if)) {
             if ($refresh >= 4) {
                 $refresh = 0;
@@ -893,7 +891,7 @@ sub on_init {
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
 
     #$nics = [ split( /[,[:space:]]/, $nics ) ];
-    $nics = [ cdmn::proc->getNics ];                           #TODO remove this overwrite and make it a tolerant default
+    $nics = [ map {$_."_tx", $_."_rx"} cdmn::proc->getNics ]; #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_nics} = $nics;
 
     my $order = $s->x_resource('%.caption-order') // 'DISK,CPU,RAM,NETWORK';
