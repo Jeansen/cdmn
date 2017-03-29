@@ -83,7 +83,6 @@ package cdmn::proc {
             push @disks, /(nvme\dn\d$)/;
             push @disks, /(mmcblk\d$)/;
         }
-        say $_ for @disks;
         return \@disks;
     }
 
