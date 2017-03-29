@@ -74,6 +74,27 @@ filesystem information. But there are already plans for more ...
 
 Normally the Meta key maps to the the ALT key. If the bindings do not work, please check your system mappings.
 
+# My distibution does not have rxvt-unicode-256color 9.22
+
+It might happen that your distribution does not offer version 9.22 of rxvt, even not via backports 
+or other repositories. In this case you can still compile rxvt yourself. I recommend to first install the available 
+version of your distribution anyway to pull in all its dependencies. Then uninstall it directly afterwards (but 
+keep the dependencies). Now you can build rxvt yourself. This should take less than 5 minutes. Here is what you need to do on Debian:
+
+- First you will need to install some development packages to compile rxsvt with all the necessary features.
+ 
+        sudo apt-get install libxft-dev libperl-dev checkinstall
+
+- Get the source from [http://dist.schmorp.de/rxvt-unicode/](http://dist.schmorp.de/rxvt-unicode/) and extract it to a 
+place of your liking. Navigate into the just extracted folder and run the following commands:
+
+        ./configure
+        make
+        checkinstall
+    
+After that a package with the name `rxvt-unicode` will be installed and you should able to call `urxvt`.
+    
+
 # How to customize cdmn (so far)
 
 Here are some settings, that already work with more to come:
