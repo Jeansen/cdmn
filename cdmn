@@ -53,16 +53,13 @@ package cdmn::proc {
         opendir( my $dh, '/sys/class/net' );
         while ( readdir $dh ) {
             my $nic = $_;
-            if (!/^\./) {
-                if (!isWifi $nic) {
-                    open( my $f, '<', "/sys/class/net/$nic/speed" );
-                    chomp(my @lines = <$f>);
-                    if ((scalar @lines) > 0) {
-                        #next if (isWifi($nic));
-                        push @nics, $nic;
-                    }
-                }
+            next if (/^\./);
+            if (!isWifi $nic) {
+                open( my $f, '<', "/sys/class/net/$nic/speed" );
+                chomp(my @lines = <$f>);
+                next if scalar @lines eq 0;
             }
+            push @nics, $nic;
         }
         return @nics;
     }
@@ -84,9 +81,9 @@ package cdmn::proc {
         while (<$f>) {
             push @disks, /(sd[a-z]$)/;
             push @disks, /(nvme\dn\d$)/;
-            push @disks, /(mmcblk\dn\d$)/;
+            push @disks, /(mmcblk\d$)/;
         }
-
+        say $_ for @disks;
         return \@disks;
     }
 
@@ -266,13 +263,13 @@ package cdmn::constants {
 
 package cdmn::resources {
     use fields qw(
-      x  y  padding
-      showing  showing_labels  showing_background
-      caption  caption_bg
-      label_network  label_disk  label_cpu  label_ram
-      gauges  gauges_disks  gauges_nics  gauges_order  gauges_background
-      actions
-    );
+        x  y  padding
+            showing  showing_labels  showing_background
+            caption  caption_bg
+            label_network  label_disk  label_cpu  label_ram
+            gauges  gauges_disks  gauges_nics  gauges_order  gauges_background
+            actions
+        );
 
     sub new {
         my $s = shift;
@@ -303,11 +300,11 @@ package cdmn::term {
 
         # save a backlink to us, make sure tabbed is inactive
         push @urxvt::TERM_INIT, sub {
-            my ($term) = @_;
-            $term->{termclass} = $s;
-            $term->{parent} = $s->{parent} if $s->{is_root};
+                my ($term) = @_;
+                $term->{termclass} = $s;
+                $term->{parent} = $s->{parent} if $s->{is_root};
                 $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
-        };
+            };
 
         push @urxvt::TERM_EXT, __PACKAGE__;
 
@@ -472,7 +469,7 @@ package cdmn::visuals::container {
             for ( $s->{align} ) {
                 if ( $_ eq CAPTION_BAR ) {
                     $_->{x} = $s->{term}->ncol - $xOff + $_->{x} + $s->{x} + $s->{padding} + 1
-                      foreach ( values %{ $s->{sprites} } );
+                        foreach ( values %{ $s->{sprites} } );
                 }
                 if ( $_ eq CAPTION_BLOCK ) {
                     $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} + $s->{x} foreach ( values %{ $s->{sprites} } );
