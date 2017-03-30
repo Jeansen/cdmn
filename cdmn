@@ -34,6 +34,7 @@ package cdmn::proc {
         STAT        => '/proc/stat',
         DISKSTATS   => '/proc/diskstats',
         MEMINFO     => '/proc/meminfo',
+        NET_ROUTE   => '/proc/net/route',
         CPU_PRESENT => '/sys/devices/system/cpu/present',
     };
 
@@ -48,20 +49,33 @@ package cdmn::proc {
         OPERSTATE_DORMANT        => 'dormant',
     };
 
+    use constant {
+        SYSFS_NET           => '/sys/class/net/',
+        SYSFS_NET_SPEED     => 'speed',
+        SYSFS_NET_OPERSTATE => 'operstate',
+        SYSFS_NET_TX        => 'tx_bytes',
+        SYSFS_NET_RX        => 'rx_bytes',
+    };
+
+    sub sysfs {
+        my $path = "/sys/class/net/$_[0]";
+        return $path."/statistics/$_[1]" if $_[1] && $_[1] =~ /tx|rx/;
+        return $path."/$_[1]" if $_[1];
+        return $path;
+    }
+
     sub isWifi {
         my $nic = shift;
-        opendir( my $dh, "/sys/class/net/$nic" );
+        opendir( my $dh, sysfs($nic) );
         while ( readdir $dh ) {
-            if (/wireless/) {
-                return 1;
-            }
+            return 1 if (/wireless/);
         }
         0;
     }
 
     sub isDown {
         my $nic = shift;
-        open( my $f, '<', "/sys/class/net/$nic/operstate" );
+        open( my $f, '<', sysfs($nic, SYSFS_NET_OPERSTATE) );
         chomp(my $state = <$f>);
         return 1 if $state eq OPERSTATE_DOWN || $state eq OPERSTATE_UNKNOWN;
         0;
@@ -69,12 +83,12 @@ package cdmn::proc {
 
     sub getNics {
         my @nics;
-        opendir( my $dh, '/sys/class/net' );
+        opendir( my $dh, SYSFS_NET);
         while ( readdir $dh ) {
             my $nic = $_;
             next if (/^\./);
             if (!isWifi($nic)) {
-                open( my $f, '<', "/sys/class/net/$nic/speed" );
+                open( my $f, '<', sysfs($nic, SYSFS_NET_SPEED) );
                 chomp(my @lines = <$f>);
                 next if scalar @lines eq 0 || isDown($nic);
             }
@@ -112,9 +126,7 @@ package cdmn::proc {
 
         open( my $f, '<', STAT );
         while (<$f>) {
-            if ( !/^cpu[0-9]*\s+[0-9]+/ ) {
-                next;
-            }
+            next if ( !/^cpu[0-9]*\s+[0-9]+/ );
 
             my @cpu = split /\s+/;
             my $cpu = shift @cpu;
@@ -211,7 +223,7 @@ package cdmn::proc {
                 $nics{$nic}{$_} = 0 for qw/rx_bytes tx_bytes/;
             }
 
-            open( my $f, '<', "/sys/class/net/$nic/statistics/$direction" );
+            open( my $f, '<', sysfs($nic, $direction) );
             {
                 local $/;
                 $bytes = <$f>;
@@ -227,7 +239,7 @@ package cdmn::proc {
     }
 
     sub getWanInterface {
-        open( my $fh, '<', '/proc/net/route' );
+        open( my $fh, '<', NET_ROUTE );
 
         my $if = <$fh>;
         $if = <$fh>;
@@ -254,7 +266,7 @@ package cdmn::proc {
             }
         }
         else {
-            open( my $fh, '<', "/sys/class/net/$if/speed" );
+            open( my $fh, '<', sysfs($if, SYSFS_NET_SPEED) );
             $speed = <$fh>;
         }
         $speed *= 1000000 / 8;
