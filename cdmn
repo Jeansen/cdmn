@@ -37,6 +37,17 @@ package cdmn::proc {
         CPU_PRESENT => '/sys/devices/system/cpu/present',
     };
 
+    # RFC2863 operational states
+    use constant {
+        OPERSTATE_UNKNOWN        => 'unknown',
+        OPERSTATE_NOTPRESENT     => 'notpresent',
+        OPERSTATE_DOWN           => 'down',
+        OPERSTATE_UP             => 'up',
+        OPERSTATE_LOWERLAYERDOWN => 'lowerlayerdown',
+        OPERSTATE_TESTING        => 'testing',
+        OPERSTATE_DORMANT        => 'dormant',
+    };
+
     sub isWifi {
         my $nic = shift;
         opendir( my $dh, "/sys/class/net/$nic" );
@@ -48,16 +59,24 @@ package cdmn::proc {
         0;
     }
 
+    sub isDown {
+        my $nic = shift;
+        open( my $f, '<', "/sys/class/net/$nic/operstate" );
+        chomp(my $state = <$f>);
+        return 1 if $state eq OPERSTATE_DOWN || $state eq OPERSTATE_UNKNOWN;
+        0;
+    }
+
     sub getNics {
         my @nics;
         opendir( my $dh, '/sys/class/net' );
         while ( readdir $dh ) {
             my $nic = $_;
             next if (/^\./);
-            if (!isWifi $nic) {
+            if (!isWifi($nic)) {
                 open( my $f, '<', "/sys/class/net/$nic/speed" );
                 chomp(my @lines = <$f>);
-                next if scalar @lines eq 0;
+                next if scalar @lines eq 0 || isDown($nic);
             }
             push @nics, $nic;
         }
