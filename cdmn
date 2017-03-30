@@ -226,7 +226,7 @@ package cdmn::proc {
             if ($refresh >= 4) {
                 $refresh = 0;
                 my $c = qx/sudo iwconfig wlan0/;
-                ($wifispeed) = $c =~ /Bit Rate=(\d*\.{0,1}\d*)/;
+                ($wifispeed) = $c =~ /Bit Rate.(\d*\.{0,1}\d*)/;
                 $speed = $wifispeed;
             }
             else {
