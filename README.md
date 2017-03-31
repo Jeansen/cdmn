@@ -23,8 +23,6 @@ And here is another example of the additional panel with very simple filesystem 
 
 ![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
 
-# Known Issues (To be fixed soon!)
-If the window has focus but the mouse pointer is not over it input does not work :-(
 
 # Installation
 Install urxvt with `sudo apt-get install rxvt-unicode-256color`. **Make sure the version is 9.22. Anything else may 
