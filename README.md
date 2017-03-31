@@ -135,24 +135,9 @@ I have put an example .Xresouces file with the minimal necessary settings, inclu
 # Please note
 This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation instructions above it should run on any Debian based distribution, though.
 
-# What am I working on currently?
-- Most of the configurations in use are in code. Currently I am in the process to make things work via .Xresources 
-and document the settings here.
-- Make handling of deactivated/disconnected NICs configurable, that is: Do not show such interfaces or use visual 
-cues for their state.
-
 # What's next (without priority)
-- Cleanup the code, remove magic numbers, add comments, improve robustness, level-up the code quality, resolve TODOs, 
-improve documentation - these are constant tasks ...
-- Make *cdmn* more aware of hardware changes. For instance, the current implementation will show you any harddisk, even if
- no mount points exist for it. In addition, if a harddisk is hot-plugged, *cdmn* will not be aware of it.
-- *cdmn* only gives you some short information on what is going on. I plan to add more details to the panel.
-- Create a .deb package (and hopefully others, too).
-- Add battery status
-- Add entry points for other extensions, introduce a plug-in API
-- Add diffrent visual styles
-- Add time graphs
-- WAN gauge - for (home) workstations it might be of interest to see the current speed used.
+[Check the projects backlog](https://github.com/Jeansen/cdmn/projects/1) to see what I am currently working on and 
+what is planned for the future.
 
 # Contributing
 Fork it, make a Pull Request, create Issues with suggestions, bugs ore questions ... You are always welcome to 
