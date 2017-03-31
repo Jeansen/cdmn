@@ -870,14 +870,15 @@ sub on_configure_notify {
     1;
 }
 
-#just to be save
 for my $h (qw(key_press key_release)) {
-    ## no critic
-    eval qq { sub on_$h { 1; } };
+    eval qq{ sub on_$h {
+    my (\$s, \$e) = \@_;
+    \$s->{xterms}{main}{term}->$h (\$e->{state}, \$e->{keycode}, \$e->{time}); 1; } }; ## no critic
 }
 
+
 for my $h (qw(focus_in focus_out)) {
-    eval qq{ sub on_$h { (shift)->{xterms}{main}{term}->$h; 1; } };                                   ## no critic
+    eval qq{ sub on_$h { (shift)->{xterms}{main}{term}->$h; 1; } }; ## no critic
 }
 
 sub on_wm_delete_window {
