@@ -82,7 +82,8 @@ package cdmn::proc {
     }
 
     sub getNics {
-        my @nics;
+        state @nics;
+        return @nics if scalar @nics > 0; #TODO just until cdmn is aware of changes.
         opendir( my $dh, SYSFS_NET);
         while ( readdir $dh ) {
             my $nic = $_;
@@ -110,7 +111,8 @@ package cdmn::proc {
 
     sub getDisks {
         open( my $f, '<', PARTITIONS );
-        my @disks;
+        state @disks;
+        return \@disks if scalar @disks > 0; #TODO just until cdmn is aware of changes.
         while (<$f>) {
             push @disks, /(sd[a-z]$)/;
             push @disks, /(nvme\dn\d$)/;
