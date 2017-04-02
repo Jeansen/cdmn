@@ -36,6 +36,7 @@ package cdmn::proc {
         MEMINFO     => '/proc/meminfo',
         NET_ROUTE   => '/proc/net/route',
         CPU_PRESENT => '/sys/devices/system/cpu/present',
+
     };
 
     # RFC2863 operational states
@@ -57,25 +58,36 @@ package cdmn::proc {
         SYSFS_NET_RX        => 'rx_bytes',
     };
 
-    sub sysfs {
+    use constant {
+        SYSFS_BAT => '/sys/class/power_supply/',
+    };
+
+    sub sysfs_net {
         my $path = "/sys/class/net/$_[0]";
         return $path."/statistics/$_[1]" if $_[1] && $_[1] =~ /tx|rx/;
         return $path."/$_[1]" if $_[1];
         return $path;
     }
 
+    sub sysfs_bat {
+        my $path = "/sys/class/power_supply/$_[0]";
+        return $path."/energy_full" if $_[1] && $_[1] =~ /full/;
+        return $path."/energy_now" if $_[1] && $_[1] =~ /now/;
+        return $path;
+    }
+
     sub isWifi {
         my $nic = shift;
-        opendir( my $dh, sysfs($nic) );
+        opendir( my $dh, sysfs_net($nic) );
         while ( readdir $dh ) {
             return 1 if (/wireless/);
         }
         0;
     }
 
-    sub isDown {
+    sub isNicDown {
         my $nic = shift;
-        open( my $f, '<', sysfs($nic, SYSFS_NET_OPERSTATE) );
+        open( my $f, '<', sysfs_net($nic, SYSFS_NET_OPERSTATE) );
         chomp(my $state = <$f>);
         return 1 if $state eq OPERSTATE_DOWN || $state eq OPERSTATE_UNKNOWN;
         0;
@@ -89,9 +101,9 @@ package cdmn::proc {
             my $nic = $_;
             next if (/^\./);
             if (!isWifi($nic)) {
-                open( my $f, '<', sysfs($nic, SYSFS_NET_SPEED) );
+                open( my $f, '<', sysfs_net($nic, SYSFS_NET_SPEED) );
                 chomp(my @lines = <$f>);
-                next if scalar @lines eq 0 || isDown($nic);
+                next if scalar @lines eq 0 || isNicDown($nic);
             }
             push @nics, $nic;
         }
@@ -107,6 +119,32 @@ package cdmn::proc {
             %mounts = (@mounts);
         }
         return %mounts;
+    }
+
+    sub getBatteryLoad {
+        my %results;
+        for (&getBatteries) {
+            my $bat = $_;
+            open( my $f, '<', sysfs_bat($bat, "full") );
+            chomp(my $full = <$f>);
+            open( $f, '<', sysfs_bat($bat, "now"));
+            chomp(my $now = <$f>);
+
+            $results{ $bat } = $now / $full * 100;
+        }
+        return \%results;
+    }
+
+    sub getBatteries {
+        state @bats;
+        opendir( my $dh, SYSFS_BAT);
+        while ( readdir $dh ) {
+            my $bat = $_;
+            next if (/^\./);
+            next if (/^AC/);
+            push @bats, $bat;
+        }
+        return @bats;
     }
 
     sub getDisks {
@@ -225,7 +263,7 @@ package cdmn::proc {
                 $nics{$nic}{$_} = 0 for qw/rx_bytes tx_bytes/;
             }
 
-            open( my $f, '<', sysfs($nic, $direction) );
+            open( my $f, '<', sysfs_net($nic, $direction) );
             {
                 local $/;
                 $bytes = <$f>;
@@ -268,7 +306,7 @@ package cdmn::proc {
             }
         }
         else {
-            open( my $fh, '<', sysfs($if, SYSFS_NET_SPEED) );
+            open( my $fh, '<', sysfs_net($if, SYSFS_NET_SPEED) );
             $speed = <$fh>;
         }
         $speed *= 1000000 / 8;
@@ -298,8 +336,8 @@ package cdmn::resources {
         x  y  padding
             showing  showing_labels  showing_background
             caption  caption_bg
-            label_network  label_disk  label_cpu  label_ram
-            gauges  gauges_disks  gauges_nics  gauges_order  gauges_background
+            label_network  label_disk  label_cpu  label_ram label_battery
+            gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_background
             actions
         );
 
@@ -524,9 +562,9 @@ package cdmn::visuals::container {
     }
 
     sub set {
-        my ( $s, $label, $i, $usage ) = (@_);
+        my ( $s, $label, $i, $usage, $invert) = (@_);
         if ( $s->{visible} ) {
-            $s->{sprites}{$label}->set( $i, $usage );
+            $s->{sprites}{$label}->set( $i, $usage, $invert);
         }
         $s->refreshBackground;
     }
@@ -699,9 +737,10 @@ package cdmn::visuals::visual {
     }
 
     sub set {
-        my ( $s, $i, $usage ) = @_;
+        my ( $s, $i, $usage, $invert) = @_;
         my $barIdx = $usage / 10 * 8 / 10;
 
+        $usage = 100 - $usage if $invert;
         my $color = &getColor($usage);
         for ( values %{ $s->{pictorials}{"$i"} } ) {
             $_->hide;
@@ -767,12 +806,14 @@ sub setCaption {
     my ($s) = (@_);
     my $caption;
 
+    #TODO remove position expectations
     local *addGauges = sub {
         for ( @{ XR->{gauges_order} } ) {
             $_ eq XR->{label_cpu}     and $caption->add( $_, $_[0], XR->{caption_bg} );
-            $_ eq XR->{label_disk}    and $caption->add( $_, $_[1], XR->{caption_bg} );
+            $_ eq XR->{label_disk} and $caption->add( $_, $_[1], XR->{caption_bg} ) if $_[3] > 0;
             $_ eq XR->{label_ram}     and $caption->add( $_, $_[2], XR->{caption_bg} );
-            $_ eq XR->{label_network} and $caption->add( $_, $_[3], XR->{caption_bg} );
+            $_ eq XR->{label_network} and $caption->add( $_, $_[3], XR->{caption_bg} ) if scalar @{$_[3]} > 0;
+            $_ eq XR->{label_battery} and $caption->add( $_, $_[4], XR->{caption_bg} ) if scalar @{$_[4]} > 0;
         }
     };
 
@@ -789,7 +830,8 @@ sub setCaption {
 
     state $cpus = cdmn::proc::getCpuCount() - 1;
 
-    addGauges( [ map "cpu" . $_, 0 .. $cpus ], XR->{gauges_disks}, ["MemAvailable:"], XR->{gauges_nics} );
+    addGauges( [ map "cpu".$_, 0 .. $cpus ], XR->{gauges_disks}, [ "MemAvailable:" ], XR->{gauges_nics},
+        XR->{gauges_batteries});
 
     return $caption;
 }
@@ -900,10 +942,11 @@ sub on_tt_write {
 sub on_init {
     my ($s) = @_;
 
-    XR->{label_network}      = $s->x_resource('%.label.network')      // 'NETWORK';
+    XR->{label_network} = $s->x_resource('%.label.network') // 'NET';
     XR->{label_disk}         = $s->x_resource('%.label.disk')         // 'DISK';
     XR->{label_cpu}          = $s->x_resource('%.label.cpu')          // 'CPU';
-    XR->{label_ram}          = $s->x_resource('%.label.ram')          // 'RAM';
+    XR->{label_ram} = $s->x_resource('%.label.ram') // 'MEM';
+    XR->{label_battery} = $s->x_resource('%.label.ram') // 'BAT';
     XR->{showing}            = $s->x_resource('%.showing')            // 1;
     XR->{showing_labels}     = $s->x_resource('%.showing.labels')     // 1;
     XR->{showing_background} = $s->x_resource('%.showing.background') // 1;
@@ -924,11 +967,14 @@ sub on_init {
     $nics = [ map {$_."_tx", $_."_rx"} cdmn::proc->getNics ]; #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_nics} = $nics;
 
-    my $order = $s->x_resource('%.caption-order') // 'DISK,CPU,RAM,NETWORK';
+    my $batteries = [ cdmn::proc->getBatteries ]; #TODO remove this overwrite and make it a tolerant default
+    XR->{gauges_batteries} = $batteries;
+
+    my $order = $s->x_resource('%.caption-order') // 'DISK,CPU,MEM,NET,BAT';
     $order = [ split( /[[:punct:],[:space:]]/, $order ) ];
 
     my @order_default;
-    for (qw/label_network label_disk label_cpu label_ram/) {
+    for (qw/label_network label_disk label_cpu label_ram label_battery/) {
         push( @order_default, XR->{$_} );
     }
 
@@ -985,6 +1031,13 @@ sub on_start {
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(1)->cb(
         sub {
             my %r;
+            if (XR->{gauges}{ XR->{label_battery} }) {
+                %r = %{&cdmn::proc::getBatteryLoad};
+                while ( my ( $key, $value ) = each %r ) {
+                    $_->set( XR->{label_battery}, $key, $value, 1 ) foreach @{ $s->{caption} };
+                }
+            }
+
             if (XR->{gauges}{ XR->{label_cpu} }) {
                 %r = %{&cdmn::proc::getCpuUsage};
                 while ( my ( $key, $value ) = each %r ) {
