@@ -34,7 +34,7 @@ For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<USERNA
 load the changes with `xrdb -load ~/.Xresources`. Then create the folder `mkdir ~/.urxvt` and put a symlink in it `ln
  -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
  
-Now, when you call rxvt with `urxvt -pe cdmn`. Make sure you update the git clone on a regular basis to enjoy new 
+Now, you can call rxvt with `urxvt -pe cdmn`. Make sure you update the git clone on a regular basis to enjoy new 
 features and improved stability.
  
 Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: cdmn` 
@@ -57,13 +57,11 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 | Meta-h    | Toggle visibility in bar style <br> Switch from overlay to bar style |
 
 # How to use cdmn
-*cdmn* offers two visual styles. The *overlay* style simply does what the name already implies. It creates an 
-overlay on top of the current terminal. This style will not interfere with your terminal output. If some text is not 
-visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
+*cdmn* offers two visual styles: overlay and bar.
 
-On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current 
-typing, then simply use the *bar* style. With this style a complete line will be reserved for *cdmn*. You can switch to 
-this style with `Meta-h`. This binding will also toggle the visibility of *cdmn* while using the bar style.
+The *overlay* style simply does what the name already implies. It creates an overlay on top of the current terminal. This style will not interfere with your terminal output. If some text is not visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
+
+On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current typing, then simply use the *bar* style. With this style a complete line will be reserved for *cdmn*. You can switch to this style with `Meta-h`. This binding will also toggle the visibility of *cdmn* while using the bar style.
 
 If you want to return to the overlay style just make *cdmn* invisible and use the `Meta-o` binding again.
 
@@ -74,10 +72,7 @@ Normally the Meta key maps to the the ALT key. If the bindings do not work, plea
 
 # My distibution does not have rxvt-unicode-256color 9.22
 
-It might happen that your distribution does not offer version 9.22 of rxvt, even not via backports 
-or other repositories. In this case you can still compile rxvt yourself. I recommend to first install the available 
-version of your distribution anyway to pull in all its dependencies. Then uninstall it directly afterwards (but 
-keep the dependencies). Now you can build rxvt yourself. This should take less than 5 minutes. Here is what you need to do on Debian:
+It might happen that your distribution does not offer version 9.22 of rxvt, even not via backports or other repositories. In this case you can still compile rxvt yourself. I recommend to first install the available version of your distribution anyway to pull in all its dependencies. Then uninstall it directly afterwards (but keep the dependencies). Now you can build rxvt yourself. This should take less than 5 minutes. Here is what you need to do on Debian:
 
 - First you will need to install some development packages to compile rxsvt with all the necessary features.
  
