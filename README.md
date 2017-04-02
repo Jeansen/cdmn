@@ -106,11 +106,12 @@ Here are some settings, that already work with more to come:
 Here is an excerpt of the default settings. You can use this as a starting point for your custom overwrites in your 
 **.Xresources** file.
 
-    URxvt.cdmn.caption-order: CPU,DISK,RAM,NETWORK
+    URxvt.cdmn.caption-order: CPU,DISK,RAM,NET
     URxvt.cdmn.label.disk: DISK
     URxvt.cdmn.label.cpu: CPU
     URxvt.cdmn.label.ram: RAM
-    URxvt.cdmn.label.network: NETWORK
+    URxvt.cdmn.label.network: NET
+    URxvt.cdmn.label.battery: BAT
     URxvt.cdmn.padding: 2
     URxvt.cdmn.x: -1
     URxvt.cdmn.y: 0
