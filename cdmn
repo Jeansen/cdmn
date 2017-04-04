@@ -23,10 +23,10 @@ use 5.10.1;
 use strict;
 use warnings FATAL => 'all';
 use utf8;
+use autodie;
 
 package cdmn::proc {
     use List::Util qw(sum max min);
-    use Data::Dumper;
 
     use constant {
         PARTITIONS  => '/proc/partitions',
@@ -36,7 +36,6 @@ package cdmn::proc {
         MEMINFO     => '/proc/meminfo',
         NET_ROUTE   => '/proc/net/route',
         CPU_PRESENT => '/sys/devices/system/cpu/present',
-
     };
 
     # RFC2863 operational states
@@ -71,15 +70,34 @@ package cdmn::proc {
 
     sub sysfs_bat {
         my $path = "/sys/class/power_supply/$_[0]";
-        return $path."/energy_full" if $_[1] && $_[1] =~ /full/;
-        return $path."/energy_now" if $_[1] && $_[1] =~ /now/;
+        opendir( my $dh, $path );
+        if ($_[1]) {
+            while ( readdir $dh ) {
+                $path .= "/".$_ if /^energy_full$|^charge_full$/ && $_[1] =~ /full/;
+                $path .= "/".$_ if /^energy_now$|^charge_now$/ && $_[1] =~ /now/;
+            }
+        }
         return $path;
+    }
+
+    sub isOnAC {
+        opendir( my $dh, SYSFS_BAT );
+        my @dir = readdir $dh; #while ( readdir $dh ) too slow?
+        for (@dir) {
+            if (/AC/) {
+                open( my $f, '<', SYSFS_BAT.$_."/online");
+                chomp(my $state = <$f>);
+                return $state;
+            }
+        }
+        return 0;
     }
 
     sub isWifi {
         my $nic = shift;
         opendir( my $dh, sysfs_net($nic) );
-        while ( readdir $dh ) {
+        my @dir = readdir $dh;
+        for (@dir) {
             return 1 if (/wireless/);
         }
         0;
@@ -97,14 +115,16 @@ package cdmn::proc {
         state @nics;
         return @nics if scalar @nics > 0; #TODO just until cdmn is aware of changes.
         opendir( my $dh, SYSFS_NET);
-        while ( readdir $dh ) {
+        my @dir = readdir $dh;
+        for (@dir) {
             my $nic = $_;
-            next if (/^\./);
+            next if (/^\.|^veth/);
             if (!isWifi($nic)) {
                 open( my $f, '<', sysfs_net($nic, SYSFS_NET_SPEED) );
                 chomp(my @lines = <$f>);
-                next if scalar @lines eq 0 || isNicDown($nic);
+                next if scalar @lines eq 0;
             }
+            next if isNicDown($nic);
             push @nics, $nic;
         }
         return @nics;
@@ -223,7 +243,7 @@ package cdmn::proc {
             $diff_usage = $diff_sda / 10;
 
             $sda{ $sda[0] }     = $sda[10];
-            $results{ $sda[0] } = $diff_usage;
+            $results{ $sda[0] } = $diff_usage <= 100 ? $diff_usage : 100; #TODO check why > 100 and if avoidable
         }
         return \%results;
     }
@@ -296,7 +316,7 @@ package cdmn::proc {
         if (isWifi($if)) {
             if ($refresh >= 4) {
                 $refresh = 0;
-                my $c = qx/sudo iwconfig wlan0/;
+                my $c = qx/sudo iwconfig $if/;
                 ($wifispeed) = $c =~ /Bit Rate.(\d*\.{0,1}\d*)/;
                 $speed = $wifispeed;
             }
@@ -336,7 +356,7 @@ package cdmn::resources {
         x  y  padding
             showing  showing_labels  showing_background
             caption  caption_bg
-            label_network  label_disk  label_cpu  label_ram label_battery
+            label_network  label_disk  label_cpu  label_ram label_battery  label_battery_AC
             gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_background
             actions
         );
@@ -564,7 +584,7 @@ package cdmn::visuals::container {
     sub set {
         my ( $s, $label, $i, $usage, $invert) = (@_);
         if ( $s->{visible} ) {
-            $s->{sprites}{$label}->set( $i, $usage, $invert);
+            $s->{sprites}{$label}->set( $i, $usage, $invert) if $s->{sprites}{$label};
         }
         $s->refreshBackground;
     }
@@ -813,7 +833,8 @@ sub setCaption {
             $_ eq XR->{label_disk} and $caption->add( $_, $_[1], XR->{caption_bg} ) if $_[3] > 0;
             $_ eq XR->{label_ram}     and $caption->add( $_, $_[2], XR->{caption_bg} );
             $_ eq XR->{label_network} and $caption->add( $_, $_[3], XR->{caption_bg} ) if scalar @{$_[3]} > 0;
-            $_ eq XR->{label_battery} and $caption->add( $_, $_[4], XR->{caption_bg} ) if scalar @{$_[4]} > 0;
+            $_ eq XR->{label_battery} and $caption->add( &cdmn::proc::isOnAC ? XR->{label_battery_AC} : $_, $_[4],
+                XR->{caption_bg} ) if scalar @{$_[4]} > 0;
         }
     };
 
@@ -874,8 +895,9 @@ sub user_command {
 
 sub on_refresh_begin {
     my ($s) = @_;
-
-    if ( $s->{w_sizse} != $s->{term}->ncol ) {
+    state $onAC = 0;
+    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::isOnAC != $onAC) {
+        $onAC = !$onAC;
         my $visible_0 = $s->{caption}[0]->{visible};
         my $visible_1 = $s->{caption}[1]->{visible};
 
@@ -915,9 +937,10 @@ sub on_configure_notify {
 }
 
 for my $h (qw(key_press key_release)) {
+    ## no critic
     eval qq{ sub on_$h {
     my (\$s, \$e) = \@_;
-    \$s->{xterms}{main}{term}->$h (\$e->{state}, \$e->{keycode}, \$e->{time}); 1; } }; ## no critic
+    \$s->{xterms}{main}{term}->$h (\$e->{state}, \$e->{keycode}, \$e->{time}); 1; } };
 }
 
 
@@ -946,7 +969,8 @@ sub on_init {
     XR->{label_disk}         = $s->x_resource('%.label.disk')         // 'DISK';
     XR->{label_cpu}          = $s->x_resource('%.label.cpu')          // 'CPU';
     XR->{label_ram} = $s->x_resource('%.label.ram') // 'MEM';
-    XR->{label_battery} = $s->x_resource('%.label.ram') // 'BAT';
+    XR->{label_battery} = $s->x_resource('%.label.battery') // 'BAT';
+    XR->{label_battery_AC} = XR->{label_battery}."(⌁)";
     XR->{showing}            = $s->x_resource('%.showing')            // 1;
     XR->{showing_labels}     = $s->x_resource('%.showing.labels')     // 1;
     XR->{showing_background} = $s->x_resource('%.showing.background') // 1;
@@ -1034,7 +1058,9 @@ sub on_start {
             if (XR->{gauges}{ XR->{label_battery} }) {
                 %r = %{&cdmn::proc::getBatteryLoad};
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( XR->{label_battery}, $key, $value, 1 ) foreach @{ $s->{caption} };
+                    $_->set( &cdmn::proc::isOnAC ? XR->{label_battery_AC} : XR->{label_battery}, $key, $value,
+                        1 ) foreach
+                        @{ $s->{caption} };
                 }
             }
 
@@ -1077,4 +1103,3 @@ sub on_start {
 
     ();
 }
-
