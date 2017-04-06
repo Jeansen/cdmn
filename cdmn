@@ -112,8 +112,7 @@ package cdmn::proc {
     }
 
     sub getNics {
-        state @nics;
-        return @nics if scalar @nics > 0; #TODO just until cdmn is aware of changes.
+        my @nics;
         opendir( my $dh, SYSFS_NET);
         my @dir = readdir $dh;
         for (@dir) {
@@ -760,6 +759,7 @@ package cdmn::visuals::visual {
         my ( $s, $i, $usage, $invert) = @_;
         my $barIdx = $usage / 10 * 8 / 10;
 
+        return if !$s->{pictorials}{"$i"};
         $usage = 100 - $usage if $invert;
         my $color = &getColor($usage);
         for ( values %{ $s->{pictorials}{"$i"} } ) {
@@ -896,8 +896,13 @@ sub user_command {
 sub on_refresh_begin {
     my ($s) = @_;
     state $onAC = 0;
-    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::isOnAC != $onAC) {
+    state $nics = 0;
+    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::isOnAC != $onAC || $nics != scalar cdmn::proc->getNics) {
         $onAC = !$onAC;
+        $nics = scalar cdmn::proc->getNics;
+        my $n = [ map {$_."_tx", $_."_rx"} cdmn::proc->getNics ];
+        XR->{gauges_nics} = $n;
+
         my $visible_0 = $s->{caption}[0]->{visible};
         my $visible_1 = $s->{caption}[1]->{visible};
 
