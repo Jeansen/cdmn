@@ -25,6 +25,8 @@ use warnings FATAL => 'all';
 use utf8;
 use autodie;
 
+my $SHOWING;
+
 package cdmn::proc {
     use List::Util qw(sum max min);
 
@@ -36,6 +38,7 @@ package cdmn::proc {
         MEMINFO     => '/proc/meminfo',
         NET_ROUTE   => '/proc/net/route',
         CPU_PRESENT => '/sys/devices/system/cpu/present',
+        HWMON       => '/sys/class/hwmon/',
     };
 
     # RFC2863 operational states
@@ -61,6 +64,19 @@ package cdmn::proc {
         SYSFS_BAT => '/sys/class/power_supply/',
     };
 
+    sub getCoreTemp {
+        opendir( my $dh, HWMON );
+        my @dir = readdir $dh;
+        for (@dir) {
+            next if $_ =~ /^\.\.?$/;
+            open( my $f, '<', SYSFS_BAT.$_."/name");
+            chomp(my $state = <$f>);
+            return $state if $state eq 'coretemp';
+        }
+        closedir $dh;
+        return ();
+    }
+
     sub sysfs_net {
         my $path = "/sys/class/net/$_[0]";
         return $path."/statistics/$_[1]" if $_[1] && $_[1] =~ /tx|rx/;
@@ -77,9 +93,11 @@ package cdmn::proc {
                 $path .= "/".$_ if /^energy_now$|^charge_now$/ && $_[1] =~ /now/;
             }
         }
+        closedir $dh;
         return $path;
     }
 
+    #TODO this method needs refactoring!
     sub isOnAC {
         opendir( my $dh, SYSFS_BAT );
         my @dir = readdir $dh; #while ( readdir $dh ) too slow?
@@ -87,9 +105,11 @@ package cdmn::proc {
             if (/AC/) {
                 open( my $f, '<', SYSFS_BAT.$_."/online");
                 chomp(my $state = <$f>);
+                closedir $dh;
                 return $state;
             }
         }
+        closedir $dh;
         return 0;
     }
 
@@ -100,6 +120,7 @@ package cdmn::proc {
         for (@dir) {
             return 1 if (/wireless/);
         }
+        closedir $dh;
         0;
     }
 
@@ -117,7 +138,7 @@ package cdmn::proc {
         my @dir = readdir $dh;
         for (@dir) {
             my $nic = $_;
-            next if (/^\.|^veth/);
+            next if (/^\.\.?$|^veth/);
             if (!isWifi($nic)) {
                 open( my $f, '<', sysfs_net($nic, SYSFS_NET_SPEED) );
                 chomp(my @lines = <$f>);
@@ -126,6 +147,7 @@ package cdmn::proc {
             next if isNicDown($nic);
             push @nics, $nic;
         }
+        closedir $dh;
         return @nics;
     }
 
@@ -142,7 +164,8 @@ package cdmn::proc {
 
     sub getBatteryLoad {
         my %results;
-        for (&getBatteries) {
+        my @bats = &getBatteries;
+        for (@bats) {
             my $bat = $_;
             open( my $f, '<', sysfs_bat($bat, "full") );
             chomp(my $full = <$f>);
@@ -155,14 +178,15 @@ package cdmn::proc {
     }
 
     sub getBatteries {
-        state @bats;
+        my @bats;
         opendir( my $dh, SYSFS_BAT);
         while ( readdir $dh ) {
             my $bat = $_;
-            next if (/^\./);
+            next if (/^\.\.?$/);
             next if (/^AC/);
             push @bats, $bat;
         }
+        closedir $dh;
         return @bats;
     }
 
@@ -873,16 +897,25 @@ sub user_command {
             $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 );    #TODO why add 4?
             $s->{xterms}{main}{maximized} = 0;
             $s->{caption}[0]->hide;
+            $SHOWING = 1;
         }
         else {
             $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
             $s->{xterms}{main}{maximized} = 1;
+            $SHOWING = 0;
         }
     }
 
     if ($action eq &cdmn::constants::ACTION_SHOW_TRANSPARENT) {
         if ( $s->{xterms}{main}{maximized} ) {
-            $s->{caption}[0]->{visible} ? $s->{caption}[0]->hide : $s->{caption}[0]->show;
+            if ($s->{caption}[0]->{visible}) {
+                $s->{caption}[0]->hide;
+                $SHOWING = 0;
+            }
+            else {
+                $s->{caption}[0]->show;
+                $SHOWING = 1;
+            }
         }
     }
 
@@ -977,6 +1010,7 @@ sub on_init {
     XR->{label_battery} = $s->x_resource('%.label.battery') // 'BAT';
     XR->{label_battery_AC} = XR->{label_battery}."(⌁)";
     XR->{showing}            = $s->x_resource('%.showing')            // 1;
+    $SHOWING = XR->{showing};
     XR->{showing_labels}     = $s->x_resource('%.showing.labels')     // 1;
     XR->{showing_background} = $s->x_resource('%.showing.background') // 1;
     XR->{caption}            = $s->x_resource('%.caption')            // 'bar';       #block | bar | solid-bar
@@ -1059,13 +1093,15 @@ sub on_start {
 
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(1)->cb(
         sub {
+            return if !$SHOWING;
             my %r;
+            my $onAC = &cdmn::proc::isOnAC;
+
             if (XR->{gauges}{ XR->{label_battery} }) {
                 %r = %{&cdmn::proc::getBatteryLoad};
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( &cdmn::proc::isOnAC ? XR->{label_battery_AC} : XR->{label_battery}, $key, $value,
-                        1 ) foreach
-                        @{ $s->{caption} };
+                    $_->set( $onAC ? XR->{label_battery_AC} : XR->{label_battery}, $key, $value,
+                        1 ) foreach @{ $s->{caption} };
                 }
             }
 
