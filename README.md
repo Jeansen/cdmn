@@ -25,8 +25,12 @@ And here is another example of the additional panel with very simple filesystem 
 
 
 # Installation
-Install urxvt with `sudo apt-get install rxvt-unicode-256color`. **Make sure the version is 9.22. Anything else may 
-not work!**<br>
+Before using the package provided by your distribution, I strongly recommend that you [compile rxvt-unicode yourself](#How to compile rxvt-unicode). While developing this extension I came across a bug that results in constant memory consumption over time.
+
+Anyway, if you first want to check what this extension can do for you, there is still the option of installing it with `sudo apt-get install rxvt-unicode-256color`. 
+
+**Make sure the version is 9.22. Anything else may not work!**
+
 Install Perl library Filesys::Df with `sudo apt-get install libfilesys-df-perl`
 
 Then clone this repository to a place of your liking and set the resource `URxvt*perl-lib`.
@@ -70,7 +74,7 @@ filesystem information. But there are already plans for more ...
 
 Normally the Meta key maps to the the ALT key. If the bindings do not work, please check your system mappings.
 
-# My distibution does not have rxvt-unicode-256color 9.22
+# How to compile rxvt-unicode
 
 It might happen that your distribution does not offer version 9.22 of rxvt, even not via backports or other repositories. In this case you can still compile rxvt yourself. I recommend to first install the available version of your distribution anyway to pull in all its dependencies. Then uninstall it directly afterwards (but keep the dependencies). Now you can build rxvt yourself. This should take less than 5 minutes. Here is what you need to do on Debian:
 
@@ -81,9 +85,10 @@ It might happen that your distribution does not offer version 9.22 of rxvt, even
 - Get the source from [http://dist.schmorp.de/rxvt-unicode/](http://dist.schmorp.de/rxvt-unicode/) and extract it to a 
 place of your liking. Navigate into the just extracted folder and run the following commands:
 
-        ./configure
+        patch /path/to/cdmn/resources/rxvtperl.xs.path src/rxvtperl.xs
+        ./configure --enable-everything --enable-256-color
         make
-        checkinstall
+        sudo checkinstall
     
 After that a package with the name `rxvt-unicode` will be installed and you should able to call `urxvt`.
     
