@@ -86,12 +86,10 @@ package cdmn::proc {
                     chomp(my $l = <$f>);
                     $results{$l} = $cv / $mv * 100;
                 };
-                closedir $dh;
-                return \%results;
             }
         }
         closedir $dh;
-        return ();
+        return \%results;
     }
 
     sub getCores {
@@ -902,7 +900,7 @@ sub setCaption {
             $_ eq XR->{label_network} and $caption->add( $_, $_[3], XR->{caption_bg} ) if scalar @{$_[3]} > 0;
             $_ eq XR->{label_battery} and $caption->add( &cdmn::proc::isOnAC ? XR->{label_battery_AC} : $_, $_[4],
                 XR->{caption_bg} ) if scalar @{$_[4]} > 0;
-            $_ eq XR->{label_cpu_temp} and $caption->add( $_, $_[5], XR->{caption_bg} );
+            $_ eq XR->{label_cpu_temp} and $caption->add( $_, $_[5], XR->{caption_bg} ) if scalar @{$_[5]} > 0;
         }
     };
 
