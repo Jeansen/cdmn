@@ -121,7 +121,7 @@ package cdmn::proc {
         my $path = "/sys/class/net/$_[0]";
         return $path."/statistics/$_[1]" if $_[1] && $_[1] =~ /tx|rx/;
         return $path."/$_[1]" if $_[1];
-        return $path;
+        $path;
     }
 
     sub sysfs_bat {
@@ -134,10 +134,10 @@ package cdmn::proc {
             }
         }
         closedir $dh;
-        return $path;
+        $path;
     }
 
-    sub isOnAC {
+    sub on_ac {
         opendir( my $dh, SYSFS_BAT );
         my @dir = readdir $dh; #while ( readdir $dh ) too slow?
         for (@dir) {
@@ -152,7 +152,7 @@ package cdmn::proc {
         0;
     }
 
-    sub isWifi {
+    sub has_wifi {
         my $nic = shift;
         opendir( my $dh, sysfs_net($nic) );
         my @dir = readdir $dh;
@@ -163,7 +163,7 @@ package cdmn::proc {
         0;
     }
 
-    sub isNicDown {
+    sub if_down {
         my $nic = shift;
         open( my $f, '<', sysfs_net($nic, SYSFS_NET_OPERSTATE) );
         chomp(my $state = <$f>);
@@ -171,26 +171,26 @@ package cdmn::proc {
         0;
     }
 
-    sub getNics {
+    sub nics {
         my @nics;
         opendir( my $dh, SYSFS_NET);
         my @dir = readdir $dh;
         for (@dir) {
             my $nic = $_;
             next if (/^\.\.?$|^veth/);
-            if (!isWifi($nic)) {
+            if (!has_wifi($nic)) {
                 open( my $f, '<', sysfs_net($nic, SYSFS_NET_SPEED) );
                 chomp(my @lines = <$f>);
                 next if scalar @lines eq 0;
             }
-            next if isNicDown($nic);
+            next if if_down($nic);
             push @nics, $nic;
         }
         closedir $dh;
         return \@nics;
     }
 
-    sub getMounts {
+    sub mounts {
         open( my $f, '<', MOUNTS );
         my @mounts;
         my %mounts;
@@ -201,9 +201,9 @@ package cdmn::proc {
         return \%mounts;
     }
 
-    sub getBatteryUsage {
+    sub battery_usages {
         my %results;
-        my @bats = @{&getBatteries};
+        my @bats = @{&batteries};
         for (@bats) {
             my $bat = $_;
             open( my $f, '<', sysfs_bat($bat, "full") );
@@ -216,7 +216,7 @@ package cdmn::proc {
         return \%results;
     }
 
-    sub getBatteries {
+    sub batteries {
         my @bats;
         opendir( my $dh, SYSFS_BAT);
         while ( readdir $dh ) {
@@ -229,7 +229,7 @@ package cdmn::proc {
         return \@bats;
     }
 
-    sub getDisks {
+    sub disks {
         open( my $f, '<', PARTITIONS );
         state @disks;
         return \@disks if scalar @disks > 0; #TODO just until cdmn is aware of changes.
@@ -241,7 +241,7 @@ package cdmn::proc {
         return \@disks;
     }
 
-    sub getCpuUsage {
+    sub cpu_usages {
         state %cpus;
         my $diff_usage = 0;
         my %results;
@@ -274,7 +274,7 @@ package cdmn::proc {
         return \%results;
     }
 
-    sub getCpuCount {
+    sub cpu_count {
         open( my $f, '<', CPU_PRESENT );
         {
             local $/;
@@ -284,7 +284,7 @@ package cdmn::proc {
         }
     }
 
-    sub getDiskUsage {
+    sub disk_usages {
         state %sda;
         my $diff_usage;
         my %results;
@@ -310,7 +310,7 @@ package cdmn::proc {
         return \%results;
     }
 
-    sub getMemoryUsage {
+    sub memory_usages {
         my @sda;
         my $total     = 0;
         my $available = 0;
@@ -332,14 +332,14 @@ package cdmn::proc {
         return \%results;
     }
 
-    sub getNetworkUsage {
+    sub if_usage {
         my $direction = shift;
 
         my %results;
         my $bytes = 0;
         state %nics;
 
-        for (@{&getNics}) {
+        for (@{&nics}) {
             my $nic = $_;
             if (!defined $nics{$nic}) {
                 $nics{$nic}{$_} = 0 for qw/rx_bytes tx_bytes/;
@@ -354,7 +354,7 @@ package cdmn::proc {
             my $diff_rx = $bytes - $nics{$nic}{$direction};
             $nics{$nic}{$direction} = $bytes;
 
-            my $diff_usage = 100 * $diff_rx / &getInterfaceSpeed($nic);
+            my $diff_usage = 100 * $diff_rx / &if_speed($nic);
             $results{ $nic.( $direction eq 'rx_bytes' ? '_rx' : '_tx' ) } = $diff_usage;
         }
         return \%results;
@@ -367,15 +367,15 @@ package cdmn::proc {
         $if = <$fh>;
 
         my @wif = split /\s+/, $if;
-        return $wif[0];
+        $wif[0];
     }
 
-    sub getInterfaceSpeed {
+    sub if_speed {
         my $if = shift;
         my $speed;
         state $refresh = 4;
         state $wifispeed;
-        if (isWifi($if)) {
+        if (has_wifi($if)) {
             if ($refresh >= 4) {
                 $refresh = 0;
                 my $c = qx/sudo iwconfig $if/;
@@ -489,7 +489,7 @@ package cdmn::term {
         my $s = shift;
         if ( !$s->{term}{parent} ) {
             $root->{term}->tt_write(shift);
-            return 1;
+            1;
         }
         ();
     }
@@ -499,7 +499,7 @@ package cdmn::term {
         if ( !$s->{term}{parent} ) {
             my $str = $s->{term}->locale_encode("\e[0;0H\e[K");
             $s->{term}->cmd_parse($str);    #do not show the cursor!
-            return 1;
+            1;
         }
     }
 
@@ -519,17 +519,13 @@ package cdmn::term {
         1;
     }
 
-    sub destroy_All {
-        $root->{term}->destroy;
-    }
+    sub destroy_All { $root->{term}->destroy; }
 
-    sub disableCursor {
-        (shift)->{term}->cmd_parse("\033[?25l");      #do not show the cursor!
-    }
+    sub disableCursor { (shift)->{term}->cmd_parse("\033[?25l"); }
 
     sub setContent {
         my $s      = shift;
-        my $mounts = cdmn::proc::getMounts;
+        my $mounts = cdmn::proc::mounts;
 
         my $r = urxvt::SET_FGCOLOR REND, 240;         #TODO remove magic number/hard-coded value
 
@@ -896,7 +892,7 @@ sub setCaption {
             $_ eq XR->{label_disk} and $caption->add( $_, $_[1], XR->{caption_bg} ) if $_[3] > 0;
             $_ eq XR->{label_ram}     and $caption->add( $_, $_[2], XR->{caption_bg} );
             $_ eq XR->{label_network} and $caption->add( $_, $_[3], XR->{caption_bg} ) if scalar @{$_[3]} > 0;
-            $_ eq XR->{label_battery} and $caption->add( &cdmn::proc::isOnAC ? XR->{label_battery_AC} : $_, $_[4],
+            $_ eq XR->{label_battery} and $caption->add( &cdmn::proc::on_ac ? XR->{label_battery_AC} : $_, $_[4],
                 XR->{caption_bg} ) if scalar @{$_[4]} > 0;
             $_ eq XR->{label_cpu_temp} and $caption->add( $_, $_[5], XR->{caption_bg} ) if scalar @{$_[5]} > 0;
         }
@@ -913,7 +909,7 @@ sub setCaption {
         };
     }
 
-    state $cpus = cdmn::proc::getCpuCount() - 1;
+    state $cpus = cdmn::proc::cpu_count() - 1;
 
     addGauges( [ map "cpu".$_, 0 .. $cpus ], XR->{gauges_disks}, [ "MemAvailable:" ], XR->{gauges_nics},
         XR->{gauges_batteries}, XR->{gauges_cores});
@@ -970,8 +966,8 @@ sub on_refresh_begin {
     my ($s) = @_;
     state $onAC = 0;
     state $nics = 0;
-    my $nics_active = cdmn::proc->getNics;
-    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::isOnAC != $onAC || $nics != scalar @$nics_active) {
+    my $nics_active = cdmn::proc->nics;
+    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::on_ac != $onAC || $nics != scalar @$nics_active) {
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
         my $n = [ map {$_."_tx", $_."_rx"} @$nics_active ];
@@ -1063,18 +1059,18 @@ sub on_init {
 
     my $disks = $s->x_resource('%.gauges.disks') // 'sda';    #Can be a list, e.g. 'a,b,c' or 'a b c'
     $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
-    XR->{gauges_disks} = cdmn::proc::getDisks;                 #TODO remove this overwrite and make it a tolerant default
+    XR->{gauges_disks} = cdmn::proc::disks;                 #TODO remove this overwrite and make it a tolerant default
 
     #Can be a list, e.g. 'a,b,c' or 'a b c'
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
 
     #$nics = [ split( /[,[:space:]]/, $nics ) ];
-    $nics = cdmn::proc->getNics;
+    $nics = cdmn::proc->nics;
     $nics = [ map {$_."_tx", $_."_rx"} @$nics ]; #TODO remove this overwrite and make it a tolerant
     # default
     XR->{gauges_nics} = $nics;
 
-    my $batteries = cdmn::proc->getBatteries; #TODO remove this overwrite and make it a tolerant default
+    my $batteries = cdmn::proc->batteries; #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_batteries} = $batteries;
 
     my $cores = cdmn::proc->getCores; #TODO remove this overwrite and make it a tolerant default
@@ -1142,10 +1138,10 @@ sub on_start {
         sub {
             return if !$SHOWING;
             my %r;
-            my $onAC = &cdmn::proc::isOnAC;
+            my $onAC = &cdmn::proc::on_ac;
 
             if (XR->{gauges}{ XR->{label_battery} }) {
-                %r = %{&cdmn::proc::getBatteryUsage};
+                %r = %{&cdmn::proc::battery_usages};
                 while ( my ( $key, $value ) = each %r ) {
                     $_->set( $onAC ? XR->{label_battery_AC} : XR->{label_battery}, $key, $value,
                         1 ) foreach @{ $s->{caption} };
@@ -1153,7 +1149,7 @@ sub on_start {
             }
 
             if (XR->{gauges}{ XR->{label_cpu} }) {
-                %r = %{&cdmn::proc::getCpuUsage};
+                %r = %{&cdmn::proc::cpu_usages};
                 while ( my ( $key, $value ) = each %r ) {
                     $s->{caption}[0]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
                     $s->{caption}[1]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
@@ -1161,7 +1157,7 @@ sub on_start {
             }
 
             if (XR->{gauges}{ XR->{label_disk} }) {
-                %r = %{&cdmn::proc::getDiskUsage};
+                %r = %{&cdmn::proc::disk_usages};
                 foreach ( @{ XR->{gauges_disks} } ) {
                     $s->{caption}[0]->set( XR->{label_disk}, $_, $r{$_} );
                     $s->{caption}[1]->set( XR->{label_disk}, $_, $r{$_} );
@@ -1169,7 +1165,7 @@ sub on_start {
             }
 
             if (XR->{gauges}{ XR->{label_ram} }) {
-                %r = %{&cdmn::proc::getMemoryUsage};
+                %r = %{&cdmn::proc::memory_usages};
                 while ( my ( $key, $value ) = each %r ) {
                     $_->set( XR->{label_ram}, $key, $value ) foreach @{ $s->{caption} };
                 }
@@ -1183,12 +1179,12 @@ sub on_start {
             }
 
             if (XR->{gauges}{ XR->{label_network} }) {
-                %r = %{ &cdmn::proc::getNetworkUsage("rx_bytes") };
+                %r = %{ &cdmn::proc::if_usage("rx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
                     $_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
 
-                %r = %{ &cdmn::proc::getNetworkUsage("tx_bytes") };
+                %r = %{ &cdmn::proc::if_usage("tx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
                     $_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
