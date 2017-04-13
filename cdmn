@@ -64,7 +64,7 @@ package cdmn::proc {
         SYSFS_BAT => '/sys/class/power_supply/',
     };
 
-    sub getCoreTempUsage {
+    sub core_temperature_usages {
         my %results;
         opendir( my $dh, HWMON );
         my @dir = readdir $dh;
@@ -92,7 +92,7 @@ package cdmn::proc {
         return \%results;
     }
 
-    sub getCores {
+    sub cores {
         my @results;
         opendir( my $dh, HWMON );
         my @dir = readdir $dh;
@@ -881,7 +881,7 @@ use constant XR => cdmn::resources->new();
 #   UTILITY METHODS
 ####################################################
 
-sub setCaption {
+sub create_captions {
     my ($s) = (@_);
     my $caption;
 
@@ -978,8 +978,8 @@ sub on_refresh_begin {
 
         $s->{w_sizse} = $s->{term}->ncol;
         $s->{visuals_updater}->stop;
-        $s->{caption}[0] = setCaption $s->{xterms}{main}{term};
-        $s->{caption}[1] = setCaption $s;
+        $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
+        $s->{caption}[1] = create_captions $s;
         $s->{caption}[0]->create;
         $s->{caption}[1]->create;
         $visible_0 ? $s->{caption}[0]->show : $s->{caption}[0]->hide;
@@ -1073,7 +1073,7 @@ sub on_init {
     my $batteries = cdmn::proc->batteries; #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_batteries} = $batteries;
 
-    my $cores = cdmn::proc->getCores; #TODO remove this overwrite and make it a tolerant default
+    my $cores = cdmn::proc->cores; #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_cores} = $cores;
 
     my $order = $s->x_resource('%.caption-order') // 'DISK,CPU,TEMP,MEM,NET,BAT';
@@ -1123,8 +1123,8 @@ sub on_start {
     $s->{xterms}{main}->hide if ( XR->{caption} eq cdmn::constants::CAPTION_BLOCK );
 
     $s->{w_sizse}    = $s->{term}->ncol;
-    $s->{caption}[0] = setCaption $s->{xterms}{main}{term};
-    $s->{caption}[1] = setCaption $s;
+    $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
+    $s->{caption}[1] = create_captions $s;
     $s->{caption}[0]->create;
     $s->{caption}[1]->create;
 
@@ -1172,7 +1172,7 @@ sub on_start {
             }
 
             if (XR->{gauges}{ XR->{label_cpu_temp} }) {
-                %r = %{&cdmn::proc::getCoreTempUsage};
+                %r = %{&cdmn::proc::core_temperature_usages};
                 while ( my ( $key, $value ) = each %r ) {
                     $_->set( XR->{label_cpu_temp}, $key, $value ) foreach @{ $s->{caption} };
                 }
