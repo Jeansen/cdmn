@@ -85,7 +85,8 @@ package cdmn::proc {
                     open( $f, '<', $p."/".$_."_label");
                     chomp(my $l = <$f>);
                     $results{$l} = $cv / $mv * 100;
-                };
+                }
+                last;
             }
         }
         closedir $dh;
