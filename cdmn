@@ -110,8 +110,8 @@ package cdmn::proc {
                     chomp(my $l = <$f>);
                     push @results, $l;
                 };
+                last;
             }
-            break;
         }
         closedir $dh;
         return \@results;
