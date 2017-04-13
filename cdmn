@@ -110,12 +110,11 @@ package cdmn::proc {
                     chomp(my $l = <$f>);
                     push @results, $l;
                 };
-                closedir $dh;
-                return @results;
+                break;
             }
         }
         closedir $dh;
-        return ();
+        return \@results;
     }
 
     sub sysfs_net {
@@ -138,7 +137,6 @@ package cdmn::proc {
         return $path;
     }
 
-    #TODO this method needs refactoring!
     sub isOnAC {
         opendir( my $dh, SYSFS_BAT );
         my @dir = readdir $dh; #while ( readdir $dh ) too slow?
@@ -151,7 +149,7 @@ package cdmn::proc {
             }
         }
         closedir $dh;
-        return 0;
+        0;
     }
 
     sub isWifi {
@@ -189,7 +187,7 @@ package cdmn::proc {
             push @nics, $nic;
         }
         closedir $dh;
-        return @nics;
+        return \@nics;
     }
 
     sub getMounts {
@@ -200,12 +198,12 @@ package cdmn::proc {
             push @mounts, /(^\/dev\S*)\s+([a-zA-Z0-9-_.\/]+)/;   #TODO this regex is too simple
             %mounts = (@mounts);
         }
-        return %mounts;
+        return \%mounts;
     }
 
-    sub getBatteryLoad {
+    sub getBatteryUsage {
         my %results;
-        my @bats = &getBatteries;
+        my @bats = @{&getBatteries};
         for (@bats) {
             my $bat = $_;
             open( my $f, '<', sysfs_bat($bat, "full") );
@@ -228,7 +226,7 @@ package cdmn::proc {
             push @bats, $bat;
         }
         closedir $dh;
-        return @bats;
+        return \@bats;
     }
 
     sub getDisks {
@@ -341,7 +339,7 @@ package cdmn::proc {
         my $bytes = 0;
         state %nics;
 
-        for (getNics) {
+        for (@{&getNics}) {
             my $nic = $_;
             if (!defined $nics{$nic}) {
                 $nics{$nic}{$_} = 0 for qw/rx_bytes tx_bytes/;
@@ -531,7 +529,7 @@ package cdmn::term {
 
     sub setContent {
         my $s      = shift;
-        my %mounts = cdmn::proc::getMounts;
+        my $mounts = cdmn::proc::getMounts;
 
         my $r = urxvt::SET_FGCOLOR REND, 240;         #TODO remove magic number/hard-coded value
 
@@ -542,13 +540,13 @@ package cdmn::term {
         my $i = 1;
         push @data, cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, 'FS USAGE' );
         $r = urxvt::SET_FGCOLOR REND, 250;
-        for ( keys %mounts ) {
-            my $ref = df( $mounts{$_} );
+        for (keys %$mounts) {
+            my $ref = df( $mounts->{$_} );
             my $u   = ceil( 25 * $ref->{per} / 100 );
             my $f   = floor( 25 - 25 * $ref->{per} / 100 );
 
             $i++;
-            push @data, cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, $mounts{$_} );
+            push @data, cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, $$mounts{$_} );
             push @data,
                 cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, "■" x $u."□" x $f." $ref->{per}%" );
         }
@@ -972,10 +970,11 @@ sub on_refresh_begin {
     my ($s) = @_;
     state $onAC = 0;
     state $nics = 0;
-    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::isOnAC != $onAC || $nics != scalar cdmn::proc->getNics) {
+    my $nics_active = cdmn::proc->getNics;
+    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::isOnAC != $onAC || $nics != scalar @$nics_active) {
         $onAC = !$onAC;
-        $nics = scalar cdmn::proc->getNics;
-        my $n = [ map {$_."_tx", $_."_rx"} cdmn::proc->getNics ];
+        $nics = scalar @$nics_active;
+        my $n = [ map {$_."_tx", $_."_rx"} @$nics_active ];
         XR->{gauges_nics} = $n;
 
         my $visible_0 = $s->{caption}[0]->{visible};
@@ -1070,13 +1069,15 @@ sub on_init {
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
 
     #$nics = [ split( /[,[:space:]]/, $nics ) ];
-    $nics = [ map {$_."_tx", $_."_rx"} cdmn::proc->getNics ]; #TODO remove this overwrite and make it a tolerant default
+    $nics = cdmn::proc->getNics;
+    $nics = [ map {$_."_tx", $_."_rx"} @$nics ]; #TODO remove this overwrite and make it a tolerant
+    # default
     XR->{gauges_nics} = $nics;
 
-    my $batteries = [ cdmn::proc->getBatteries ]; #TODO remove this overwrite and make it a tolerant default
+    my $batteries = cdmn::proc->getBatteries; #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_batteries} = $batteries;
 
-    my $cores = [ cdmn::proc->getCores ]; #TODO remove this overwrite and make it a tolerant default
+    my $cores = cdmn::proc->getCores; #TODO remove this overwrite and make it a tolerant default
     XR->{gauges_cores} = $cores;
 
     my $order = $s->x_resource('%.caption-order') // 'DISK,CPU,TEMP,MEM,NET,BAT';
@@ -1144,7 +1145,7 @@ sub on_start {
             my $onAC = &cdmn::proc::isOnAC;
 
             if (XR->{gauges}{ XR->{label_battery} }) {
-                %r = %{&cdmn::proc::getBatteryLoad};
+                %r = %{&cdmn::proc::getBatteryUsage};
                 while ( my ( $key, $value ) = each %r ) {
                     $_->set( $onAC ? XR->{label_battery_AC} : XR->{label_battery}, $key, $value,
                         1 ) foreach @{ $s->{caption} };
