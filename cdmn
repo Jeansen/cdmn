@@ -41,55 +41,48 @@ package cdmn::proc {
         HWMON       => '/sys/class/hwmon/',
     };
 
-    # RFC2863 operational states
     use constant {
-        OPERSTATE_UNKNOWN        => 'unknown',
-        OPERSTATE_NOTPRESENT     => 'notpresent',
-        OPERSTATE_DOWN           => 'down',
-        OPERSTATE_UP             => 'up',
-        OPERSTATE_LOWERLAYERDOWN => 'lowerlayerdown',
-        OPERSTATE_TESTING        => 'testing',
-        OPERSTATE_DORMANT        => 'dormant',
+        SPEED     => 'speed',
+        OPERSTATE => 'operstate',
+        TX        => 'tx_bytes',
+        RX        => 'rx_bytes',
+        BAT_FULL  => 'full',
+        BAT_NOW   => 'now',
     };
 
     use constant {
         SYSFS_NET           => '/sys/class/net/',
-        SYSFS_NET_SPEED     => 'speed',
-        SYSFS_NET_OPERSTATE => 'operstate',
-        SYSFS_NET_TX        => 'tx_bytes',
-        SYSFS_NET_RX        => 'rx_bytes',
-    };
-
-    use constant {
         SYSFS_BAT => '/sys/class/power_supply/',
     };
 
     sub core_temperature_usages {
         my %results;
-        opendir( my $dh, HWMON );
-        my @dir = readdir $dh;
-        for (@dir) {
-            next if $_ =~ /^\.\.?$/;
-            my $p = HWMON.$_;
-            open( my $f, '<', $p."/name");
-            chomp(my $state = <$f>);
-            if ($state eq 'coretemp') {
-                opendir( $dh, $p );
-                @dir = readdir $dh;
-                my %cores = map {/(temp\d)/ ? (($_ =~ /(temp\d)/), "") : ()} @dir;
-                for (keys %cores) {
-                    open( $f, '<', $p."/".$_."_input");
-                    chomp(my $cv = <$f>);
-                    open( $f, '<', $p."/".$_."_crit");
-                    chomp(my $mv = <$f>);
-                    open( $f, '<', $p."/".$_."_label");
-                    chomp(my $l = <$f>);
-                    $results{$l} = $cv / $mv * 100;
+        if (-e HWMON) {
+            opendir( my $dh, HWMON );
+            my @dir = readdir $dh;
+            for (@dir) {
+                next if $_ =~ /^\.\.?$/;
+                my $p = HWMON.$_;
+                open( my $f, '<', $p."/name") || last;
+                chomp(my $state = <$f>);
+                if ($state eq 'coretemp') {
+                    opendir( $dh, $p );
+                    @dir = readdir $dh;
+                    my %cores = map {/(temp\d)/ ? (($_ =~ /(temp\d)/), "") : ()} @dir;
+                    for (keys %cores) {
+                        open( $f, '<', $p."/".$_."_input");
+                        chomp(my $cv = <$f>);
+                        open( $f, '<', $p."/".$_."_crit");
+                        chomp(my $mv = <$f>);
+                        open( $f, '<', $p."/".$_."_label");
+                        chomp(my $l = <$f>);
+                        $results{$l} = $cv / $mv * 100;
+                    }
+                    last;
                 }
-                last;
             }
+            closedir $dh;
         }
-        closedir $dh;
         return \%results;
     }
 
@@ -119,19 +112,19 @@ package cdmn::proc {
     }
 
     sub sysfs_net {
-        my $path = "/sys/class/net/$_[0]";
-        return $path."/statistics/$_[1]" if $_[1] && $_[1] =~ /tx|rx/;
-        return $path."/$_[1]" if $_[1];
+        my $path = SYSFS_NET."/$_[0]";
+        return $path."/statistics/$_[1]" if $_[1] && ($_[1] eq TX || $_[1] eq RX);
+        return $path."/$_[1]" if $_[1] && ($_[1] eq OPERSTATE || $_[1] eq SPEED);
         $path;
     }
 
     sub sysfs_bat {
-        my $path = "/sys/class/power_supply/$_[0]";
+        my $path = SYSFS_BAT."/$_[0]";
         opendir( my $dh, $path );
         if ($_[1]) {
             while ( readdir $dh ) {
-                $path .= "/".$_ if /^energy_full$|^charge_full$/ && $_[1] =~ /full/;
-                $path .= "/".$_ if /^energy_now$|^charge_now$/ && $_[1] =~ /now/;
+                $path .= "/".$_ if /^energy_full$|^charge_full$/ && $_[1] eq BAT_FULL;
+                $path .= "/".$_ if /^energy_now$|^charge_now$/ && $_[1] eq BAT_NOW;
             }
         }
         closedir $dh;
@@ -154,41 +147,38 @@ package cdmn::proc {
     }
 
     sub has_wifi {
-        my $nic = shift;
-        opendir( my $dh, sysfs_net($nic) );
+        opendir( my $dh, sysfs_net(shift) );
         my @dir = readdir $dh;
-        for (@dir) {
-            return 1 if (/wireless/);
-        }
+        for (@dir) { return 1 if (/wireless/); }
         closedir $dh;
         0;
     }
 
     sub if_down {
-        my $nic = shift;
-        open( my $f, '<', sysfs_net($nic, SYSFS_NET_OPERSTATE) );
+        open( my $f, '<', sysfs_net(shift, OPERSTATE) );
         chomp(my $state = <$f>);
-        return 1 if $state eq OPERSTATE_DOWN || $state eq OPERSTATE_UNKNOWN;
+        # RFC2863 operational states: unknown notpresent down up lowerlayerdown testing dormant
+        return 1 if $state eq 'down' || $state eq 'unknown';
         0;
     }
 
-    sub nics {
-        my @nics;
+    sub ifs {
+        my @ifs;
         opendir( my $dh, SYSFS_NET);
         my @dir = readdir $dh;
         for (@dir) {
-            my $nic = $_;
+            my $if = $_;
             next if (/^\.\.?$|^veth/);
-            if (!has_wifi($nic)) {
-                open( my $f, '<', sysfs_net($nic, SYSFS_NET_SPEED) );
+            if (!has_wifi($if)) {
+                open( my $f, '<', sysfs_net($if, SPEED) );
                 chomp(my @lines = <$f>);
                 next if scalar @lines eq 0;
             }
-            next if if_down($nic);
-            push @nics, $nic;
+            next if if_down($if);
+            push @ifs, $if;
         }
         closedir $dh;
-        return \@nics;
+        return \@ifs;
     }
 
     sub mounts {
@@ -207,9 +197,9 @@ package cdmn::proc {
         my @bats = @{&batteries};
         for (@bats) {
             my $bat = $_;
-            open( my $f, '<', sysfs_bat($bat, "full") );
+            open( my $f, '<', sysfs_bat($bat, BAT_FULL) );
             chomp(my $full = <$f>);
-            open( $f, '<', sysfs_bat($bat, "now"));
+            open( $f, '<', sysfs_bat($bat, BAT_NOW));
             chomp(my $now = <$f>);
 
             $results{ $bat } = $now / $full * 100;
@@ -340,10 +330,10 @@ package cdmn::proc {
         my $bytes = 0;
         state %nics;
 
-        for (@{&nics}) {
+        for (@{&ifs}) {
             my $nic = $_;
             if (!defined $nics{$nic}) {
-                $nics{$nic}{$_} = 0 for qw/rx_bytes tx_bytes/;
+                $nics{$nic}{$_} = 0 for (RX, TX);
             }
 
             open( my $f, '<', sysfs_net($nic, $direction) );
@@ -356,7 +346,7 @@ package cdmn::proc {
             $nics{$nic}{$direction} = $bytes;
 
             my $diff_usage = 100 * $diff_rx / &if_speed($nic);
-            $results{ $nic.( $direction eq 'rx_bytes' ? '_rx' : '_tx' ) } = $diff_usage;
+            $results{ $nic.( $direction eq RX ? '_rx' : '_tx' ) } = $diff_usage;
         }
         return \%results;
     }
@@ -389,7 +379,7 @@ package cdmn::proc {
             }
         }
         else {
-            open( my $fh, '<', sysfs_net($if, SYSFS_NET_SPEED) );
+            open( my $fh, '<', sysfs_net($if, SPEED) );
             $speed = <$fh>;
         }
         $speed *= 1000000 / 8;
@@ -445,13 +435,9 @@ package cdmn::term {
 
     sub new {
         my $s = shift;
-
         $s = fields::new($s) unless ref $s;
+        (%$s) = @_;
 
-        $s->{parent} = shift;
-        @$s{qw/resource x y w h bg_color is_root/} = (@_);
-
-        # save a backlink to us, make sure tabbed is inactive
         push @urxvt::TERM_INIT, sub {
                 my ($term) = @_;
                 $term->{termclass} = $s;
@@ -468,14 +454,11 @@ package cdmn::term {
         $s->bounds( @$s{qw/x y w h/} );
         $s->{is_root} ? $root = $s : push( @terminals, $s );
 
-        return $s;
+        $s;
     }
 
     sub on_user_command {
-
-        #my ($s, $a) = ($_[0], $_[1] =~ /([a-zA-Z-]*$)/);
-        my $s = shift;
-        $s->{term}{termclass}{parent}->user_command(@_);
+        (shift)->{term}{termclass}{parent}->user_command(@_);
         1;
     }
 
@@ -484,11 +467,11 @@ package cdmn::term {
         $s->bind_action( 'M-h', 'perl:'.&cdmn::constants::ACTION_SHOW );
         $s->bind_action( 'M-l', 'perl:'.&cdmn::constants::ACTION_SHOW_SIDEBAR );
         $s->bind_action( 'M-o', 'perl:'.&cdmn::constants::ACTION_SHOW_TRANSPARENT );
+        ();
     }
 
     sub on_tt_write {
-        my $s = shift;
-        if ( !$s->{term}{parent} ) {
+        if (!(shift)->{term}{parent}) {
             $root->{term}->tt_write(shift);
             1;
         }
@@ -502,6 +485,7 @@ package cdmn::term {
             $s->{term}->cmd_parse($str);    #do not show the cursor!
             1;
         }
+        ();
     }
 
     sub bounds {
@@ -512,7 +496,7 @@ package cdmn::term {
 
     sub on_destroy {
         if ( $_[0]{term}{parent} ) {
-            $_[0]{term}{parent}{caption}[0]->hide;    #prevent segmentation fauls!
+            ${$_[0]{term}{parent}{caption}[0]}->hide;    #prevent segmentation fauls!
             $_->{term}->destroy for @terminals;
             my $p = $_[0]{term}{parent} or return;    #TODO get to understand it!
             $p->{d} = urxvt::iw->new->start->cb( sub { $p->destroy } );
@@ -524,18 +508,36 @@ package cdmn::term {
 
     sub disableCursor { (shift)->{term}->cmd_parse("\033[?25l"); }
 
-    sub setContent {
+    #TODO refactor - just for testing at the moment
+    sub create_content {
         my $s      = shift;
         my $mounts = cdmn::proc::mounts;
-
         my $r = urxvt::SET_FGCOLOR REND, 240;         #TODO remove magic number/hard-coded value
 
-        $data[0] = cdmn::visuals::overlay->new( $s->{term}, 0, 0, 1, $root->{parent}->nrow, $r, "│" );
+        $data[0] = cdmn::visuals::overlay->new(
+            term      => $s->{term},
+            x         => 0,
+            y         => 0,
+            width     => 1,
+            height    => $root->{parent}->nrow,
+            rendition => $r,
+            caption   => "│"
+        );
+
         $r = urxvt::SET_FGCOLOR REND, 250;            #TODO remove magic number/hard-coded value
         $r = $r | urxvt::RS_Uline;
 
         my $i = 1;
-        push @data, cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, 'FS USAGE' );
+        push @data, cdmn::visuals::overlay->new(
+                term      => $s->{term},
+                x         => - 1,
+                y         => $i++,
+                width     => 32,
+                height    => 1,
+                rendition => $r,
+                caption   => 'FS USAGE'
+            );
+
         $r = urxvt::SET_FGCOLOR REND, 250;
         for (keys %$mounts) {
             my $ref = df( $mounts->{$_} );
@@ -543,9 +545,26 @@ package cdmn::term {
             my $f   = floor( 25 - 25 * $ref->{per} / 100 );
 
             $i++;
-            push @data, cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, $$mounts{$_} );
+            push @data, cdmn::visuals::overlay->new(
+                    term      => $s->{term},
+                    x         => - 1,
+                    y         => $i++,
+                    width     => 32,
+                    height    => 1,
+                    rendition => $r,
+                    caption   => $$mounts{$_}
+                );
+
             push @data,
-                cdmn::visuals::overlay->new( $s->{term}, - 1, $i++, 32, 1, $r, "■" x $u."□" x $f." $ref->{per}%" );
+                cdmn::visuals::overlay->new(
+                    term      => $s->{term},
+                    x         => - 1,
+                    y         => $i++,
+                    width     => 32,
+                    height    => 1,
+                    rendition => $r,
+                    caption   => "■" x $u."□" x $f." $ref->{per}%"
+                );
         }
 
         for ( my $j = 1 ; $j < @data ; $j++ ) {
@@ -588,19 +607,28 @@ package cdmn::visuals::container {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        @$s{qw/term rendition x y padding align evenGauges visible/} = @_;
+        (%$s) = @_;
         ( $xOff, $yOff ) = ( 0, $s->{y} );
-        return $s;
+        $s;
     }
 
-    #TODO no Reference for visuals?
     sub add {
-        my ( $s, $label, $visuals, $captbg ) = @_;
-        my $visual = cdmn::visuals::visual->new( $s->{term}, $s->{rendition}, $xOff, $yOff, $label, $visuals, $captbg );
+        my $s = shift;
+        my %arg = @_;
 
-        $s->{sprites}{$label} = $visual;
-        if ( @{$visuals} > $m && $s->{evenGauges} ) {
-            $m = @{$visuals};
+        my $visual = cdmn::visuals::visual->new(
+            term          => $s->{term},
+            rendition     => $s->{rendition},
+            x             => $xOff,
+            y             => $yOff,
+            label         => $arg{label},
+            pictorials    => $arg{visuals},
+            pictorials_bg => $arg{bg}
+        );
+
+        $s->{sprites}{$arg{label}} = $visual;
+        if (@{$arg{visuals}} > $m && $s->{evenGauges}) {
+            $m = @{$arg{visuals}};
             foreach ( values %{ $s->{sprites} } ) {
                 $_->setEvenGauges($m);
                 $xOff += $visual->{width} if $s->{align} eq CAPTION_BAR;
@@ -633,7 +661,15 @@ package cdmn::visuals::container {
         #Background
         for ( $s->{align} ) {
             if ( $_ eq CAPTION_BAR ) {
-                $s->{bg} = cdmn::visuals::overlay->new( $s->{term}, - 1, 0, $xOff - 1, 1, REND );
+                $s->{bg} = cdmn::visuals::overlay->new(
+                    term      => $s->{term},
+                    x         => - 1,
+                    y         => 0,
+                    width     => $xOff - 1,
+                    height    => 1,
+                    rendition => REND,
+                );
+
                 $s->{bg}->create("show");
                 $s->{backgroundVisible} = 1;
             }
@@ -645,12 +681,7 @@ package cdmn::visuals::container {
         if ( $s->{visible} ) {
             $s->{sprites}{$label}->set( $i, $usage, $invert) if $s->{sprites}{$label};
         }
-        $s->refreshBackground;
-    }
-
-    sub setColor {
-        my ( $s, $label, $i, $usage ) = @_;
-        $s->{sprites}{$label}->setColor( $i, $usage );
+        $s->refresh_background;
     }
 
     sub show {
@@ -659,39 +690,33 @@ package cdmn::visuals::container {
         foreach ( values %{ $s->{sprites} } ) {
             $visible ? $_->show : $_->hide;
         }
-        $visible ? $s->showLabels : $s->hideLabels;
+        $visible ? $s->show_labels : $s->hide_labels;
 
-        $visible ? $s->showBackground : $s->hideBackground;
+        $visible ? $s->show_background : $s->hide_background;
         $s->{visible} = $visible;
     }
 
-    sub hide {
-        my ($s) = @_;
-        $s->show(FALSE);
-    }
+    sub hide { (shift)->show(FALSE); }
 
     sub toggle {
         my $s = shift;
         $s->{visible} ? $s->hide : $s->show;
     }
 
-    sub showLabels {
+    sub show_labels {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
         foreach ( values %{ $s->{sprites} } ) {
-            $visible ? $_->showLabel : $_->hideLabel;
+            $visible ? $_->show_label : $_->hide_label;
         }
 
-        $s->refreshBackground;
+        $s->refresh_background;
         $s->{labelVisible} = $visible;
     }
 
-    sub hideLabels {
-        my ($s) = @_;
-        $s->showLabels(FALSE);
-    }
+    sub hide_labels { (shift)->show_labels(FALSE); }
 
-    sub showBackground {
+    sub show_background {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
         if ( $s->{align} eq CAPTION_BAR ) {
@@ -700,18 +725,16 @@ package cdmn::visuals::container {
         }
     }
 
-    sub refreshBackground {
-        my ($s) = @_;
+    # TODO still necessary?
+    sub refresh_background {
+        my $s = shift;
         if ( $s->{backgroundVisible} ) {
-            $s->hideBackground;
-            $s->showBackground;
+            $s->hide_background;
+            $s->show_background;
         }
     }
 
-    sub hideBackground {
-        my ($s) = @_;
-        $s->showBackground(FALSE);
-    }
+    sub hide_background { (shift)->show_background(FALSE); }
 }
 
 package cdmn::visuals::visual {
@@ -747,7 +770,7 @@ package cdmn::visuals::visual {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        @$s{qw/term rendition x y label pictorials pictorials_bg/} = @_;
+        (%$s) = @_;
 
         $s->{width}  = ( length $s->{label} ) + 1 + @{ $s->{pictorials} };
         $s->{height} = 1;
@@ -769,7 +792,15 @@ package cdmn::visuals::visual {
         $s->{rendition}  = urxvt::SET_FGCOLOR $s->{rendition}, 5;    #TODO remove magic number/hard-coded value
 
         my $labelObj =
-            cdmn::visuals::overlay->new( $s->{term}, $s->{x}, $s->{y}, $w, $s->{height}, $s->{rendition}, $s->{label} );
+            cdmn::visuals::overlay->new(
+                term      => $s->{term},
+                x         => $s->{x},
+                y         => $s->{y},
+                width     => $w,
+                height    => $s->{height},
+                rendition => $s->{rendition},
+                caption   => $s->{label}
+            );
 
         $labelObj->create("show");
         $s->{label} = $labelObj;
@@ -781,8 +812,15 @@ package cdmn::visuals::visual {
             my $x = $s->{x} + $w + $pos++;
             foreach ( &RED, &GREEN, &BLUE, &YELLOW, &WHITE, &PINK ) {
                 $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
-                my $pictorial =
-                    cdmn::visuals::overlay->new( $s->{term}, $x, $s->{y}, 1, 1, $s->{rendition}, BLOCKS->[0] );
+                my $pictorial = cdmn::visuals::overlay->new(
+                    term      => $s->{term},
+                    x         => $x,
+                    y         => $s->{y},
+                    width     => 1,
+                    height    => 1,
+                    rendition => $s->{rendition},
+                    caption   => BLOCKS->[0]
+                );
                 $pictorial->create;
                 $s->{pictorials}{"$i"}{"$_"} = $pictorial;
             }
@@ -800,19 +838,17 @@ package cdmn::visuals::visual {
     }
 
     sub hide {
-        my ($s) = @_;
-        $s->show(FALSE);
+        (shift)->show(FALSE);
     }
 
-    sub showLabel {
+    sub show_label {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
         $visible ? $s->{label}->show : $s->{label}->hide;
     }
 
-    sub hideLabel {
-        my ($s) = @_;
-        $s->showLabel(FALSE);
+    sub hide_label {
+        (shift)->show_label(FALSE);
     }
 
     sub set {
@@ -840,8 +876,8 @@ package cdmn::visuals::overlay {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        @$s{qw(term x y width height rendition caption)} = @_;
-        return $s;
+        (%$s) = @_;
+        $s;
     }
 
     sub create {
@@ -886,36 +922,72 @@ sub create_captions {
     my ($s) = (@_);
     my $caption;
 
-    #TODO remove position expectations
     local *addGauges = sub {
+        my (%s) = @_;
         for ( @{ XR->{gauges_order} } ) {
-            $_ eq XR->{label_cpu}     and $caption->add( $_, $_[0], XR->{caption_bg} );
-            $_ eq XR->{label_disk} and $caption->add( $_, $_[1], XR->{caption_bg} ) if $_[3] > 0;
-            $_ eq XR->{label_ram}     and $caption->add( $_, $_[2], XR->{caption_bg} );
-            $_ eq XR->{label_network} and $caption->add( $_, $_[3], XR->{caption_bg} ) if scalar @{$_[3]} > 0;
-            $_ eq XR->{label_battery} and $caption->add( &cdmn::proc::on_ac ? XR->{label_battery_AC} : $_, $_[4],
-                XR->{caption_bg} ) if scalar @{$_[4]} > 0;
-            $_ eq XR->{label_cpu_temp} and $caption->add( $_, $_[5], XR->{caption_bg} ) if scalar @{$_[5]} > 0;
+            $_ eq XR->{label_cpu} and $caption->add(
+                label => $_, visuals => $s{cpu}, bg => XR->{caption_bg} );
+
+            $_ eq XR->{label_disk} and $caption->add(
+                label => $_, visuals => $s{disk}, bg => XR->{caption_bg} );
+
+            $_ eq XR->{label_ram} and $caption->add(
+                label => $_, visuals => $s{memory}, bg => XR->{caption_bg} );
+
+            $_ eq XR->{label_network} and $caption->add(
+                label => $_, visuals => $s{network}, bg => XR->{caption_bg} ) if scalar @{$s{network}} > 0;
+
+            $_ eq XR->{label_battery} and $caption->add(
+                label   => &cdmn::proc::on_ac ? XR->{label_battery_AC} : $_,
+                visuals => $s{battery}, bg => XR->{caption_bg}
+            ) if scalar @{$s{battery}} > 0;
+
+            $_ eq XR->{label_cpu_temp} and $caption->add(
+                label => $_, visuals => $s{cores}, bg => XR->{caption_bg} ) if scalar @{$s{cores}} > 0;
         }
     };
 
     for ( XR->{caption} ) {
         $caption = do {
             if ($_ eq cdmn::constants::CAPTION_BAR) {
-                cdmn::visuals::container->new( $s, REND, XR->{x}, XR->{y}, XR->{padding}, $_, 0, XR->{showing} );
+                cdmn::visuals::container->new(
+                    term       => $s,
+                    rendition  => REND,
+                    x          => XR->{x},
+                    y          => XR->{y},
+                    padding    => XR->{padding},
+                    align      => $_,
+                    evenGauges => 0,
+                    visible    => XR->{showing}
+                );
             }
             elsif ($_ eq cdmn::constants::CAPTION_BLOCK) {
-                cdmn::visuals::container->new( $s, REND, - 1, XR->{y}, 0, $_, 1, XR->{showing} );
+                cdmn::visuals::container->new(
+                    term       => $s,
+                    rendition  => REND,
+                    x          => - 1,
+                    y          => XR->{y},
+                    padding    => 0,
+                    align      => $_,
+                    evenGauges => 1,
+                    visible    => XR->{showing}
+                );
             }
         };
     }
 
     state $cpus = cdmn::proc::cpu_count() - 1;
 
-    addGauges( [ map "cpu".$_, 0 .. $cpus ], XR->{gauges_disks}, [ "MemAvailable:" ], XR->{gauges_nics},
-        XR->{gauges_batteries}, XR->{gauges_cores});
+    addGauges(
+        cpu     => [ map "cpu".$_, 0 .. $cpus ],
+        disk    => XR->{gauges_disks},
+        memory  => [ "MemAvailable:" ],
+        network => XR->{gauges_nics},
+        battery => XR->{gauges_batteries},
+        cores   => XR->{gauges_cores},
+    );
 
-    return $caption;
+    return \$caption;
 }
 
 ####################################################
@@ -930,6 +1002,7 @@ sub user_command {
         my $w = $s->width;
         my $x = 0;
         my $y = XR->{y} >= 0 ? $s->fheight : -1;
+
         if ( $s->{xterms}{main}{maximized} ) {
             $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 );    #TODO why add 4?
             $s->{xterms}{main}{maximized} = 0;
@@ -967,26 +1040,27 @@ sub on_refresh_begin {
     my ($s) = @_;
     state $onAC = 0;
     state $nics = 0;
-    my $nics_active = cdmn::proc->nics;
+    my $nics_active = cdmn::proc->ifs;
     if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::on_ac != $onAC || $nics != scalar @$nics_active) {
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
         my $n = [ map {$_."_tx", $_."_rx"} @$nics_active ];
         XR->{gauges_nics} = $n;
 
-        my $visible_0 = $s->{caption}[0]->{visible};
-        my $visible_1 = $s->{caption}[1]->{visible};
+        my $visible_0 = ${$s->{caption}[0]}->{visible};
+        my $visible_1 = ${$s->{caption}[1]}->{visible};
 
         $s->{w_sizse} = $s->{term}->ncol;
         $s->{visuals_updater}->stop;
         $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
         $s->{caption}[1] = create_captions $s;
-        $s->{caption}[0]->create;
-        $s->{caption}[1]->create;
-        $visible_0 ? $s->{caption}[0]->show : $s->{caption}[0]->hide;
-        $visible_1 ? $s->{caption}[1]->show : $s->{caption}[1]->hide;
+        ${$s->{caption}[0]}->create;
+        ${$s->{caption}[1]}->create;
+        $visible_0 ? ${$s->{caption}[0]}->show : ${$s->{caption}[0]}->hide;
+        $visible_1 ? ${$s->{caption}[1]}->show : ${$s->{caption}[1]}->hide;
         $s->{visuals_updater}->start;
     }
+
     1;
 }
 
@@ -1008,7 +1082,8 @@ sub on_configure_notify {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );                 #TODO why add 4?
     }
     $s->{xterms}{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );    #TODO why add 4?
-    $s->{xterms}{sidebar}->setContent;
+    $s->{xterms}{sidebar}->create_content;
+
     1;
 }
 
@@ -1066,7 +1141,7 @@ sub on_init {
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
 
     #$nics = [ split( /[,[:space:]]/, $nics ) ];
-    $nics = cdmn::proc->nics;
+    $nics = cdmn::proc->ifs;
     $nics = [ map {$_."_tx", $_."_rx"} @$nics ]; #TODO remove this overwrite and make it a tolerant
     # default
     XR->{gauges_nics} = $nics;
@@ -1108,16 +1183,30 @@ sub on_start {
 
     #TODO maybe just create with 0 and handle everything else in config_notify
     $s->{xterms}{main} = cdmn::term->new(
-        $s, XR, 0, XR->{y} >= 0 ? $s->fheight : 0,
-        $s->width, $s->fheight * ( $s->nrow - 1 ),
-        4, 1, @argv
+        parent   => $s,
+        resource => XR,
+        x        => 0,
+        y        => XR->{y} >= 0 ? $s->fheight : 0,
+        w        => $s->width,
+        h        => $s->fheight * ( $s->nrow - 1 ),
+        bg_color => 4,
+        is_root  => 1
     );
 
     $s->{xterms}{main}{maximized} = 1 if XR->{caption} eq cdmn::constants::CAPTION_BAR;
-    $s->{xterms}{sidebar} =
-        cdmn::term->new( $s, XR, $s->width / 2, 0, $s->width / 2 + 1, $s->fheight * ( $s->nrow ), 5, 0, @argv );
+    $s->{xterms}{sidebar} = cdmn::term->new(
+        parent   => $s,
+        resource => XR,
+        x        => $s->width / 2,
+        y        => 0,
+        w        => $s->width / 2 + 1,
+        h        => $s->fheight * ( $s->nrow ),
+        bg_color => 5,
+        is_root  => 0
+    );
+
     $s->{xterms}{sidebar}->disableCursor;
-    $s->{xterms}{sidebar}->setContent;
+    $s->{xterms}{sidebar}->create_content;
     $s->{xterms}{sidebar}->hide;
     $s->{xterms}{main}->show;
 
@@ -1126,8 +1215,8 @@ sub on_start {
     $s->{w_sizse}    = $s->{term}->ncol;
     $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
     $s->{caption}[1] = create_captions $s;
-    $s->{caption}[0]->create;
-    $s->{caption}[1]->create;
+    ${$s->{caption}[0]}->create;
+    ${$s->{caption}[1]}->create;
 
     $s->cmd_parse("\e[1T\e[1B");
     $s->cmd_parse("\e[1T\e[1B");
@@ -1144,7 +1233,7 @@ sub on_start {
             if (XR->{gauges}{ XR->{label_battery} }) {
                 %r = %{&cdmn::proc::battery_usages};
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( $onAC ? XR->{label_battery_AC} : XR->{label_battery}, $key, $value,
+                    $$_->set( $onAC ? XR->{label_battery_AC} : XR->{label_battery}, $key, $value,
                         1 ) foreach @{ $s->{caption} };
                 }
             }
@@ -1152,42 +1241,42 @@ sub on_start {
             if (XR->{gauges}{ XR->{label_cpu} }) {
                 %r = %{&cdmn::proc::cpu_usages};
                 while ( my ( $key, $value ) = each %r ) {
-                    $s->{caption}[0]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
-                    $s->{caption}[1]->set( XR->{label_cpu}, $key, $value ) if ( $key =~ /^cpu[0-9]/ );
+                    if ($key =~ /^cpu[0-9]/) {
+                        $$_->set( XR->{label_cpu}, $key, $value ) foreach @{ $s->{caption} };
+                    }
                 }
             }
 
             if (XR->{gauges}{ XR->{label_disk} }) {
                 %r = %{&cdmn::proc::disk_usages};
-                foreach ( @{ XR->{gauges_disks} } ) {
-                    $s->{caption}[0]->set( XR->{label_disk}, $_, $r{$_} );
-                    $s->{caption}[1]->set( XR->{label_disk}, $_, $r{$_} );
+                while ( my ( $key, $value ) = each %r ) {
+                    $$_->set( XR->{label_disk}, $key, $value ) foreach @{ $s->{caption} };
                 }
             }
 
             if (XR->{gauges}{ XR->{label_ram} }) {
                 %r = %{&cdmn::proc::memory_usages};
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( XR->{label_ram}, $key, $value ) foreach @{ $s->{caption} };
+                    $$_->set( XR->{label_ram}, $key, $value ) foreach @{ $s->{caption} };
                 }
             }
 
             if (XR->{gauges}{ XR->{label_cpu_temp} }) {
                 %r = %{&cdmn::proc::core_temperature_usages};
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( XR->{label_cpu_temp}, $key, $value ) foreach @{ $s->{caption} };
+                    $$_->set( XR->{label_cpu_temp}, $key, $value ) foreach @{ $s->{caption} };
                 }
             }
 
             if (XR->{gauges}{ XR->{label_network} }) {
                 %r = %{ &cdmn::proc::if_usage("rx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
+                    $$_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
 
                 %r = %{ &cdmn::proc::if_usage("tx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
-                    $_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
+                    $$_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
             }
         }
