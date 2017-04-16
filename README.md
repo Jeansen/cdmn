@@ -141,7 +141,7 @@ This extension is with relevance to its current stage [bleeding edge alpha](http
 what is planned for the future.
 
 # Contributing
-Fork it, make a Pull Request, create Issues with suggestions, bugs ore questions ... You are always welcome to 
+Fork it, make a Pull Request, create Issues with suggestions, bugs or questions ... You are always welcome to 
 contribute!
 
 # Self-Promotion
