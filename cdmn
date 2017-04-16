@@ -37,8 +37,6 @@ package cdmn::proc {
         DISKSTATS   => '/proc/diskstats',
         MEMINFO     => '/proc/meminfo',
         NET_ROUTE   => '/proc/net/route',
-        CPU_PRESENT => '/sys/devices/system/cpu/present',
-        HWMON       => '/sys/class/hwmon/',
     };
 
     use constant {
@@ -51,11 +49,13 @@ package cdmn::proc {
     };
 
     use constant {
-        SYSFS_NET           => '/sys/class/net/',
-        SYSFS_BAT => '/sys/class/power_supply/',
+        CPU_PRESENT => '/sys/devices/system/cpu/present',
+        HWMON       => '/sys/class/hwmon/',
+        SYSFS_NET   => '/sys/class/net/',
+        SYSFS_BAT   => '/sys/class/power_supply/',
     };
 
-    sub core_temperature_usages {
+    sub cpu_temp_usages {
         my %results;
         if (-e HWMON) {
             opendir( my $dh, HWMON );
@@ -131,7 +131,7 @@ package cdmn::proc {
         $path;
     }
 
-    sub on_ac {
+    sub ac_online {
         opendir( my $dh, SYSFS_BAT );
         my @dir = readdir $dh; #while ( readdir $dh ) too slow?
         for (@dir) {
@@ -162,7 +162,7 @@ package cdmn::proc {
         0;
     }
 
-    sub ifs {
+    sub if_list {
         my @ifs;
         opendir( my $dh, SYSFS_NET);
         my @dir = readdir $dh;
@@ -323,14 +323,14 @@ package cdmn::proc {
         return \%results;
     }
 
-    sub if_usage {
+    sub network_usages {
         my $direction = shift;
 
         my %results;
         my $bytes = 0;
         state %nics;
 
-        for (@{&ifs}) {
+        for (@{&if_list}) {
             my $nic = $_;
             if (!defined $nics{$nic}) {
                 $nics{$nic}{$_} = 0 for (RX, TX);
@@ -409,7 +409,7 @@ package cdmn::resources {
         x  y  padding
             showing  showing_labels  showing_background
             caption  caption_bg
-            label_network  label_disk  label_cpu  label_ram label_battery  label_battery_AC label_cpu_temp
+            label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp
             gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_background gauges_cores
             actions
         );
@@ -904,14 +904,6 @@ package cdmn::visuals::overlay {
     }
 }
 
-use constant {
-    CPU     => 'cpu',
-    MEMORY  => 'memory',
-    NETWORK => 'network',
-    DISK    => 'disk',
-    REND    => cdmn::constants::REND,
-};
-
 use constant XR => cdmn::resources->new();
 
 ####################################################
@@ -924,26 +916,26 @@ sub create_captions {
 
     local *addGauges = sub {
         my (%s) = @_;
+
+        for my $h (qw(cpu disk memory)) {
+            eval qq{
+            for ( \@{ XR->{gauges_order} } ) {
+                 \$_ eq XR->{label_$h} and \$caption->add(
+                label => \$_, visuals => \$s{$h}, bg => XR->{caption_bg} );
+            }};
+        }
+
         for ( @{ XR->{gauges_order} } ) {
-            $_ eq XR->{label_cpu} and $caption->add(
-                label => $_, visuals => $s{cpu}, bg => XR->{caption_bg} );
-
-            $_ eq XR->{label_disk} and $caption->add(
-                label => $_, visuals => $s{disk}, bg => XR->{caption_bg} );
-
-            $_ eq XR->{label_ram} and $caption->add(
-                label => $_, visuals => $s{memory}, bg => XR->{caption_bg} );
-
             $_ eq XR->{label_network} and $caption->add(
                 label => $_, visuals => $s{network}, bg => XR->{caption_bg} ) if scalar @{$s{network}} > 0;
 
-            $_ eq XR->{label_battery} and $caption->add(
-                label   => &cdmn::proc::on_ac ? XR->{label_battery_AC} : $_,
-                visuals => $s{battery}, bg => XR->{caption_bg}
-            ) if scalar @{$s{battery}} > 0;
-
             $_ eq XR->{label_cpu_temp} and $caption->add(
                 label => $_, visuals => $s{cores}, bg => XR->{caption_bg} ) if scalar @{$s{cores}} > 0;
+
+            $_ eq XR->{label_battery} and $caption->add(
+                label   => &cdmn::proc::ac_online ? XR->{label_battery_AC} : $_,
+                visuals => $s{battery}, bg => XR->{caption_bg}
+            ) if scalar @{$s{battery}} > 0;
         }
     };
 
@@ -952,7 +944,7 @@ sub create_captions {
             if ($_ eq cdmn::constants::CAPTION_BAR) {
                 cdmn::visuals::container->new(
                     term       => $s,
-                    rendition  => REND,
+                    rendition  => cdmn::constants::REND,
                     x          => XR->{x},
                     y          => XR->{y},
                     padding    => XR->{padding},
@@ -964,7 +956,7 @@ sub create_captions {
             elsif ($_ eq cdmn::constants::CAPTION_BLOCK) {
                 cdmn::visuals::container->new(
                     term       => $s,
-                    rendition  => REND,
+                    rendition  => cdmn::constants::REND,
                     x          => - 1,
                     y          => XR->{y},
                     padding    => 0,
@@ -1006,7 +998,7 @@ sub user_command {
         if ( $s->{xterms}{main}{maximized} ) {
             $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 );    #TODO why add 4?
             $s->{xterms}{main}{maximized} = 0;
-            $s->{caption}[0]->hide;
+            ${$s->{caption}->[0]}->hide;
             $SHOWING = 1;
         }
         else {
@@ -1018,12 +1010,13 @@ sub user_command {
 
     if ($action eq &cdmn::constants::ACTION_SHOW_TRANSPARENT) {
         if ( $s->{xterms}{main}{maximized} ) {
-            if ($s->{caption}[0]->{visible}) {
-                $s->{caption}[0]->hide;
+            my $c = ${$s->{caption}->[0]};
+            if ($c->{visible}) {
+                $c->hide;
                 $SHOWING = 0;
             }
             else {
-                $s->{caption}[0]->show;
+                $c->show;
                 $SHOWING = 1;
             }
         }
@@ -1040,24 +1033,22 @@ sub on_refresh_begin {
     my ($s) = @_;
     state $onAC = 0;
     state $nics = 0;
-    my $nics_active = cdmn::proc->ifs;
-    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::on_ac != $onAC || $nics != scalar @$nics_active) {
+    my $nics_active = cdmn::proc->if_list;
+    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::ac_online != $onAC || $nics != scalar @$nics_active) {
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
         my $n = [ map {$_."_tx", $_."_rx"} @$nics_active ];
         XR->{gauges_nics} = $n;
 
-        my $visible_0 = ${$s->{caption}[0]}->{visible};
-        my $visible_1 = ${$s->{caption}[1]}->{visible};
-
         $s->{w_sizse} = $s->{term}->ncol;
         $s->{visuals_updater}->stop;
         $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
         $s->{caption}[1] = create_captions $s;
-        ${$s->{caption}[0]}->create;
-        ${$s->{caption}[1]}->create;
-        $visible_0 ? ${$s->{caption}[0]}->show : ${$s->{caption}[0]}->hide;
-        $visible_1 ? ${$s->{caption}[1]}->show : ${$s->{caption}[1]}->hide;
+        foreach my $item (@{($s->{caption})}) {
+            ${$item}->create;
+            ${$item}->{visible} ? ${$item}->show : ${$item}->hide;
+        }
+
         $s->{visuals_updater}->start;
     }
 
@@ -1120,7 +1111,7 @@ sub on_init {
     XR->{label_disk}         = $s->x_resource('%.label.disk')         // 'DISK';
     XR->{label_cpu}          = $s->x_resource('%.label.cpu')          // 'CPU';
     XR->{label_cpu_temp} = $s->x_resource('%.label.cpu.temp') // 'TEMP';
-    XR->{label_ram} = $s->x_resource('%.label.ram') // 'MEM';
+    XR->{label_memory} = $s->x_resource('%.label.ram') // 'MEM';
     XR->{label_battery} = $s->x_resource('%.label.battery') // 'BAT';
     XR->{label_battery_AC} = XR->{label_battery}."(⌁)";
     XR->{showing}            = $s->x_resource('%.showing')            // 1;
@@ -1141,7 +1132,7 @@ sub on_init {
     my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
 
     #$nics = [ split( /[,[:space:]]/, $nics ) ];
-    $nics = cdmn::proc->ifs;
+    $nics = cdmn::proc->if_list;
     $nics = [ map {$_."_tx", $_."_rx"} @$nics ]; #TODO remove this overwrite and make it a tolerant
     # default
     XR->{gauges_nics} = $nics;
@@ -1156,7 +1147,7 @@ sub on_init {
     $order = [ split( /[[:punct:],[:space:]]/, $order ) ];
 
     my @order_default;
-    for (qw/label_network label_disk label_cpu label_ram label_battery label_cpu_temp/) {
+    for (qw/label_network label_disk label_cpu label_memory label_battery label_cpu_temp/) {
         push( @order_default, XR->{$_} );
     }
 
@@ -1179,7 +1170,6 @@ sub on_init {
 
 sub on_start {
     my ($s) = @_;
-    my @argv = $s->argv;
 
     #TODO maybe just create with 0 and handle everything else in config_notify
     $s->{xterms}{main} = cdmn::term->new(
@@ -1218,17 +1208,14 @@ sub on_start {
     ${$s->{caption}[0]}->create;
     ${$s->{caption}[1]}->create;
 
-    $s->cmd_parse("\e[1T\e[1B");
-    $s->cmd_parse("\e[1T\e[1B");
-
+    $s->cmd_parse("\e[2T\e[2B"); #Scroll down and move cursor down 2 line.
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
-    do { shift @argv; } while @argv && $argv[0] ne "-e";    #urxvt [options] [-e command [ args ]]
 
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(1)->cb(
         sub {
             return if !$SHOWING;
             my %r;
-            my $onAC = &cdmn::proc::on_ac;
+            my $onAC = &cdmn::proc::ac_online;
 
             if (XR->{gauges}{ XR->{label_battery} }) {
                 %r = %{&cdmn::proc::battery_usages};
@@ -1238,43 +1225,24 @@ sub on_start {
                 }
             }
 
-            if (XR->{gauges}{ XR->{label_cpu} }) {
-                %r = %{&cdmn::proc::cpu_usages};
-                while ( my ( $key, $value ) = each %r ) {
-                    if ($key =~ /^cpu[0-9]/) {
-                        $$_->set( XR->{label_cpu}, $key, $value ) foreach @{ $s->{caption} };
+            for my $h (qw(cpu disk memory cpu_temp)) {
+                eval qq{
+                    if (XR->{gauges}{ XR->{label_cpu} }) {
+                        %r = %{&cdmn::proc::${h}_usages};
+                        while ( my ( \$key, \$value ) = each %r ) {
+                            \$\$_->set( XR->{label_${h}}, \$key, \$value ) foreach \@{ \$s->{caption} };
+                        }
                     }
-                }
-            }
-
-            if (XR->{gauges}{ XR->{label_disk} }) {
-                %r = %{&cdmn::proc::disk_usages};
-                while ( my ( $key, $value ) = each %r ) {
-                    $$_->set( XR->{label_disk}, $key, $value ) foreach @{ $s->{caption} };
-                }
-            }
-
-            if (XR->{gauges}{ XR->{label_ram} }) {
-                %r = %{&cdmn::proc::memory_usages};
-                while ( my ( $key, $value ) = each %r ) {
-                    $$_->set( XR->{label_ram}, $key, $value ) foreach @{ $s->{caption} };
-                }
-            }
-
-            if (XR->{gauges}{ XR->{label_cpu_temp} }) {
-                %r = %{&cdmn::proc::core_temperature_usages};
-                while ( my ( $key, $value ) = each %r ) {
-                    $$_->set( XR->{label_cpu_temp}, $key, $value ) foreach @{ $s->{caption} };
-                }
+                };
             }
 
             if (XR->{gauges}{ XR->{label_network} }) {
-                %r = %{ &cdmn::proc::if_usage("rx_bytes") };
+                %r = %{ &cdmn::proc::network_usages("rx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
                     $$_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
 
-                %r = %{ &cdmn::proc::if_usage("tx_bytes") };
+                %r = %{ &cdmn::proc::network_usages("tx_bytes") };
                 while ( my ( $key, $value ) = each %r ) {
                     $$_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
