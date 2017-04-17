@@ -1031,24 +1031,28 @@ sub user_command {
 
 sub on_refresh_begin {
     my ($s) = @_;
+    my $nics_active = cdmn::proc->if_list;
     state $onAC = 0;
     state $nics = 0;
-    my $nics_active = cdmn::proc->if_list;
+
     if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::ac_online != $onAC || $nics != scalar @$nics_active) {
+        my @visible = map {$$_->{visible}} @{($s->{caption})};
+        my $n = [ map {$_."_tx", $_."_rx"} @$nics_active ];
+
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
-        my $n = [ map {$_."_tx", $_."_rx"} @$nics_active ];
+
         XR->{gauges_nics} = $n;
 
         $s->{w_sizse} = $s->{term}->ncol;
         $s->{visuals_updater}->stop;
         $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
         $s->{caption}[1] = create_captions $s;
-        foreach my $item (@{($s->{caption})}) {
-            ${$item}->create;
-            ${$item}->{visible} ? ${$item}->show : ${$item}->hide;
-        }
 
+        while ( my ( $key, $item ) = each @{($s->{caption})} ) {
+            ${$item}->create;
+            $visible[$key] ? ${$item}->show : ${$item}->hide;
+        }
         $s->{visuals_updater}->start;
     }
 
@@ -1080,9 +1084,11 @@ sub on_configure_notify {
 
 for my $h (qw(key_press key_release)) {
     ## no critic
-    eval qq{ sub on_$h {
-    my (\$s, \$e) = \@_;
-    \$s->{xterms}{main}{term}->$h (\$e->{state}, \$e->{keycode}, \$e->{time}); 1; } };
+    eval qq{
+    sub on_$h {
+        my (\$s, \$e) = \@_;
+        \$s->{xterms}{main}{term}->$h (\$e->{state}, \$e->{keycode}, \$e->{time}); 1; }
+    };
 }
 
 
