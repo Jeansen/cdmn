@@ -1069,6 +1069,13 @@ sub on_refresh_begin {
 
 sub on_configure_notify {
     my $s = shift;
+    return if $s->{w_sizse} eq $s->{term}->ncol;
+    refresh_bounds $s;
+    1;
+}
+
+sub refresh_bounds{
+    my $s = shift;
     my $h = $s->fheight * ( $s->nrow - 1 ) + 4;
     my $w = $s->width;
     my $x = 0;
@@ -1081,9 +1088,7 @@ sub on_configure_notify {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );                 #TODO why add 4?
     }
     $s->{xterms}{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );    #TODO why add 4?
-    $s->{xterms}{sidebar}->create_content;
-
-    1;
+    $s->{xterms}{sidebar}->create_content; #TODO Memory Leak / but will go away when refactoring the sidebar
 }
 
 for my $h (qw(key_press key_release)) {
@@ -1125,7 +1130,6 @@ sub on_init {
     XR->{label_battery} = $s->x_resource('%.label.battery') // 'BAT';
     XR->{label_battery_AC} = XR->{label_battery}."(⌁)";
     XR->{showing}            = $s->x_resource('%.showing')            // 1;
-    $SHOWING = XR->{showing};
     XR->{showing_labels}     = $s->x_resource('%.showing.labels')     // 1;
     XR->{showing_background} = $s->x_resource('%.showing.background') // 1;
     XR->{caption}            = $s->x_resource('%.caption')            // 'bar';       #block | bar | solid-bar
@@ -1134,6 +1138,8 @@ sub on_init {
     XR->{padding}            = $s->x_resource('%.padding')            // 2;           #Padding between visuals
     XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
     XR->{y} = $s->x_resource('%.y') // 0;     #positive from top, negativ from bottom
+
+    $SHOWING = XR->{showing};
 
     for my $h (qw(disks batteries cores nics)) {
         eval qq{
@@ -1255,6 +1261,6 @@ sub on_start {
             }
         }
     );
-
+    refresh_bounds $s;
     ();
 }
