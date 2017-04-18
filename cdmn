@@ -408,7 +408,7 @@ package cdmn::resources {
     use fields qw(
         x  y  padding
             showing  showing_labels  showing_background
-            caption  caption_bg
+            caption  caption_bg caption_fg
             label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp
             gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_background gauges_cores
             actions
@@ -623,7 +623,8 @@ package cdmn::visuals::container {
             y             => $yOff,
             label         => $arg{label},
             pictorials    => $arg{visuals},
-            pictorials_bg => $arg{bg}
+            pictorials_bg => $arg{bg},
+            pictorials_fg => $arg{fg}
         );
 
         $s->{sprites}{$arg{label}} = $visual;
@@ -740,7 +741,7 @@ package cdmn::visuals::container {
 package cdmn::visuals::visual {
     use List::Util qw(max);
 
-    use fields qw( term rendition x y label pictorials pictorials_bg );
+    use fields qw( term rendition x y label pictorials pictorials_bg pictorials_fg);
     use fields qw( count width height );
 
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
@@ -789,7 +790,8 @@ package cdmn::visuals::visual {
 
         $s->{pictorials} = {};
         $s->{x}          = -( $w + $m ) if $s->{x} < 0;
-        $s->{rendition}  = urxvt::SET_FGCOLOR $s->{rendition}, 5;    #TODO remove magic number/hard-coded value
+        $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition},
+            $s->{pictorials_fg};    #TODO remove magic number/hard-coded value
 
         my $labelObj =
             cdmn::visuals::overlay->new(
@@ -921,20 +923,22 @@ sub create_captions {
             eval qq{
             for ( \@{ XR->{gauges_order} } ) {
                  \$_ eq XR->{label_$h} and \$caption->add(
-                label => \$_, visuals => \$s{$h}, bg => XR->{caption_bg} );
+                label => \$_, visuals => \$s{$h}, bg => XR->{caption_bg}, fg => XR->{caption_fg} );
             }};
         }
 
         for ( @{ XR->{gauges_order} } ) {
             $_ eq XR->{label_network} and $caption->add(
-                label => $_, visuals => $s{network}, bg => XR->{caption_bg} ) if scalar @{$s{network}} > 0;
+                label => $_, visuals => $s{network}, bg => XR->{caption_bg}, fg =>
+                XR->{caption_fg} ) if scalar @{$s{network}} > 0;
 
             $_ eq XR->{label_cpu_temp} and $caption->add(
-                label => $_, visuals => $s{cores}, bg => XR->{caption_bg} ) if scalar @{$s{cores}} > 0;
+                label => $_, visuals => $s{cores}, bg => XR->{caption_bg}, fg =>
+                XR->{caption_fg} ) if scalar @{$s{cores}} > 0;
 
             $_ eq XR->{label_battery} and $caption->add(
                 label   => &cdmn::proc::ac_online ? XR->{label_battery_AC} : $_,
-                visuals => $s{battery}, bg => XR->{caption_bg}
+                visuals => $s{battery}, bg => XR->{caption_bg}, fg => XR->{caption_fg}
             ) if scalar @{$s{battery}} > 0;
         }
     };
@@ -1125,45 +1129,34 @@ sub on_init {
     XR->{showing_labels}     = $s->x_resource('%.showing.labels')     // 1;
     XR->{showing_background} = $s->x_resource('%.showing.background') // 1;
     XR->{caption}            = $s->x_resource('%.caption')            // 'bar';       #block | bar | solid-bar
-    XR->{caption_bg} = $s->x_resource('%.caption-background') // '235';
+    XR->{caption_bg} = $s->x_resource('%.caption-bg') // '235';
+    XR->{caption_fg} = $s->x_resource('%.caption-fg') // '5';
     XR->{padding}            = $s->x_resource('%.padding')            // 2;           #Padding between visuals
     XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
     XR->{y} = $s->x_resource('%.y') // 0;     #positive from top, negativ from bottom
 
-    my $disks = $s->x_resource('%.gauges.disks') // 'sda';    #Can be a list, e.g. 'a,b,c' or 'a b c'
-    $disks = [ split( /[[:punct:],[:space:]]/, $disks ) ];
-    XR->{gauges_disks} = cdmn::proc::disks;                 #TODO remove this overwrite and make it a tolerant default
+    for my $h (qw(disks batteries cores nics)) {
+        eval qq{
+            if (\$s->x_resource('%.gauges.$h')) {
+                my \$disks = \$s->x_resource('%.gauges.$h');
+                \$disks = [ split( /[,[:space:]]/, \$disks ) ];
+                XR->{gauges_$h} = cut_set(cdmn::proc::$h, \$disks);
+            } else {
+                XR->{gauges_$h} = cdmn::proc::$h;
+            }
+        };
+    }
 
-    #Can be a list, e.g. 'a,b,c' or 'a b c'
-    my $nics = $s->x_resource('%.gauges.nics') // 'eth0_rx,eth0_tx,eth1_rx,eth1_tx';
-
-    #$nics = [ split( /[,[:space:]]/, $nics ) ];
-    $nics = cdmn::proc->if_list;
-    $nics = [ map {$_."_tx", $_."_rx"} @$nics ]; #TODO remove this overwrite and make it a tolerant
-    # default
-    XR->{gauges_nics} = $nics;
-
-    my $batteries = cdmn::proc->batteries; #TODO remove this overwrite and make it a tolerant default
-    XR->{gauges_batteries} = $batteries;
-
-    my $cores = cdmn::proc->cores; #TODO remove this overwrite and make it a tolerant default
-    XR->{gauges_cores} = $cores;
+    XR->{gauges_nics} = [ map {$_."_tx", $_."_rx"} @{XR->{gauges_nics}} ];
 
     my $order = $s->x_resource('%.caption-order') // 'DISK,CPU,TEMP,MEM,NET,BAT';
-    $order = [ split( /[[:punct:],[:space:]]/, $order ) ];
+    $order = [ split( /[,[:space:]]/, $order ) ];
 
-    my @order_default;
-    for (qw/label_network label_disk label_cpu label_memory label_battery label_cpu_temp/) {
-        push( @order_default, XR->{$_} );
-    }
+    my @order_default = map { XR->{$_} } (qw/label_network label_disk label_cpu label_memory label_battery label_cpu_temp/);
 
     my %gauges = map { $_ => 0 } @order_default;
-    while ( my ( $key, $value ) = each @$order ) {
-        if (!grep( /^$value$/, @order_default )) {
-            splice @$order, $key, $key;
-        }
-        else { $gauges{$value} = 1 }
-    }
+    $order = &cut_set($order, \@order_default);
+    $gauges{$_} = 1 for @$order;
 
     XR->{gauges} = \%gauges;
 
@@ -1172,6 +1165,13 @@ sub on_init {
     XR->{gauges_background} = $s->x_resource('%.gauges-background') // '5';    #simple | full
 
     ();
+}
+
+sub cut_set {
+        my @cut, my %n = ();
+    foreach my $e (@{$_[0]}, @{$_[1]}) { $n{$e}++ }
+    foreach my $e (@{$_[0]}) { push @{ \@cut}, $e if $n{$e} > 1 }
+    return \@cut;
 }
 
 sub on_start {
