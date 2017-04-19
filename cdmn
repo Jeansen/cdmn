@@ -76,6 +76,7 @@ package cdmn::proc {
                         chomp(my $mv = <$f>);
                         open( $f, '<', $p."/".$_."_label");
                         chomp(my $l = <$f>);
+                        last if $l =~ /^Core/;
                         $results{$l} = $cv / $mv * 100;
                     }
                     last;
@@ -102,7 +103,7 @@ package cdmn::proc {
                 for (keys %cores) {
                     open( $f, '<', $p."/".$_."_label");
                     chomp(my $l = <$f>);
-                    push @results, $l;
+                    push @results, $l if $l =~ /^Core/;
                 };
                 last;
             }
