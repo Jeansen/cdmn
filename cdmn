@@ -76,7 +76,7 @@ package cdmn::proc {
                         chomp(my $mv = <$f>);
                         open( $f, '<', $p."/".$_."_label");
                         chomp(my $l = <$f>);
-                        last if $l =~ /^Core/;
+                        last if $l !~ /^Core/;
                         $results{$l} = $cv / $mv * 100;
                     }
                     last;
@@ -413,6 +413,7 @@ package cdmn::resources {
             label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp
             gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_background gauges_cores
             actions
+            cpu cpu_temp battery
         );
 
     sub new {
@@ -499,7 +500,7 @@ package cdmn::term {
         if ( $_[0]{term}{parent} ) {
             ${$_[0]{term}{parent}{caption}[0]}->hide;    #prevent segmentation fauls!
             $_->{term}->destroy for @terminals;
-            my $p = $_[0]{term}{parent} or return;    #TODO get to understand it!
+            my $p = $_[0]{term}{parent} or return;
             $p->{d} = urxvt::iw->new->start->cb( sub { $p->destroy } );
         }
         1;
@@ -791,8 +792,7 @@ package cdmn::visuals::visual {
 
         $s->{pictorials} = {};
         $s->{x}          = -( $w + $m ) if $s->{x} < 0;
-        $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition},
-            $s->{pictorials_fg};    #TODO remove magic number/hard-coded value
+        $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $s->{pictorials_fg};
 
         my $labelObj =
             cdmn::visuals::overlay->new(
@@ -903,7 +903,7 @@ package cdmn::visuals::overlay {
     }
 
     for my $h (qw(hide show)) {
-        eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } };             ## no critic
+        eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } }; ## no critic
     }
 }
 
@@ -1101,7 +1101,6 @@ for my $h (qw(key_press key_release)) {
     };
 }
 
-
 for my $h (qw(focus_in focus_out)) {
     eval qq{ sub on_$h { (shift)->{xterms}{main}{term}->$h; 1; } }; ## no critic
 }
@@ -1139,6 +1138,9 @@ sub on_init {
     XR->{padding}            = $s->x_resource('%.padding')            // 2;           #Padding between visuals
     XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
     XR->{y} = $s->x_resource('%.y') // 0;     #positive from top, negativ from bottom
+    XR->{cpu} = $s->x_resource('%.cpu') // 'detail';     #simple | detail
+    XR->{cpu_temp} = $s->x_resource('%.cpu.temp') // 'detail';     #simple | detail
+    XR->{battery} = $s->x_resource('%.battery') // 'detail';     #simple | detail
 
     $SHOWING = XR->{showing};
 
@@ -1164,7 +1166,6 @@ sub on_init {
     my %gauges = map { $_ => 0 } @order_default;
     $order = &cut_set($order, \@order_default);
     $gauges{$_} = 1 for @$order;
-
     XR->{gauges} = \%gauges;
 
     ( scalar @$order > 0 ) ? ( XR->{gauges_order} = $order ) : ( XR->{gauges_order} = \@order_default );
@@ -1184,7 +1185,6 @@ sub cut_set {
 sub on_start {
     my ($s) = @_;
 
-    #TODO maybe just create with 0 and handle everything else in config_notify
     $s->{xterms}{main} = cdmn::term->new(
         parent   => $s,
         resource => XR,
