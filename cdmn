@@ -1248,7 +1248,8 @@ sub on_start {
                 my $st = shift;
                 my $total = 0;
 
-                @k = keys %r;
+                my @k = keys %r;
+                return 1 if scalar @k < 1;
 
                 my $bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
                 %r = %{&cdmn::proc::cpu_usages} if $h eq XR->{label_cpu};
