@@ -917,7 +917,7 @@ sub create_captions {
     my ($s) = (@_);
     my $caption;
 
-    local *addGauges = sub {
+    local *_add = sub {
         my (%s) = @_;
 
         for my $h (qw(cpu disk memory)) {
@@ -931,16 +931,16 @@ sub create_captions {
         for ( @{ XR->{gauges_order} } ) {
             $_ eq XR->{label_network} and $caption->add(
                 label => $_, visuals => $s{network}, bg => XR->{caption_bg}, fg =>
-                XR->{caption_fg} ) if scalar @{$s{network}} > 0;
+                XR->{caption_fg} ) if $s{network};
 
             $_ eq XR->{label_cpu_temp} and $caption->add(
                 label => $_, visuals => $s{cores}, bg => XR->{caption_bg}, fg =>
-                XR->{caption_fg} ) if scalar @{$s{cores}} > 0;
+                XR->{caption_fg} ) if $s{cores};
 
             $_ eq XR->{label_battery} and $caption->add(
                 label   => &cdmn::proc::ac_online ? XR->{label_battery_AC} : $_,
                 visuals => $s{battery}, bg => XR->{caption_bg}, fg => XR->{caption_fg}
-            ) if scalar @{$s{battery}} > 0;
+            ) if $s{battery};
         }
     };
 
@@ -975,14 +975,15 @@ sub create_captions {
 
     state $cpus = cdmn::proc::cpu_count() - 1;
 
-    addGauges(
-        cpu     => [ map "cpu".$_, 0 .. $cpus ],
-        disk    => XR->{gauges_disks},
-        memory  => [ "MemAvailable:" ],
-        network => XR->{gauges_nics},
-        battery => XR->{gauges_batteries},
-        cores   => XR->{gauges_cores},
-    );
+    my %args;
+    $args{cores} = (XR->{cpu_temp} eq 'simple' ? [ "simple" ] : XR->{gauges_cores}) if @{XR->{gauges_cores}} > 0;
+    $args{cpu} = XR->{cpu} eq 'simple' ? [ "simple" ] : [ map "cpu".$_, 0 .. $cpus ];
+    $args{disk} = XR->{gauges_disks} if @{XR->{gauges_disks}} > 0;
+    $args{memory} = [ "MemAvailable:" ];
+    $args{network} = XR->{gauges_nics} if @{XR->{gauges_nics}} > 0;
+    $args{battery} = (XR->{battery} eq 'simple' ? [ "simple" ] : XR->{gauges_batteries}) if XR->{gauges_batteries} > 0;
+
+    _add((%args));
 
     return \$caption;
 }
@@ -1228,26 +1229,6 @@ sub on_start {
         sub {
             return if !$SHOWING;
             my %r;
-            my $onAC = &cdmn::proc::ac_online;
-
-            if (XR->{gauges}{ XR->{label_battery} }) {
-                %r = %{&cdmn::proc::battery_usages};
-                while ( my ( $key, $value ) = each %r ) {
-                    $$_->set( $onAC ? XR->{label_battery_AC} : XR->{label_battery}, $key, $value,
-                        1 ) foreach @{ $s->{caption} };
-                }
-            }
-
-            for my $h (qw(cpu disk memory cpu_temp)) {
-                eval qq{
-                    if (XR->{gauges}{ XR->{label_cpu} }) {
-                        %r = %{&cdmn::proc::${h}_usages};
-                        while ( my ( \$key, \$value ) = each %r ) {
-                            \$\$_->set( XR->{label_${h}}, \$key, \$value ) foreach \@{ \$s->{caption} };
-                        }
-                    }
-                };
-            }
 
             if (XR->{gauges}{ XR->{label_network} }) {
                 %r = %{ &cdmn::proc::network_usages("rx_bytes") };
@@ -1259,6 +1240,41 @@ sub on_start {
                 while ( my ( $key, $value ) = each %r ) {
                     $$_->set( XR->{label_network}, $key, $value ) foreach @{ $s->{caption} };
                 }
+            }
+
+            local *_set = sub {
+                my $h = shift;
+                my $st = shift;
+                my $total = 0;
+
+                my $bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
+                %r = %{&cdmn::proc::cpu_usages} if $h eq XR->{label_cpu};
+                %r = %{&cdmn::proc::cpu_temp_usages} if $h eq XR->{label_cpu_temp};
+                %r = %{&cdmn::proc::memory_usages} if $h eq XR->{label_memory};
+                %r = %{&cdmn::proc::disk_usages} if $h eq XR->{label_disk};
+                %r = %{&cdmn::proc::battery_usages} if $bat_ac;
+
+                if ($st) {
+                    $total += $_ foreach values %r;
+                    $total /= keys %r;
+                    $$_->set( $h, 'simple', $total, $bat_ac) foreach @{ $s->{caption} };
+                }
+                else {
+                    while ( my ( $key, $value ) = each %r ) {
+                        $$_->set( $h, $key, $value, $bat_ac) foreach @{ $s->{caption} };
+                    }
+                }
+                1;
+            };
+
+            foreach (keys %{${$s->{caption}[0]}->{sprites}}) {
+                my $v = $_;
+                $v eq XR->{label_cpu} and _set($v, XR->{cpu} eq 'simple') and next;
+                $v eq XR->{label_cpu_temp} and _set($v, XR->{cpu_temp} eq 'simple') and next;
+                ($v eq XR->{label_battery} or $v eq XR->{label_battery_AC} ) and _set($v,
+                    XR->{battery} eq 'simple') and next;
+                next if $v eq XR->{label_network} or $v eq XR->{label_network};
+                _set($v);
             }
         }
     );
