@@ -55,6 +55,7 @@ package cdmn::proc {
         SYSFS_BAT   => '/sys/class/power_supply/',
     };
 
+    #TODO sometimes no results are given - check
     sub cpu_temp_usages {
         my %results;
         if (-e HWMON) {
@@ -1246,6 +1247,8 @@ sub on_start {
                 my $h = shift;
                 my $st = shift;
                 my $total = 0;
+
+                return if keys %r < 1; #safegurad
 
                 my $bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
                 %r = %{&cdmn::proc::cpu_usages} if $h eq XR->{label_cpu};
