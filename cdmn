@@ -1140,9 +1140,9 @@ sub on_init {
     XR->{padding}            = $s->x_resource('%.padding')            // 2;           #Padding between visuals
     XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
     XR->{y} = $s->x_resource('%.y') // 0;     #positive from top, negativ from bottom
-    XR->{cpu} = $s->x_resource('%.cpu') // 'detail';     #simple | detail
-    XR->{cpu_temp} = $s->x_resource('%.cpu.temp') // 'detail';     #simple | detail
-    XR->{battery} = $s->x_resource('%.battery') // 'detail';     #simple | detail
+    XR->{cpu} = $s->x_resource('%.cpu') // 'simple';     #simple | detail
+    XR->{cpu_temp} = $s->x_resource('%.cpu.temp') // 'simple';     #simple | detail
+    XR->{battery} = $s->x_resource('%.battery') // 'simple';     #simple | detail
 
     $SHOWING = XR->{showing};
 
@@ -1248,7 +1248,7 @@ sub on_start {
                 my $st = shift;
                 my $total = 0;
 
-                return if keys %r < 1; #safegurad
+                @k = keys %r;
 
                 my $bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
                 %r = %{&cdmn::proc::cpu_usages} if $h eq XR->{label_cpu};
@@ -1259,7 +1259,7 @@ sub on_start {
 
                 if ($st) {
                     $total += $_ foreach values %r;
-                    $total /= keys %r;
+                    $total /= scalar @k;
                     $$_->set( $h, 'simple', $total, $bat_ac) foreach @{ $s->{caption} };
                 }
                 else {
