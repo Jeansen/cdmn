@@ -1248,15 +1248,15 @@ sub on_start {
                 my $st = shift;
                 my $total = 0;
 
-                my @k = keys %r;
-                return 1 if scalar @k < 1;
-
                 my $bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
                 %r = %{&cdmn::proc::cpu_usages} if $h eq XR->{label_cpu};
                 %r = %{&cdmn::proc::cpu_temp_usages} if $h eq XR->{label_cpu_temp};
                 %r = %{&cdmn::proc::memory_usages} if $h eq XR->{label_memory};
                 %r = %{&cdmn::proc::disk_usages} if $h eq XR->{label_disk};
                 %r = %{&cdmn::proc::battery_usages} if $bat_ac;
+
+                my @k = keys %r;
+                return 1 if scalar @k < 1;
 
                 if ($st) {
                     $total += $_ foreach values %r;
