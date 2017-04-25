@@ -53,6 +53,7 @@ package cdmn::proc {
         HWMON       => '/sys/class/hwmon/',
         SYSFS_NET   => '/sys/class/net/',
         SYSFS_BAT   => '/sys/class/power_supply/',
+        SYSFS_BLOCK => '/sys/block/',
     };
 
     #TODO sometimes no results are given - check
@@ -223,13 +224,55 @@ package cdmn::proc {
     }
 
     sub disks {
-        open( my $f, '<', PARTITIONS );
+        opendir( my $dh, SYSFS_BLOCK);
         state @disks;
         return \@disks if scalar @disks > 0; #TODO just until cdmn is aware of changes.
-        while (<$f>) {
-            push @disks, /(sd[a-z]$)/;
-            push @disks, /(nvme\dn\d$)/;
-            push @disks, /(mmcblk\d$)/;
+        my @block;
+        while ( readdir $dh ) {
+            my $block = $_;
+            next if (/^\.\.?$|dm-|^loop|^sr/);
+            push @disks, $block;
+        }
+        closedir $dh;
+        return \@disks;
+    }
+
+    sub dm_disks {
+        opendir( my $dh, SYSFS_BLOCK);
+        my %block;
+        while ( readdir $dh ) {
+            my $block = $_;
+            next if !(/^dm-/);
+            open( my $f, '<', SYSFS_BLOCK."$block/dm/name" );
+            chomp(my $d = <$f>);
+
+            opendir( my $dh2, SYSFS_BLOCK."$block/slaves");
+            $block{$d} = [ map {/(sd[a-z]|nvme\dn|mmcblk)/} readdir $dh2 ];
+        }
+        closedir $dh;
+        return \%block;
+    }
+
+    sub disk_mounts {
+        my @mounts = keys %{&mounts};
+        my @disks = (map {$_, 0} @{&disks});
+        my %dm = %{&dm_disks};
+        my %disks = @disks;
+
+        foreach my $m (@mounts) {
+            foreach my $k (keys %disks) {
+                $disks{$k} = 1 if $m =~ /$k/;
+            }
+            while ( my ( $k, $v ) = each %dm ) {
+                if ($m =~ $k) {
+                    $disks{$_} = 1 foreach @$v;
+                }
+            }
+        }
+
+        @disks = ();
+        while ( my ( $k, $v ) = each %disks ) {
+            push @disks, $k if $v;
         }
         return \@disks;
     }
@@ -407,14 +450,15 @@ package cdmn::constants {
 }
 
 package cdmn::resources {
+    my $t;
     use fields qw(
         x  y  padding
             showing  showing_labels  showing_background
             caption  caption_bg caption_fg
             label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp
             gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_background gauges_cores
-            actions
-            cpu cpu_temp battery
+            actions network_tx network_rx
+            cpu cpu_temp battery disk_mounts
         );
 
     sub new {
@@ -422,6 +466,114 @@ package cdmn::resources {
         $s = fields::new($s) unless ref $s;
 
         return $s;
+    }
+
+    sub cut_set {
+            my @cut, my %n = ();
+
+        foreach my $e (@{$_[0]}, @{$_[1]}) { $n{$e}++ }
+        foreach my $e (@{$_[0]}) { push @{ \@cut}, $e if $n{$e} > 1 }
+
+        return \@cut;
+    }
+
+    sub init {
+        my $s = shift;
+        $t = shift;
+        $s->{label_network} = $t->x_resource('%.label.network') // 'NET';
+        $s->{label_disk} = $t->x_resource('%.label.disk') // 'DISK';
+        $s->{label_cpu} = $t->x_resource('%.label.cpu') // 'CPU';
+        $s->{label_cpu_temp} = $t->x_resource('%.label.cpu.temp') // 'TEMP';
+        $s->{label_memory} = $t->x_resource('%.label.ram') // 'MEM';
+        $s->{label_battery} = $t->x_resource('%.label.battery') // 'BAT';
+        $s->{label_battery_AC} = $s->{label_battery}."(⌁)";
+        $s->{showing} = $t->x_resource('%.showing') // 1;
+        $s->{showing_labels} = $t->x_resource('%.showing.labels') // 1;
+        $s->{showing_background} = $t->x_resource('%.showing.background') // 1;
+        $s->{caption} = $t->x_resource('%.caption') // 'bar';       #block | bar | solid-bar
+        $s->{caption_bg} = $t->x_resource('%.caption.bg') // '235';
+        $s->{caption_fg} = $t->x_resource('%.caption.fg') // '5';
+        $s->{padding} = $t->x_resource('%.padding') // 2;           #Padding between visuals
+        $s->{x} = $t->x_resource('%.x') // - 1;    #positive from left, negativ from right
+        $s->{y} = $t->x_resource('%.y') // 0;     #positive from top, negativ from bottom
+        $s->{cpu} = $t->x_resource('%.cpu') // 'simple';     #simple | detail
+        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple';     #simple | detail
+        $s->{battery} = $t->x_resource('%.battery') // 'simple';     #simple | detail
+        #$s->{network_rx} = $t->x_resource('%.battery') // 'eth0';
+        #$s->{network_tx} = $t->x_resource('%.battery') // 'eth0';
+
+        $s->{gauges_order} = $t->x_resource('%.caption.order') // 'DISK,CPU,TEMP,MEM,NET,BAT';
+        $s->{disk_mounts} = $t->x_resource('%.disk.mounts') // 1; #TODO rename
+
+        $s->{gauges_background} = $t->x_resource('%.gauges.background') // '5';    #simple | full
+    }
+
+    sub set_order {
+        my $s = shift;
+        my $order = [ split( /[,[:space:]]/, $s->{gauges_order} ) ];
+        my @order_default = map { $s->{$_} } (qw/label_network label_disk label_cpu label_memory label_battery label_cpu_temp/);
+        my %gauges = map { $_ => 0 } @order_default;
+
+        $order = &cut_set($order, \@order_default);
+        $gauges{$_} = 1 for @$order;
+        $s->{gauges} = \%gauges;
+
+        ( scalar @$order > 0 ) ? ( $s->{gauges_order} = $order ) : ( $s->{gauges_order} = \@order_default );
+    }
+
+    sub set_nics {
+        my $s = shift;
+        my $nics_active = cdmn::proc->if_list;
+        my $rx_tx;
+        my @tx = ();
+        my @rx = ();
+
+        if ($s->{network_tx}) {
+            $rx_tx = [ split( /[,[:space:]]/, $s->{network_tx} ) ];
+            $rx_tx = &cut_set($rx_tx, $nics_active);
+            @tx = map {$_."_tx"} @$rx_tx;
+        }
+
+        if ($s->{network_rx}) {
+            $rx_tx = [ split( /[,[:space:]]/, $s->{network_rx} ) ];
+            $rx_tx = &cut_set($rx_tx, $nics_active);
+            @rx = map {$_."_rx"} @$rx_tx;
+        }
+
+        if (scalar @tx eq 0 and scalar @rx eq 0) {
+            $s->{gauges_nics} = [ map {$_."_rx", $_."_tx"} @$nics_active ];
+        } else {
+            $s->{gauges_nics} = [ @rx, @tx ];
+        }
+    }
+
+    sub set_disks {
+        my $s = shift;
+        if ($t->x_resource('%.gauges.disks')) {
+            my $v = $t->x_resource('%.gauges.disks');
+            $v = [ split( /[,[:space:]]/, $v ) ];
+            $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $v) : cut_set (cdmn::proc::disks,
+                    $v);
+
+        } else {
+            $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks;
+        }
+    }
+
+    for my $h (qw(batteries cores)) {
+        ## no critic
+        eval qq{
+            sub set_$h {
+                my \$s = shift;
+                if (\$t->x_resource('%.gauges.$h')) {
+                    my \$v = \$t->x_resource('%.gauges.$h');
+                    \$v = [ split( /[,[:space:]]/, \$v ) ];
+                    \$s->{gauges_$h} = cut_set(cdmn::proc::$h, \$v);
+                } else {
+                    \$s->{gauges_$h} = cdmn::proc::$h;
+                }
+            }
+        };
     }
 }
 
@@ -918,30 +1070,21 @@ sub create_captions {
     my ($s) = (@_);
     my $caption;
 
-    local *_add = sub {
-        my (%s) = @_;
+    local *_create = sub {
+        my (%arg) = @_;
 
-        for my $h (qw(cpu disk memory)) {
-            eval qq{
-            for ( \@{ XR->{gauges_order} } ) {
-                 \$_ eq XR->{label_$h} and \$caption->add(
-                label => \$_, visuals => \$s{$h}, bg => XR->{caption_bg}, fg => XR->{caption_fg} );
-            }};
-        }
+        local *add = sub {
+            local $_ = XR->{label_battery_AC} if $_[0] eq 'battery' and &cdmn::proc::ac_online;
+            $caption->add(label => $_, visuals => $arg{$_[0]}, bg => XR->{caption_bg}, fg => XR->{caption_fg} );
+        };
 
         for ( @{ XR->{gauges_order} } ) {
-            $_ eq XR->{label_network} and $caption->add(
-                label => $_, visuals => $s{network}, bg => XR->{caption_bg}, fg =>
-                XR->{caption_fg} ) if $s{network};
-
-            $_ eq XR->{label_cpu_temp} and $caption->add(
-                label => $_, visuals => $s{cores}, bg => XR->{caption_bg}, fg =>
-                XR->{caption_fg} ) if $s{cores};
-
-            $_ eq XR->{label_battery} and $caption->add(
-                label   => &cdmn::proc::ac_online ? XR->{label_battery_AC} : $_,
-                visuals => $s{battery}, bg => XR->{caption_bg}, fg => XR->{caption_fg}
-            ) if $s{battery};
+            $_ eq XR->{label_cpu} and add('cpu');
+            $_ eq XR->{label_disk} and add('disk');
+            $_ eq XR->{label_memory} and add('memory');
+            $_ eq XR->{label_network} and add('network') if $arg{network};
+            $_ eq XR->{label_cpu_temp} and add('cores') if $arg{cores};
+            $_ eq XR->{label_battery} and add('battery') if $arg{battery};
         }
     };
 
@@ -984,7 +1127,7 @@ sub create_captions {
     $args{network} = XR->{gauges_nics} if @{XR->{gauges_nics}} > 0;
     $args{battery} = (XR->{battery} eq 'simple' ? [ "simple" ] : XR->{gauges_batteries}) if XR->{gauges_batteries} > 0;
 
-    _add((%args));
+    _create((%args));
 
     return \$caption;
 }
@@ -1044,12 +1187,11 @@ sub on_refresh_begin {
 
     if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::ac_online != $onAC || $nics != scalar @$nics_active) {
         my @visible = map {$$_->{visible}} @{($s->{caption})};
-        my $n = [ map {$_."_tx", $_."_rx"} @$nics_active ];
 
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
 
-        XR->{gauges_nics} = $n;
+        XR->set_nics;
 
         $s->{w_sizse} = $s->{term}->ncol;
         $s->{visuals_updater}->stop;
@@ -1121,68 +1263,23 @@ sub on_tt_write {
 #   MAIN
 ####################################################
 
+
 sub on_init {
     my ($s) = @_;
 
-    XR->{label_network} = $s->x_resource('%.label.network') // 'NET';
-    XR->{label_disk}         = $s->x_resource('%.label.disk')         // 'DISK';
-    XR->{label_cpu}          = $s->x_resource('%.label.cpu')          // 'CPU';
-    XR->{label_cpu_temp} = $s->x_resource('%.label.cpu.temp') // 'TEMP';
-    XR->{label_memory} = $s->x_resource('%.label.ram') // 'MEM';
-    XR->{label_battery} = $s->x_resource('%.label.battery') // 'BAT';
-    XR->{label_battery_AC} = XR->{label_battery}."(⌁)";
-    XR->{showing}            = $s->x_resource('%.showing')            // 1;
-    XR->{showing_labels}     = $s->x_resource('%.showing.labels')     // 1;
-    XR->{showing_background} = $s->x_resource('%.showing.background') // 1;
-    XR->{caption}            = $s->x_resource('%.caption')            // 'bar';       #block | bar | solid-bar
-    XR->{caption_bg} = $s->x_resource('%.caption-bg') // '235';
-    XR->{caption_fg} = $s->x_resource('%.caption-fg') // '5';
-    XR->{padding}            = $s->x_resource('%.padding')            // 2;           #Padding between visuals
-    XR->{x} = $s->x_resource('%.x') // -1;    #positive from left, negativ from right
-    XR->{y} = $s->x_resource('%.y') // 0;     #positive from top, negativ from bottom
-    XR->{cpu} = $s->x_resource('%.cpu') // 'simple';     #simple | detail
-    XR->{cpu_temp} = $s->x_resource('%.cpu.temp') // 'simple';     #simple | detail
-    XR->{battery} = $s->x_resource('%.battery') // 'simple';     #simple | detail
+    XR->init($s);
 
     $SHOWING = XR->{showing};
 
-    for my $h (qw(disks batteries cores nics)) {
-        eval qq{
-            if (\$s->x_resource('%.gauges.$h')) {
-                my \$disks = \$s->x_resource('%.gauges.$h');
-                \$disks = [ split( /[,[:space:]]/, \$disks ) ];
-                XR->{gauges_$h} = cut_set(cdmn::proc::$h, \$disks);
-            } else {
-                XR->{gauges_$h} = cdmn::proc::$h;
-            }
-        };
-    }
-
-    XR->{gauges_nics} = [ map {$_."_tx", $_."_rx"} @{XR->{gauges_nics}} ];
-
-    my $order = $s->x_resource('%.caption-order') // 'DISK,CPU,TEMP,MEM,NET,BAT';
-    $order = [ split( /[,[:space:]]/, $order ) ];
-
-    my @order_default = map { XR->{$_} } (qw/label_network label_disk label_cpu label_memory label_battery label_cpu_temp/);
-
-    my %gauges = map { $_ => 0 } @order_default;
-    $order = &cut_set($order, \@order_default);
-    $gauges{$_} = 1 for @$order;
-    XR->{gauges} = \%gauges;
-
-    ( scalar @$order > 0 ) ? ( XR->{gauges_order} = $order ) : ( XR->{gauges_order} = \@order_default );
-
-    XR->{gauges_background} = $s->x_resource('%.gauges-background') // '5';    #simple | full
+    XR->set_disks;
+    XR->set_batteries;
+    XR->set_cores;
+    XR->set_nics;
+    XR->set_order;
 
     ();
 }
 
-sub cut_set {
-        my @cut, my %n = ();
-    foreach my $e (@{$_[0]}, @{$_[1]}) { $n{$e}++ }
-    foreach my $e (@{$_[0]}) { push @{ \@cut}, $e if $n{$e} > 1 }
-    return \@cut;
-}
 
 sub on_start {
     my ($s) = @_;
