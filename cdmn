@@ -457,6 +457,7 @@ package cdmn::resources {
             caption  caption_bg caption_fg
             label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp
             gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_background gauges_cores
+            gauges_colors
             actions network_tx network_rx
             cpu cpu_temp battery disk_mounts
         );
@@ -506,6 +507,8 @@ package cdmn::resources {
         $s->{disk_mounts} = $t->x_resource('%.disk.mounts') // 1; #TODO rename
 
         $s->{gauges_background} = $t->x_resource('%.gauges.background') // '5';    #simple | full
+        $s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '246,2,4,3,1';
+        #$s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '52,88,124,160,196';
     }
 
     sub set_order {
@@ -558,6 +561,12 @@ package cdmn::resources {
         } else {
             $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks;
         }
+    }
+
+    #TODO min count colors, check invalid values, ...
+    sub set_colors {
+        my $s = shift;
+        $s->{gauges_colors} = [ map {$_ + 2} split( /[,[:space:]]/, $s->{gauges_colors} ) ];
     }
 
     for my $h (qw(batteries cores)) {
@@ -779,7 +788,8 @@ package cdmn::visuals::container {
             label         => $arg{label},
             pictorials    => $arg{visuals},
             pictorials_bg => $arg{bg},
-            pictorials_fg => $arg{fg}
+            pictorials_fg => $arg{fg},
+            colors        => $arg{colors},
         );
 
         $s->{sprites}{$arg{label}} = $visual;
@@ -896,10 +906,11 @@ package cdmn::visuals::container {
 package cdmn::visuals::visual {
     use List::Util qw(max);
 
-    use fields qw( term rendition x y label pictorials pictorials_bg pictorials_fg);
-    use fields qw( count width height );
+    use fields qw( term rendition x y label pictorials pictorials_bg pictorials_fg colors);
+    use fields qw( count width height);
 
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
+    use constant LED => '⬛';
     use constant { TRUE => 1, FALSE => 0 };
     use constant {
         RED    => 3,
@@ -911,16 +922,6 @@ package cdmn::visuals::visual {
     };
 
     my $m = 0;
-
-    sub getColor {
-        for (shift) {
-            return RED    if $_ > 80;
-            return YELLOW if $_ > 60;
-            return BLUE   if $_ > 40;
-            return GREEN  if $_ > 20;
-        }
-        WHITE;
-    }
 
     sub new {
         my $s = shift;
@@ -966,7 +967,7 @@ package cdmn::visuals::visual {
         $s->{rendition} = urxvt::SET_BGCOLOR $s->{rendition}, $s->{pictorials_bg};
         for my $i (@pictorials) {
             my $x = $s->{x} + $w + $pos++;
-            foreach ( &RED, &GREEN, &BLUE, &YELLOW, &WHITE, &PINK ) {
+            foreach (@{$s->{colors}}) {
                 $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
                 my $pictorial = cdmn::visuals::overlay->new(
                     term      => $s->{term},
@@ -1009,17 +1010,19 @@ package cdmn::visuals::visual {
 
     sub set {
         my ( $s, $i, $usage, $invert) = @_;
-        my $barIdx = $usage / 10 * 8 / 10;
-
         return if !$s->{pictorials}{"$i"};
+
+        my $bar_i = $usage / 100 * 8;
         $usage = 100 - $usage if $invert;
-        my $color = &getColor($usage);
+        my $clr_i = $usage / 100 * 5;
+        my $color = $clr_i >= 5 ? $s->{colors}[$clr_i - 1] : $s->{colors}[$clr_i];
+
         for ( values %{ $s->{pictorials}{"$i"} } ) {
             $_->hide;
         }
-        if ( $barIdx <= 8 && $barIdx >= 0 ) {
+        if ($bar_i <= 8 && $bar_i >= 0) {
             $s->{pictorials}{"$i"}{"$color"}->show;
-            $s->{pictorials}{"$i"}{"$color"}->set( BLOCKS->[$barIdx] );
+            $s->{pictorials}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] );
         }
     }
 }
@@ -1075,7 +1078,8 @@ sub create_captions {
 
         local *add = sub {
             local $_ = XR->{label_battery_AC} if $_[0] eq 'battery' and &cdmn::proc::ac_online;
-            $caption->add(label => $_, visuals => $arg{$_[0]}, bg => XR->{caption_bg}, fg => XR->{caption_fg} );
+            $caption->add(label => $_, visuals => $arg{$_[0]}, bg => XR->{caption_bg}, fg => XR->{caption_fg}, colors
+                                => XR->{gauges_colors});
         };
 
         for ( @{ XR->{gauges_order} } ) {
@@ -1272,6 +1276,7 @@ sub on_init {
     $SHOWING = XR->{showing};
 
     XR->set_disks;
+    XR->set_colors;
     XR->set_batteries;
     XR->set_cores;
     XR->set_nics;
