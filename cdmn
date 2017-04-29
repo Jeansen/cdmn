@@ -320,6 +320,7 @@ package cdmn::proc {
         }
     }
 
+    #TODO not finished
     sub disk_usages {
         state %sda;
         my $diff_usage;
@@ -338,10 +339,10 @@ package cdmn::proc {
             $sda{ $sda[0] } = $sda{ $sda[0] } // 0;
 
             my $diff_sda = $sda[10] - $sda{ $sda[0] };
-            $diff_usage = $diff_sda / 10;
+            $diff_usage = $diff_sda / ($_[0] * 1000) * 100;
 
             $sda{ $sda[0] }     = $sda[10];
-            $results{ $sda[0] } = $diff_usage <= 100 ? $diff_usage : 100; #TODO check why > 100 and if avoidable
+            $results{ $sda[0] } = $diff_usage <= 100 ? $diff_usage : 100;
         }
         return \%results;
     }
@@ -454,12 +455,11 @@ package cdmn::resources {
     use fields qw(
         x  y  padding
             showing  showing_labels  showing_background
-            caption  caption_bg caption_fg
-            label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp
-            gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_background gauges_cores
-            gauges_colors
+            caption  caption_bg
+            label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp label_bg label_fg
+            gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_bg gauges_cores gauges_colors
             actions network_tx network_rx
-            cpu cpu_temp battery disk_mounts
+            cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
         );
 
     sub new {
@@ -488,27 +488,44 @@ package cdmn::resources {
         $s->{label_memory} = $t->x_resource('%.label.ram') // 'MEM';
         $s->{label_battery} = $t->x_resource('%.label.battery') // 'BAT';
         $s->{label_battery_AC} = $s->{label_battery}."(⌁)";
+        $s->{label_fg} = $t->x_resource('%.label.fg') // '0';
+        $s->{label_bg} = $t->x_resource('%.label.fg') // '1';
+
         $s->{showing} = $t->x_resource('%.showing') // 1;
         $s->{showing_labels} = $t->x_resource('%.showing.labels') // 1;
         $s->{showing_background} = $t->x_resource('%.showing.background') // 1;
+
         $s->{caption} = $t->x_resource('%.caption') // 'bar';       #block | bar | solid-bar
-        $s->{caption_bg} = $t->x_resource('%.caption.bg') // '235';
-        $s->{caption_fg} = $t->x_resource('%.caption.fg') // '5';
+        $s->{caption_bg} = $t->x_resource('%.caption.bg') // '1'; # 0/1 map onto terminal fg/bg color
+
         $s->{padding} = $t->x_resource('%.padding') // 2;           #Padding between visuals
         $s->{x} = $t->x_resource('%.x') // - 1;    #positive from left, negativ from right
         $s->{y} = $t->x_resource('%.y') // 0;     #positive from top, negativ from bottom
         $s->{cpu} = $t->x_resource('%.cpu') // 'simple';     #simple | detail
         $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple';     #simple | detail
         $s->{battery} = $t->x_resource('%.battery') // 'simple';     #simple | detail
-        #$s->{network_rx} = $t->x_resource('%.battery') // 'eth0';
-        #$s->{network_tx} = $t->x_resource('%.battery') // 'eth0';
-
-        $s->{gauges_order} = $t->x_resource('%.caption.order') // 'DISK,CPU,TEMP,MEM,NET,BAT';
         $s->{disk_mounts} = $t->x_resource('%.disk.mounts') // 1; #TODO rename
+        $s->{refresh} = $t->x_resource('%.refresh') // 1;
+        $s->{sensitivity} = $t->x_resource('%.sensitivity') // 1; #percentage
+        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar'; #block | led
 
-        $s->{gauges_background} = $t->x_resource('%.gauges.background') // '5';    #simple | full
+        $s->{gauges_order} = $t->x_resource('%.caption.order') // ''; #Default
+        $s->{gauges_bg} = $t->x_resource('%.gauges.bg') // '1';
         $s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '246,2,4,3,1';
-        #$s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '52,88,124,160,196';
+
+        #DEBUG
+        $s->{visual_style} = 'led'; #block | led
+        $s->{sensitivity} = 10;
+        $s->{refresh} = 0.1;
+        $s->{gauges_colors} = '0,52,88,124,160,196';
+        #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
+        $s->{label_fg} = '5';
+        #$s->{label_bg} = '1';
+        $s->{cpu} = 'detail';     #simple | detail
+        $s->{gauges_bg} = '1';    #simple | full
+        $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT'; #Debug
+        #$s->{network_rx} = 'eth0';
+        #$s->{network_tx} = 'eth0';
     }
 
     sub set_order {
@@ -521,7 +538,7 @@ package cdmn::resources {
         $gauges{$_} = 1 for @$order;
         $s->{gauges} = \%gauges;
 
-        ( scalar @$order > 0 ) ? ( $s->{gauges_order} = $order ) : ( $s->{gauges_order} = \@order_default );
+        $s->{gauges_order} = $order;
     }
 
     sub set_nics {
@@ -754,7 +771,7 @@ package cdmn::term {
 }
 
 package cdmn::visuals::container {
-    use fields qw( term rendition padding align evenGauges x y );
+    use fields qw( term rendition padding align evenGauges x y bg_color);
     use fields qw( sprites visible bg backgroundVisible labelVisible);
 
     use constant {
@@ -762,7 +779,6 @@ package cdmn::visuals::container {
         FALSE         => 0,
         CAPTION_BAR   => cdmn::constants::CAPTION_BAR,
         CAPTION_BLOCK => cdmn::constants::CAPTION_BLOCK,
-        REND          => cdmn::constants::REND,
     };
 
     my ( $xOff, $yOff, $m ) = ( 0, 0, 0 );
@@ -779,22 +795,24 @@ package cdmn::visuals::container {
     sub add {
         my $s = shift;
         my %arg = @_;
-
         my $visual = cdmn::visuals::visual->new(
             term          => $s->{term},
             rendition     => $s->{rendition},
             x             => $xOff,
             y             => $yOff,
             label         => $arg{label},
-            pictorials    => $arg{visuals},
-            pictorials_bg => $arg{bg},
-            pictorials_fg => $arg{fg},
-            colors        => $arg{colors},
+            gauges        => $arg{gauges},
+            label_bg      => $arg{label_bg},
+            label_fg      => $arg{label_fg},
+            gauges_colors => $arg{gauges_colors},
+            gauges_bg     => $arg{gauges_bg},
+            visual_style  => $arg{visual_style},
+            sensitivity   => $arg{sensitivity},
         );
 
         $s->{sprites}{$arg{label}} = $visual;
-        if (@{$arg{visuals}} > $m && $s->{evenGauges}) {
-            $m = @{$arg{visuals}};
+        if (@{$arg{gauges}} > $m && $s->{evenGauges}) {
+            $m = @{$arg{gauges}};
             foreach ( values %{ $s->{sprites} } ) {
                 $_->setEvenGauges($m);
                 $xOff += $visual->{width} if $s->{align} eq CAPTION_BAR;
@@ -831,9 +849,9 @@ package cdmn::visuals::container {
                     term      => $s->{term},
                     x         => - 1,
                     y         => 0,
-                    width     => $xOff - 1,
+                    width     => $xOff - $s->{padding},
                     height    => 1,
-                    rendition => REND,
+                    rendition => urxvt::SET_BGCOLOR cdmn::constants::REND, $s->{bg_color},
                 );
 
                 $s->{bg}->create("show");
@@ -906,7 +924,7 @@ package cdmn::visuals::container {
 package cdmn::visuals::visual {
     use List::Util qw(max);
 
-    use fields qw( term rendition x y label pictorials pictorials_bg pictorials_fg colors);
+    use fields qw( term rendition x y label gauges label_bg label_fg gauges_colors gauges_bg visual_style sensitivity);
     use fields qw( count width height);
 
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
@@ -921,24 +939,24 @@ package cdmn::visuals::visual {
 
         (%$s) = @_;
 
-        $s->{width}  = ( length $s->{label} ) + 1 + @{ $s->{pictorials} };
+        $s->{width} = ( length $s->{label} ) + 1 + @{ $s->{gauges} };
         $s->{height} = 1;
         return $s;
     }
 
     sub setEvenGauges {
         my ( $self, $max ) = @_;
-        $self->{width} += ( -@{ $self->{pictorials} } + $max );
+        $self->{width} += ( - @{ $self->{gauges} } + $max );
     }
 
     sub create {
         my $s          = shift;
         my $w          = ( length $s->{label} ) + 1;
-        my @pictorials = @{ $s->{pictorials} };
+        my @gauges = @{ $s->{gauges} };
 
-        $s->{pictorials} = {};
+        $s->{gauges} = { };
         $s->{x}          = -( $w + $m ) if $s->{x} < 0;
-        $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $s->{pictorials_fg};
+        $s->{rendition} = urxvt::SET_COLOR $s->{rendition}, $s->{label_fg}, $s->{label_bg};
 
         my $labelObj =
             cdmn::visuals::overlay->new(
@@ -956,10 +974,10 @@ package cdmn::visuals::visual {
 
         my $pos = 0;
 
-        $s->{rendition} = urxvt::SET_BGCOLOR $s->{rendition}, $s->{pictorials_bg};
-        for my $i (@pictorials) {
+        $s->{rendition} = urxvt::SET_BGCOLOR $s->{rendition}, $s->{gauges_bg};
+        for my $i (@gauges) {
             my $x = $s->{x} + $w + $pos++;
-            foreach (@{$s->{colors}}) {
+            foreach (@{$s->{gauges_colors}}) {
                 $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
                 my $pictorial = cdmn::visuals::overlay->new(
                     term      => $s->{term},
@@ -971,7 +989,7 @@ package cdmn::visuals::visual {
                     caption   => BLOCKS->[0]
                 );
                 $pictorial->create;
-                $s->{pictorials}{"$i"}{"$_"} = $pictorial;
+                $s->{gauges}{"$i"}{"$_"} = $pictorial;
             }
         }
     }
@@ -979,7 +997,7 @@ package cdmn::visuals::visual {
     sub show {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
-        for ( values %{ $s->{pictorials} } ) {
+        for (values %{ $s->{gauges} }) {
             for ( values %{$_} ) {
                 $visible ? $_->show : $_->hide;
             }
@@ -1002,19 +1020,22 @@ package cdmn::visuals::visual {
 
     sub set {
         my ( $s, $i, $usage, $invert) = @_;
-        return if !$s->{pictorials}{"$i"};
-        my $bar_i = ($usage > 100 ? 100 : $usage) / 100 * 9;
-        $usage = 100 - $usage if $invert;
-        $bar_i -= 1 if $bar_i >= 9;
-        my $clr_i = ($usage > 100 ? 100 : $usage) / 100 * 5;
-        $clr_i -= 1 if $clr_i >= 5;
-        my $color = $s->{colors}[$clr_i];
+        return if !$s->{gauges}{"$i"};
 
-        for ( values %{ $s->{pictorials}{"$i"} } ) {
+        my $size = scalar @{&BLOCKS};
+        my $bar_i = ($usage > 100 ? 100 : $usage) / 100 * ($size);
+        $usage = 100 - $usage if $invert;
+        $bar_i -= 1 if $bar_i >= $size;
+        $size = scalar @{$s->{gauges_colors}};
+        my $clr_i = ($usage > 100 ? 100 : $usage) / 100 * ($size - 1) + 1;
+        $clr_i -= 1 if $clr_i >= $size;
+        my $color = $usage < $s->{sensitivity} ? $s->{gauges_colors}[0] : $s->{gauges_colors}[$clr_i];
+        for (values %{ $s->{gauges}{"$i"} }) {
             $_->hide;
         }
-        $s->{pictorials}{"$i"}{"$color"}->show;
-        $s->{pictorials}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] );
+        $s->{gauges}{"$i"}{"$color"}->show;
+        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq 'block';
+        $s->{gauges}{"$i"}{"$color"}->set( LED ) if $s->{visual_style} eq 'led';
     }
 }
 
@@ -1069,8 +1090,9 @@ sub create_captions {
 
         local *add = sub {
             local $_ = XR->{label_battery_AC} if $_[0] eq 'battery' and &cdmn::proc::ac_online;
-            $caption->add(label => $_, visuals => $arg{$_[0]}, bg => XR->{caption_bg}, fg => XR->{caption_fg}, colors
-                                => XR->{gauges_colors});
+            $caption->add(label                 => $_, gauges => $arg{$_[0]}, label_bg => XR->{label_bg}, gauges_bg =>
+                XR->{gauges_bg}, label_fg       => XR->{label_fg}, gauges_colors => XR->{gauges_colors}, visual_style =>
+                XR->{visual_style}, sensitivity => XR->{sensitivity});
         };
 
         for ( @{ XR->{gauges_order} } ) {
@@ -1094,7 +1116,8 @@ sub create_captions {
                     padding    => XR->{padding},
                     align      => $_,
                     evenGauges => 0,
-                    visible    => XR->{showing}
+                    visible    => XR->{showing},
+                    bg_color   => XR->{caption_bg},
                 );
             }
             elsif ($_ eq cdmn::constants::CAPTION_BLOCK) {
@@ -1106,7 +1129,8 @@ sub create_captions {
                     padding    => 0,
                     align      => $_,
                     evenGauges => 1,
-                    visible    => XR->{showing}
+                    visible    => XR->{showing},
+                    bg_color   => XR->{caption_bg},
                 );
             }
         };
@@ -1319,7 +1343,7 @@ sub on_start {
     $s->cmd_parse("\e[2T\e[2B"); #Scroll down and move cursor down 2 line.
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
 
-    $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(1)->cb(
+    $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(XR->{refresh})->cb(
         sub {
             return if !$SHOWING;
             my %r;
@@ -1341,12 +1365,12 @@ sub on_start {
                 my $st = shift;
                 my $total = 0;
 
-                my $bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
+                my $is_bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
                 %r = %{&cdmn::proc::cpu_usages} if $h eq XR->{label_cpu};
                 %r = %{&cdmn::proc::cpu_temp_usages} if $h eq XR->{label_cpu_temp};
                 %r = %{&cdmn::proc::memory_usages} if $h eq XR->{label_memory};
-                %r = %{&cdmn::proc::disk_usages} if $h eq XR->{label_disk};
-                %r = %{&cdmn::proc::battery_usages} if $bat_ac;
+                %r = %{&cdmn::proc::disk_usages(XR->{refresh})} if $h eq XR->{label_disk};
+                %r = %{&cdmn::proc::battery_usages} if $is_bat_ac;
 
                 my @k = keys %r;
                 return 1 if scalar @k < 1;
@@ -1354,11 +1378,11 @@ sub on_start {
                 if ($st) {
                     $total += $_ foreach values %r;
                     $total /= scalar @k;
-                    $$_->set( $h, 'simple', $total, $bat_ac) foreach @{ $s->{caption} };
+                    $$_->set( $h, 'simple', $total, $is_bat_ac) foreach @{ $s->{caption} };
                 }
                 else {
                     while ( my ( $key, $value ) = each %r ) {
-                        $$_->set( $h, $key, $value, $bat_ac) foreach @{ $s->{caption} };
+                        $$_->set( $h, $key, $value, $is_bat_ac) foreach @{ $s->{caption} };
                     }
                 }
                 1;
