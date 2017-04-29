@@ -457,7 +457,7 @@ package cdmn::resources {
             showing  showing_labels  showing_background
             caption  caption_bg
             label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp label_bg label_fg
-            gauges  gauges_disks  gauges_nics gauges_batteries gauges_order  gauges_bg gauges_cores gauges_colors
+            gauges  gauges_disks  gauges_nics gauges_batteries gauges_order gauges_bg gauges_cores gauges_colors gauges_invert
             actions network_tx network_rx
             cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
         );
@@ -470,7 +470,8 @@ package cdmn::resources {
     }
 
     sub cut_set {
-            my @cut, my %n = ();
+        my @cut = ();
+        my %n = ();
 
         foreach my $e (@{$_[0]}, @{$_[1]}) { $n{$e}++ }
         foreach my $e (@{$_[0]}) { push @{ \@cut}, $e if $n{$e} > 1 }
@@ -512,8 +513,10 @@ package cdmn::resources {
         $s->{gauges_order} = $t->x_resource('%.caption.order') // ''; #Default
         $s->{gauges_bg} = $t->x_resource('%.gauges.bg') // '1';
         $s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '246,2,4,3,1';
+        $s->{gauges_invert} = $t->x_resource('%.gauges.invert') // 'BAT';
 
         #DEBUG
+        $s->{gauges_invert} = '';
         $s->{visual_style} = 'led'; #block | led
         $s->{sensitivity} = 10;
         $s->{refresh} = 0.1;
@@ -530,15 +533,24 @@ package cdmn::resources {
 
     sub set_order {
         my $s = shift;
-        my $order = [ split( /[,[:space:]]/, $s->{gauges_order} ) ];
+        $s->{gauges_order} = _validate($s, $s->{gauges_order});
+    }
+
+    sub set_invert {
+        my $s = shift;
+        $s->{gauges_invert} = _validate($s, $s->{gauges_invert});
+    }
+
+    sub _validate {
+        my $s = shift;
+        my $order = [ split( /[,[:space:]]/, $_[0] ) ];
         my @order_default = map { $s->{$_} } (qw/label_network label_disk label_cpu label_memory label_battery label_cpu_temp/);
         my %gauges = map { $_ => 0 } @order_default;
 
-        $order = &cut_set($order, \@order_default);
         $gauges{$_} = 1 for @$order;
-        $s->{gauges} = \%gauges;
+        $s->{gauges} = \%gauges; #TODO necessary?
 
-        $s->{gauges_order} = $order;
+        return &cut_set($order, \@order_default);
     }
 
     sub set_nics {
@@ -986,7 +998,7 @@ package cdmn::visuals::visual {
                     width     => 1,
                     height    => 1,
                     rendition => $s->{rendition},
-                    caption   => BLOCKS->[0]
+                    caption   => BLOCKS->[0],
                 );
                 $pictorial->create;
                 $s->{gauges}{"$i"}{"$_"} = $pictorial;
@@ -1296,6 +1308,7 @@ sub on_init {
     XR->set_cores;
     XR->set_nics;
     XR->set_order;
+    XR->set_invert;
 
     ();
 }
@@ -1362,8 +1375,9 @@ sub on_start {
 
             local *_set = sub {
                 my $h = shift;
-                my $st = shift;
+                my $simple = shift;
                 my $total = 0;
+                my %inverts = map { $_ => 1 } @{XR->{gauges_invert}};
 
                 my $is_bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
                 %r = %{&cdmn::proc::cpu_usages} if $h eq XR->{label_cpu};
@@ -1375,14 +1389,14 @@ sub on_start {
                 my @k = keys %r;
                 return 1 if scalar @k < 1;
 
-                if ($st) {
+                if ($simple) {
                     $total += $_ foreach values %r;
                     $total /= scalar @k;
-                    $$_->set( $h, 'simple', $total, $is_bat_ac) foreach @{ $s->{caption} };
+                    $$_->set( $h, 'simple', $total, $inverts{$h}) foreach @{ $s->{caption} };
                 }
                 else {
                     while ( my ( $key, $value ) = each %r ) {
-                        $$_->set( $h, $key, $value, $is_bat_ac) foreach @{ $s->{caption} };
+                        $$_->set( $h, $key, $value, $inverts{$h}) foreach @{ $s->{caption} };
                     }
                 }
                 1;
