@@ -134,7 +134,7 @@ To define how you want to position the gauges, use the following settings.
 | `URxvt.cdmn.padding` | How much space (in characters) you would like to have between each caption. | 2 |
 | `URxvt.cdmn.x` | Horizontal position (by character) where values >= 0 will result in a left alignment and negative numbers in a right alignment. | -1 |
 | `URxvt.cdmn.y` | Vertical position (by row) where 0 will be the first line and -1 the last. | 0 |
-| `URxvt.cdmn.caption.order` | List of captions to show and their order. This list must contain existing labels, otherwise the caption will be ignored. | DISK,CPU,MEM,NETWORK |
+| `URxvt.cdmn.gauges.order` | List of gauges to show and their order. This list must contain existing labels. | DISK,CPU,MEM,NETWORK |
 
 
 ## Visual styles
@@ -146,33 +146,33 @@ You can further define the visual representation with the following settings.
 
 ## Visual styles - gauges colors
 In addition you can define a list of colors that will serve as a visual cue for different values. This will be most 
-useful when using the LED style. Suppose you would like to simulate a red LED that increases in brightnes every 20%. 
-Setting `URxvt.cdmn.gauges.colors` to '0,52,88,124,160,196' would just do that where the first color is the color of 
-inactivity, in this case 0 which is black.
+useful when using the LED style. Suppose you would like to simulate a red LED that increases in brightness for every 
+20%. Setting `URxvt.cdmn.gauges.colors` to '0,52,88,124,160,196' would just do that, where the first color is the 
+color of inactivity - in this case 0 which is black.
 
 
 ## Visual styles - refresh rate and sensitivity
 Even further tweaking is possible with options such as the refresh rate and sensitivity. The refresh rate is quite 
 simply the time in seconds when all gauges should be updated or how fast the LED should blink. The sensitivity on the
- other hand defines the threshold when to indicate an update, at all.
+ other hand defines the threshold when to first indicate any change, at all.
  
 Here is an example. Say we have the following settings excerpt:
     
+    URxvt.cdmn.gauges.order: CPU 
     URxvt.cdmn.gauges.colors: 0,52,88,124,160,196
     URxvt.cdmn.style: led
     URxvt.cdmn.refresh: 1
     URxvt.cdmn.sensitivity: 1
 
-This results in a flashing LED-like gauge that has 5 colors (a brighter color for ever 20%), which flashes (updates) 
-every second but only if there is at least 1% of activity. Setting the sensitivity to 50 would result in the the 
-LED-like gauge to flash first at 50% load with the color of 124. It is also possible to use fractions of seconds, e.g
-. 0.1, 1.1 and so on.
+This results in a flashing LED-like gauge for CPU activity that has 5 colors (a brighter color for every 20%), which 
+flashes (updates) every second but only if there is at least 1% of activity. Setting the sensitivity to 50 would result in the the 
+LED-like gauge to flash first at 50% load with the color of 124. It is also possible to use fractions of seconds, e.g. 0.1, 1.1 and so on.
 
 
 ## Visual styles - invert
-It might be of interest to revert some colors, especially when you are interested in how much power is left when on 
-battery power. But of course this is open for debate ;-) Anyway, provide a list of labels to `URxvt.cdmn.gauges
-.invert` you would like with inverted gauges. BAT ist inverted be default.
+It might be of interest to revert some colors, especially when you are interested in how much energy is left when on 
+battery power. But of course this is open for debate ;-) Anyway, you cant set `URxvt.cdmn.gauges.invert` to a list 
+of labels for which gauges should use inverted colors. BAT ist inverted be default.
 
 
 ## Miscellaneous settings
@@ -183,8 +183,8 @@ Finally there are some settings that allow you to further tweak cdmn.
 | `URxvt.cdmn.disk.mounts` | Only show disk gauges for disks with at least one mount point. | 0 (1) |
 
 Here is an excerpt of the default settings. You do not have to put these in your resource file. They are the 
-implemented defaults. To start off, you only need to set `URxvt.cdmn.caption.order`. For instance, put `URxvt.cdmn
-.caption-order: CPU,DISK,MEM,NET` in your **.Xresources** file and reload it with `xrdb -load ~/.Xresources`. This 
+implemented defaults. To start off, you only need to set `URxvt.cdmn.gauges.order`. For instance, put `URxvt.cdmn
+.gauges.order: CPU,DISK,MEM,NET` in your **.Xresources** file and reload it with `xrdb -load ~/.Xresources`. This 
 already tells cdmn what to show and in which order.
 
 In addition you should set scrollbars to be invisible, activate 32bit colors and make the background black. Here is 
@@ -199,6 +199,24 @@ I have put an example .Xresouces file with the minimal necessary settings, inclu
  look like in the example screenshots. Make sure you adapt the line `URxvt*perl-lib: /home/<USERNAME>/.urxvt/` 
  accordingly.
  
+ 
+# Some words about robustness
+With reference to the [robustness principle](https://en.wikipedia.org/wiki/Robustness_principle) cdmn will silently 
+ignore incompatible or invalid values or configurations and apply defaults where applicable. 
+ 
+In addition cdmn will not show anything where nothing is to be shown. That is, if you tell cdmn to show network gauges 
+but your network cable is not plugged in, gauges for this interface will not be shown. If there is only one network 
+interface (which in this case is inactive) the network caption will not show up, at all.
+ 
+There are some implemented default settings, but cdmn will not force them on you. Rather, they are meant to support you.
+
+Therefore cdmn does not expect any configuration in the first place. But no configuration will have the net effect 
+that nothing will be shown, at all.
+
+If you want to see something, tell cdmn what you want to see. cdmn will then apply some defaults to get you going. 
+For example, put `URxvt.cdmn.gauges.order: CPU,DISK,MEM,NET` in your .Xresources file to show some of the default 
+gauges. Be encouraged to try the other settings then, too!  
+
 
 # Please note
 This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). 
