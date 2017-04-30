@@ -5,7 +5,7 @@
 ![](https://rawgit.com/Jeansen/assets/master/version.svg)
 <!--[![Build Status](https://travis-ci.org/Jeansen/trc.svg?branch=master)](https://travis-ci.org/Jeansen/trc)-->
 
-#cdmn
+# cdmn
 *cdmn* (**c**pu, **d**isk, **m**emory, **n**etwork) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources.
 
 Originally I just wanted to have some LED-like indicators but soon decided to make this extension more verbose and 
