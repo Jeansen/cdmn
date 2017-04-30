@@ -67,16 +67,16 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 
 The *overlay* mode simply does what the name already implies. It creates an overlay on top of the current terminal. This style will not interfere with your terminal output. If some text is not visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
 
-On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current typing, then simply use the *bar* mode. With this style a complete line will be reserved for *cdmn*. You can switch to this mode with `Meta-h`.
+On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current typing, then simply use the *bar* mode. In this mode a complete line will be reserved for *cdmn*. You can switch to this mode with `Meta-h`.
 
-Each binding can be used to switch modes or to hide and show the gauges in a given mode. For instance, if you were in 
-overlay mode you could use `Meta-h` to go to bar mode and then use `Meta-h` repeatedly to toggle the visibility. Just
- try it. I hope it will be intuitive.
+Each binding can be used to switch modes or to hide and show cdmn in a given mode. For instance, if you were in 
+overlay mode you could use `Meta-h` to go to bar mode and then use `Meta-h` repeatedly to toggle the visibility of 
+cdmn. Justtry it! It should be fairly intuitive.
 
 Additional information can be accessed with the `Meta-l` binding. At the moment this will only show some simple 
 filesystem information. But there are already plans for more ...
 
-Normally the Meta key maps to the the ALT key. If the bindings do not work, please check your system mappings.
+Normally the Meta key maps to the ALT key. If the bindings do not work, please check your system mappings.
 
 
 # How to compile rxvt-unicode
@@ -94,7 +94,7 @@ place of your liking. Navigate into the just extracted folder and run the follow
         make
         sudo checkinstall
     
-After that a package with the name `rxvt-unicode` will be installed and you should able to call `urxvt`.
+After that a package with the name `rxvt-unicode` will be installed and you should be able to call `urxvt`.
     
 
 # How to customize cdmn (so far)
@@ -102,22 +102,23 @@ Here are some settings, that already work with more to come:
 
 
 ## Labels
-Labels can be defined with the following settings:
+Labels can be defined with the following resource settings. Each label defines the text you would like to see next to 
+the corresponding gauges:
 
-| Resource | Function | Values |
+| Resource | Default |
 | --- | --- | --- |
-| `URxvt.cdmn.label.disk` | Label you would like to see next to the disk gauges. | DISK |
-| `URxvt.cdmn.label.cpu` | Label you would like to see next to the cpu gauges. | CPU  |
-| `URxvt.cdmn.label.memory` | Label you would like to see next to the memory gauges. | MEM |
-| `URxvt.cdmn.label.network` | Label you would like to see next to the network gauges. |  NET |
-| `URxvt.cdmn.label.cpu.temp` | Label you would like to see next to the temperature gauges. | TEMP |
-| `URxvt.cdmn.label.battery` | Label you would like to see next to the battery gauges. | BAT|
+| `URxvt.cdmn.label.disk` | DISK |
+| `URxvt.cdmn.label.cpu` | CPU |
+| `URxvt.cdmn.label.memory` | MEM |
+| `URxvt.cdmn.label.network` | NET |
+| `URxvt.cdmn.label.cpu.temp` | TEMP |
+| `URxvt.cdmn.label.battery` | BAT|
 
 In addition you can set colors for different parts. All colors default to the terminal foreground (-2) or background 
 (-1). Normally you will not need to use these values. After all, they are the defaults. But you might want to 
 use any number between 0 and 255.
 
-| Resource | Function | Values |
+| Resource | Function | Default |
 | --- | --- | --- |
 | `URxvt.cdmn.label.fg` | Foreground color for all labels. | -2 |
 | `URxvt.cdmn.label.bg` | Background color for all labels. | -2 |
@@ -131,7 +132,7 @@ Want to know what colors have which number? Try this one-liner in your terminal 
 ## Layout
 To define how you want to position the gauges, use the following settings.
 
-| Resource | Function | Values |
+| Resource | Function | Default |
 | --- | --- | --- |
 | `URxvt.cdmn.padding` | How much space (in characters) you would like to have between each caption. | 2 |
 | `URxvt.cdmn.x` | Horizontal position (by character) where values >= 0 will result in a left alignment and negative numbers in a right alignment. | -1 |
@@ -142,6 +143,8 @@ To define how you want to position the gauges, use the following settings.
 ## Visual styles
 You can further define the visual representation with the following settings.
 
+| Resource | Function | Default (Other) |
+| --- | --- | --- |
 | `URxvt.cdmn.cpu.temp`, `URxvt.cdmn.temp`, `URxvt.cdmn.battery` | How much details, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
 | `URxvt.cdmn.style` | Visual representation. | bar (led) |
 
@@ -154,8 +157,8 @@ color of inactivity - in this case 0 which is black.
 
 
 ## Visual styles - refresh rate and sensitivity
-Even further tweaking is possible with options such as the refresh rate and sensitivity. The refresh rate is quite 
-simply the time in seconds when all gauges should be updated or how fast the LED should blink. The sensitivity on the
+Even further tweaking is possible with options such as the refresh rate and sensitivity. The refresh rate is simply 
+the time in seconds when all gauges should be updated or how fast the LED should blink. The sensitivity on the
  other hand defines the threshold when to first indicate any change, at all.
  
 Here is an example. Say we have the following settings excerpt:
@@ -166,9 +169,10 @@ Here is an example. Say we have the following settings excerpt:
     URxvt.cdmn.refresh: 1
     URxvt.cdmn.sensitivity: 1
 
-This results in a flashing LED-like gauge for CPU activity that has 5 colors (a brighter color for every 20%), which 
-flashes (updates) every second but only if there is at least 1% of activity. Setting the sensitivity to 50 would result in the the 
-LED-like gauge to flash first at 50% load with the color of 124. It is also possible to use fractions of seconds, e.g. 0.1, 1.1 and so on.
+This results in a flashing LED-like gauge for CPU activity that has 5 red tones (a brighter tone for every 20% 
+increase), which flashes (updates) every second but only if there is at least 1% of activity. Setting the sensitivity
+ to 50 would result in the LED-like gauge to flash first at 50% load with the color of 124. It is also possible 
+ to use fractions of seconds, e.g. 0.1, 1.1 and so on.
 
 
 ## Visual styles - invert
@@ -180,7 +184,7 @@ of labels for which gauges should use inverted colors. BAT ist inverted be defau
 ## Miscellaneous settings
 Finally there are some settings that allow you to further tweak cdmn.
 
-| Resource | Function | Values |
+| Resource | Function | Default (Other) |
 | --- | --- | --- |
 | `URxvt.cdmn.disk.mounts` | Only show disk gauges for disks with at least one mount point. | 0 (1) |
 
@@ -204,20 +208,18 @@ I have put an example .Xresouces file with the minimal necessary settings, inclu
  
 # Some words about robustness
 With reference to the [robustness principle](https://en.wikipedia.org/wiki/Robustness_principle) cdmn will silently 
-ignore incompatible or invalid values or configurations and apply defaults where applicable. 
+ignore incompatible or invalid values or configurations and apply defaults where applicable.
  
-In addition cdmn will not show anything where nothing is to be shown. That is, if you tell cdmn to show network gauges 
-but your network cable is not plugged in, gauges for this interface will not be shown. If there is only one network 
-interface (which in this case is inactive) the network caption will not show up, at all.
+In addition cdmn will not show anything where nothing is to be shown. For example, if you tell cdmn to show network 
+gauges but your network cable is not plugged in, gauges for this interface will not be shown. If all interfaces are 
+down the network caption will not show up, at all.
  
 There are some implemented default settings, but cdmn will not force them on you. Rather, they are meant to support you.
 
 Therefore cdmn does not expect any configuration in the first place. But no configuration will have the net effect 
-that nothing will be shown, at all.
-
-If you want to see something, tell cdmn what you want to see. cdmn will then apply some defaults to get you going. 
+that nothing will be shown. So, tell cdmn what you want to see. cdmn will then apply some defaults to get you going. 
 For example, put `URxvt.cdmn.gauges.order: CPU,DISK,MEM,NET` in your .Xresources file to show some of the default 
-gauges. Be encouraged to try the other settings then, too!  
+gauges. Then play around with the other settings!  
 
 
 # Please note
