@@ -34,12 +34,14 @@ Anyway, if you first want to check what this extension can do for you, there is 
 Install Perl library Filesys::Df with `sudo apt-get install libfilesys-df-perl`
 
 Then clone this repository to a place of your liking and set the resource `URxvt*perl-lib`.
+
 For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<USERNAME>/.urxvt/` and 
-load the changes with `xrdb -load ~/.Xresources`. Then create the folder `mkdir ~/.urxvt` and put a symlink in it `ln
- -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
+load the changes with `xrdb -load ~/.Xresources`.
+
+Then create the folder `mkdir ~/.urxvt` and put a symlink in it `ln -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
  
-Now, you can call rxvt with `urxvt -pe cdmn`. Make sure you update the git clone on a regular basis to enjoy new 
-features and improved stability.
+Now, you can call rxvt with `urxvt -pe cdmn`. Make sure you pull updates on a regular basis to enjoy new features and
+ improved stability.
  
 Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: cdmn` 
 to your .Xresources file. But I would not recommend it at the moment.
