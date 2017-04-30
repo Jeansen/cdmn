@@ -59,6 +59,7 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 | Meta-o    | Toggle visibility in overlay style |
 | Meta-h    | Toggle visibility in bar style <br> Switch from overlay to bar style |
 
+
 # How to use cdmn
 *cdmn* offers two visual modes: overlay and bar.
 
@@ -110,16 +111,20 @@ Labels can be defined with the following settings:
 | `URxvt.cdmn.label.cpu.temp` | Label you would like to see next to the temperature gauges. | TEMP |
 | `URxvt.cdmn.label.battery` | Label you would like to see next to the battery gauges. | BAT|
 
-In addition you can set colors for different parts. All colors default to the terminal foreground or background. 
-Possible values are 0 to 255.
+In addition you can set colors for different parts. All colors default to the terminal foreground (-2) or background 
+(-1). Normally you will not need to use these values. After all, they are the defaults. But you might want to 
+use any number between 0 and 255.
 
 | Resource | Function | Values |
 | --- | --- | --- |
-| `URxvt.cdmn.label.fg` | Foreground color for all labels. | 1 |
-| `URxvt.cdmn.label.bg` | Background color for all labels. | 1 |
-| `URxvt.cdmn.caption.bg` | Global background, e.g. padding. | 1 |
-| `URxvt.cdmn.gauges.bg` | Background, for each gauge. | 1 |
+| `URxvt.cdmn.label.fg` | Foreground color for all labels. | -2 |
+| `URxvt.cdmn.label.bg` | Background color for all labels. | -2 |
+| `URxvt.cdmn.caption.bg` | Global background, e.g. padding. | -2 |
+| `URxvt.cdmn.gauges.bg` | Background, for each gauge. | -2 |
 
+Want to know what colors have which number? Try this one-liner in your terminal and see for yourself:
+
+    for i in {0..255}; do echo -e "\e[38;05;${i}m${i}"; done | column -c 80 -s ' '; echo -e "\e[m"
 
 ## Layout
 To define how you want to position the gauges, use the following settings.
@@ -193,9 +198,11 @@ an suggestion of the minimal settings necessary.
 I have put an example .Xresouces file with the minimal necessary settings, including some color overwrites to make it
  look like in the example screenshots. Make sure you adapt the line `URxvt*perl-lib: /home/<USERNAME>/.urxvt/` 
  accordingly.
+ 
 
 # Please note
-This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). If you followed the installation instructions above it should run on any Debian based distribution, though.
+This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). 
+If you followed the installation instructions above it should run on any Debian-based distribution, though.
 
 # What's next (without priority)
 [Check the projects backlog](https://github.com/Jeansen/cdmn/projects/1) to see what I am currently working on and 
