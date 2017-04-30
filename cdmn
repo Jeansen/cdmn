@@ -488,7 +488,7 @@ package cdmn::resources {
         $s->{label_disk} = $t->x_resource('%.label.disk') // 'DISK';
         $s->{label_cpu} = $t->x_resource('%.label.cpu') // 'CPU';
         $s->{label_cpu_temp} = $t->x_resource('%.label.cpu.temp') // 'TEMP';
-        $s->{label_memory} = $t->x_resource('%.label.ram') // 'MEM';
+        $s->{label_memory} = $t->x_resource('%.label.memory') // 'MEM';
         $s->{label_battery} = $t->x_resource('%.label.battery') // 'BAT';
         $s->{label_battery_AC} = $s->{label_battery}."(⌁)";
         $s->{label_fg} = $t->x_resource('%.label.fg') // '0';
@@ -512,28 +512,29 @@ package cdmn::resources {
         $s->{sensitivity} = $t->x_resource('%.sensitivity') // 1; #percentage
         $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar'; #block | led
 
-        $s->{gauges_order} = $t->x_resource('%.caption.order') // ''; #Default
+        $s->{gauges_order} = $t->x_resource('%.gauges.order') // ''; #Default
         $s->{gauges_bg} = $t->x_resource('%.gauges.bg') // '1';
-        $s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '246,2,4,3,1';
+        #$s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '246,2,4,3,1';
+        $s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '-2';
         $s->{gauges_invert} = $t->x_resource('%.gauges.invert') // 'BAT';
 
         #DEBUG
-        #$s->{gauges_invert} = '';
-        $s->{cpu} = 'detail';     #simple | detail
-        $s->{cpu_temp} = 'detail';     #simple | detail
-        $s->{battery} = 'detail';     #simple | detail
-        $s->{visual_style} = 'led'; #block | led
-        $s->{sensitivity} = 0.01;
-        $s->{refresh} = 0.1;
-        $s->{gauges_colors} = '0,52,88,124,160,196';
-        #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
-        $s->{label_fg} = '5';
-        #$s->{label_bg} = '1';
-        $s->{cpu} = 'detail';     #simple | detail
-        $s->{gauges_bg} = '1';    #simple | full
-        $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT'; #Debug
-        $s->{network_rx} = 'eth0';
-        $s->{network_tx} = 'eth0';
+        #    #$s->{gauges_invert} = '';
+        #    $s->{cpu} = 'detail';     #simple | detail
+        #    $s->{cpu_temp} = 'detail';     #simple | detail
+        #    $s->{battery} = 'detail';     #simple | detail
+        #    $s->{visual_style} = 'led'; #block | led
+        #    $s->{sensitivity} = 0.01;
+        #    $s->{refresh} = 0.1;
+        #    $s->{gauges_colors} = '0,52,88,124,160,196';
+        #    #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
+        #    $s->{label_fg} = '5';
+        #    #$s->{label_bg} = '1';
+        #    $s->{cpu} = 'detail';     #simple | detail
+        #    $s->{gauges_bg} = '1';    #simple | full
+        #    $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT'; #Debug
+        #    $s->{network_rx} = 'eth0';
+        #    $s->{network_tx} = 'eth0';
     }
     my $validate = sub {
         my $s = shift;
@@ -1052,7 +1053,7 @@ package cdmn::visuals::visual {
             $_->hide;
         }
 
-        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq 'block';
+        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq 'bar';
         $s->{gauges}{"$i"}{"$color"}->set( LED ) if $s->{visual_style} eq 'led';
         $s->{gauges}{"$i"}{"$color"}->show;
     }

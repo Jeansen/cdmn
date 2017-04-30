@@ -27,7 +27,7 @@ And here is another example of the additional panel with very simple filesystem 
 # Installation
 Before using the package provided by your distribution, I strongly recommend that you [compile rxvt-unicode yourself](#How to compile rxvt-unicode). While developing this extension I came across a bug that results in constant memory consumption over time.
 
-Anyway, if you first want to check what this extension can do for you, there is still the option of installing it with `sudo apt-get install rxvt-unicode-256color`. 
+Anyway, if you first want to check what this extension can do for you, there is still the option of installing rxvt with `sudo apt-get install rxvt-unicode-256color`. 
 
 **Make sure the version is 9.22. Anything else may not work!**
 
@@ -46,14 +46,13 @@ to your .Xresources file. But I would not recommend it at the moment.
 
 ## Using cdmn with wireless NICs
 Wireless is a bit of a speciality because there is no constant maximal rx/tx speed. The value is constantly evaluated 
-and unfortunately not available via *sysfs* or *procfs*. Therefore cdmn uses `iwconfig` as part of its calculation. 
+and not available via *sysfs* or *procfs*. Therefore cdmn uses `iwconfig` as part of its calculation. 
 Unfortunately this requires root privileges. To make thinks work, put the following in `/et/sudoers`:
 
     <username> ALL = NOPASSWD: /sbin/iwconfig
     
 
 # Default keysyms
-
 | Keysym    | Function  |
 | --------- | --------- |
 | Meta-l    | Show left panel |
@@ -61,24 +60,26 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 | Meta-h    | Toggle visibility in bar style <br> Switch from overlay to bar style |
 
 # How to use cdmn
-*cdmn* offers two visual styles: overlay and bar.
+*cdmn* offers two visual modes: overlay and bar.
 
-The *overlay* style simply does what the name already implies. It creates an overlay on top of the current terminal. This style will not interfere with your terminal output. If some text is not visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
+The *overlay* mode simply does what the name already implies. It creates an overlay on top of the current terminal. This style will not interfere with your terminal output. If some text is not visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
 
-On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current typing, then simply use the *bar* style. With this style a complete line will be reserved for *cdmn*. You can switch to this style with `Meta-h`. This binding will also toggle the visibility of *cdmn* while using the bar style.
+On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current typing, then simply use the *bar* mode. With this style a complete line will be reserved for *cdmn*. You can switch to this mode with `Meta-h`.
 
-If you want to return to the overlay style just make *cdmn* invisible and use the `Meta-o` binding again.
+Each binding can be used to switch modes or to hide and show the gauges in a given mode. For instance, if you were in 
+overlay mode you could use `Meta-h` to go to bar mode and then use `Meta-h` repeatedly to toggle the visibility. Just
+ try it. I hope it will be intuitive.
 
 Additional information can be accessed with the `Meta-l` binding. At the moment this will only show some simple 
 filesystem information. But there are already plans for more ...
 
 Normally the Meta key maps to the the ALT key. If the bindings do not work, please check your system mappings.
 
-# How to compile rxvt-unicode
 
+# How to compile rxvt-unicode
 It might happen that your distribution does not offer version 9.22 of rxvt, even not via backports or other repositories. In this case you can still compile rxvt yourself. I recommend to first install the available version of your distribution anyway to pull in all its dependencies. Then uninstall it directly afterwards (but keep the dependencies). Now you can build rxvt yourself. This should take less than 5 minutes. Here is what you need to do on Debian:
 
-- First you will need to install some development packages to compile rxsvt with all the necessary features.
+- First you will need to install some development packages to compile rxvt with all the necessary features.
  
         sudo apt-get install libxft-dev libperl-dev checkinstall
 
@@ -94,32 +95,92 @@ After that a package with the name `rxvt-unicode` will be installed and you shou
     
 
 # How to customize cdmn (so far)
-
 Here are some settings, that already work with more to come:
 
-| Resource | Function | Default |
+
+## Labels
+Labels can be defined with the following settings:
+
+| Resource | Function | Values |
 | --- | --- | --- |
-| `URxvt.cdmn.caption-order` | List of captions to show and their order. This list must contain existing labels, otherwise the caption will be ignored. | DISK,CPU,RAM,NETWORK |
 | `URxvt.cdmn.label.disk` | Label you would like to see next to the disk gauges. | DISK |
 | `URxvt.cdmn.label.cpu` | Label you would like to see next to the cpu gauges. | CPU  |
-| `URxvt.cdmn.label.ram` | Label you would like to see next to the memory gauges. | RAM |
-| `URxvt.cdmn.label.network` | Label you would like to see next to the network gauges. | NETWORK |
+| `URxvt.cdmn.label.memory` | Label you would like to see next to the memory gauges. | MEM |
+| `URxvt.cdmn.label.network` | Label you would like to see next to the network gauges. |  NET |
+| `URxvt.cdmn.label.cpu.temp` | Label you would like to see next to the temperature gauges. | TEMP |
+| `URxvt.cdmn.label.battery` | Label you would like to see next to the battery gauges. | BAT|
+
+In addition you can set colors for different parts. All colors default to the terminal foreground or background. 
+Possible values are 0 to 255.
+
+| Resource | Function | Values |
+| --- | --- | --- |
+| `URxvt.cdmn.label.fg` | Foreground color for all labels. | 1 |
+| `URxvt.cdmn.label.bg` | Background color for all labels. | 1 |
+| `URxvt.cdmn.caption.bg` | Global background, e.g. padding. | 1 |
+| `URxvt.cdmn.gauges.bg` | Background, for each gauge. | 1 |
+
+
+## Layout
+To define how you want to position the gauges, use the following settings.
+
+| Resource | Function | Values |
+| --- | --- | --- |
 | `URxvt.cdmn.padding` | How much space (in characters) you would like to have between each caption. | 2 |
 | `URxvt.cdmn.x` | Horizontal position (by character) where values >= 0 will result in a left alignment and negative numbers in a right alignment. | -1 |
 | `URxvt.cdmn.y` | Vertical position (by row) where 0 will be the first line and -1 the last. | 0 |
+| `URxvt.cdmn.caption.order` | List of captions to show and their order. This list must contain existing labels, otherwise the caption will be ignored. | DISK,CPU,MEM,NETWORK |
 
-Here is an excerpt of the default settings. You can use this as a starting point for your custom overwrites in your 
-**.Xresources** file.
 
-    URxvt.cdmn.caption-order: CPU,DISK,RAM,NET
-    URxvt.cdmn.label.disk: DISK
-    URxvt.cdmn.label.cpu: CPU
-    URxvt.cdmn.label.ram: RAM
-    URxvt.cdmn.label.network: NET
-    URxvt.cdmn.label.battery: BAT
-    URxvt.cdmn.padding: 2
-    URxvt.cdmn.x: -1
-    URxvt.cdmn.y: 0
+## Visual styles
+You can further define the visual representation with the following settings.
+
+| `URxvt.cdmn.cpu.temp`, `URxvt.cdmn.temp`, `URxvt.cdmn.battery` | How much details, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
+| `URxvt.cdmn.style` | Visual representation. | bar (led) |
+
+
+## Visual styles - gauges colors
+In addition you can define a list of colors that will serve as a visual cue for different values. This will be most 
+useful when using the LED style. Suppose you would like to simulate a red LED that increases in brightnes every 20%. 
+Setting `URxvt.cdmn.gauges.colors` to '0,52,88,124,160,196' would just do that where the first color is the color of 
+inactivity, in this case 0 which is black.
+
+
+## Visual styles - refresh rate and sensitivity
+Even further tweaking is possible with options such as the refresh rate and sensitivity. The refresh rate is quite 
+simply the time in seconds when all gauges should be updated or how fast the LED should blink. The sensitivity on the
+ other hand defines the threshold when to indicate an update, at all.
+ 
+Here is an example. Say we have the following settings excerpt:
+    
+    URxvt.cdmn.gauges.colors: 0,52,88,124,160,196
+    URxvt.cdmn.style: led
+    URxvt.cdmn.refresh: 1
+    URxvt.cdmn.sensitivity: 1
+
+This results in a flashing LED-like gauge that has 5 colors (a brighter color for ever 20%), which flashes (updates) 
+every second but only if there is at least 1% of activity. Setting the sensitivity to 50 would result in the the 
+LED-like gauge to flash first at 50% load with the color of 124. It is also possible to use fractions of seconds, e.g
+. 0.1, 1.1 and so on.
+
+
+## Visual styles - invert
+It might be of interest to revert some colors, especially when you are interested in how much power is left when on 
+battery power. But of course this is open for debate ;-) Anyway, provide a list of labels to `URxvt.cdmn.gauges
+.invert` you would like with inverted gauges. BAT ist inverted be default.
+
+
+## Miscellaneous settings
+Finally there are some settings that allow you to further tweak cdmn.
+
+| Resource | Function | Values |
+| --- | --- | --- |
+| `URxvt.cdmn.disk.mounts` | Only show disk gauges for disks with at least one mount point. | 0 (1) |
+
+Here is an excerpt of the default settings. You do not have to put these in your resource file. They are the 
+implemented defaults. To start off, you only need to set `URxvt.cdmn.caption.order`. For instance, put `URxvt.cdmn
+.caption-order: CPU,DISK,MEM,NET` in your **.Xresources** file and reload it with `xrdb -load ~/.Xresources`. This 
+already tells cdmn what to show and in which order.
 
 In addition you should set scrollbars to be invisible, activate 32bit colors and make the background black. Here is 
 an suggestion of the minimal settings necessary. 
