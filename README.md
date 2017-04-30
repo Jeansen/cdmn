@@ -25,7 +25,7 @@ And here is another example of the additional panel with very simple filesystem 
 
 
 # Installation
-Before using the package provided by your distribution, I strongly recommend that you [compile rxvt-unicode yourself](#cdmn). While developing this extension I came across a bug that results in constant memory consumption over time.
+Before using the package provided by your distribution, I strongly recommend that you [compile rxvt-unicode yourself](#how-to-compile-rxvt-unicode). While developing this extension I came across a bug that results in constant memory consumption over time.
 
 Anyway, if you first want to check what this extension can do for you, there is still the option of installing rxvt with `sudo apt-get install rxvt-unicode-256color`. 
 
