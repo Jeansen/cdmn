@@ -105,7 +105,7 @@ Labels can be defined with the following resource settings. Each label defines t
 the corresponding gauges:
 
 | Resource | Default |
-| --- | --- | --- |
+| --- | --- |
 | `URxvt.cdmn.label.disk` | DISK |
 | `URxvt.cdmn.label.cpu` | CPU |
 | `URxvt.cdmn.label.memory` | MEM |
