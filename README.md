@@ -1,7 +1,7 @@
 [![](https://rawgit.com/Jeansen/assets/master/license.svg)](LICENSE)
 ![](https://rawgit.com/Jeansen/assets/master/project-status.svg)
 ![](https://rawgit.com/Jeansen/assets/master/rxvt.svg)
-![](https://rawgit.com/Jeansen/assets/master/version.svg)
+
 <!--[![Build Status](https://travis-ci.org/Jeansen/trc.svg?branch=master)](https://travis-ci.org/Jeansen/trc)-->
 
 # cdmn
