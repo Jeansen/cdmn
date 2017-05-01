@@ -453,6 +453,8 @@ package cdmn::constants {
 }
 
 package cdmn::resources {
+    use Scalar::Util qw(looks_like_number);
+
     my $t;
     use fields qw(
         x  y  padding
@@ -484,38 +486,37 @@ package cdmn::resources {
     sub init {
         my $s = shift;
         $t = shift;
-        $s->{label_network} = $t->x_resource('%.label.network') // 'NET';
-        $s->{label_disk} = $t->x_resource('%.label.disk') // 'DISK';
-        $s->{label_cpu} = $t->x_resource('%.label.cpu') // 'CPU';
-        $s->{label_cpu_temp} = $t->x_resource('%.label.cpu.temp') // 'TEMP';
-        $s->{label_memory} = $t->x_resource('%.label.memory') // 'MEM';
-        $s->{label_battery} = $t->x_resource('%.label.battery') // 'BAT';
+        $s->{label_network} = $t->x_resource('%.label.network') || 'NET';
+        $s->{label_disk} = $t->x_resource('%.label.disk') || 'DISK';
+        $s->{label_cpu} = $t->x_resource('%.label.cpu') || 'CPU';
+        $s->{label_cpu_temp} = $t->x_resource('%.label.cpu.temp') || 'TEMP';
+        $s->{label_memory} = $t->x_resource('%.label.memory') || 'MEM';
+        $s->{label_battery} = $t->x_resource('%.label.battery') || 'BAT';
         $s->{label_battery_AC} = $s->{label_battery}."(⌁)";
-        $s->{label_fg} = $t->x_resource('%.label.fg') // '0';
-        $s->{label_bg} = $t->x_resource('%.label.fg') // '1';
+        $s->{label_fg} = looks_like_number($t->x_resource('%.label.fg')) || 0;
+        $s->{label_bg} = looks_like_number($t->x_resource('%.label.fg')) || 1;
 
-        $s->{showing} = $t->x_resource('%.showing') // 1;
-        $s->{showing_labels} = $t->x_resource('%.showing.labels') // 1;
-        $s->{showing_background} = $t->x_resource('%.showing.background') // 1;
+        $s->{showing} = looks_like_number($t->x_resource('%.showing')) || 1; #TODO
+        $s->{showing_labels} = looks_like_number($t->x_resource('%.showing.labels')) || 1; #TODO
+        $s->{showing_background} = looks_like_number($t->x_resource('%.showing.background')) || 1; #TODO
 
-        $s->{caption} = $t->x_resource('%.caption') // 'bar';       #block | bar | solid-bar
-        $s->{caption_bg} = $t->x_resource('%.caption.bg') // '1'; # 0/1 map onto terminal fg/bg color
+        $s->{caption} = $t->x_resource('%.caption') || 'bar'; #block | bar | solid-bar #TODO
+        $s->{caption_bg} = looks_like_number($t->x_resource('%.caption.bg')) || 1; # 0/1 map onto terminal fg/bg color
 
-        $s->{padding} = $t->x_resource('%.padding') // 2;           #Padding between visuals
-        $s->{x} = $t->x_resource('%.x') // - 1;    #positive from left, negativ from right
-        $s->{y} = $t->x_resource('%.y') // 0;     #positive from top, negativ from bottom
+        $s->{padding} = looks_like_number($t->x_resource('%.padding')) || 2; #Padding between visuals
+        $s->{x} = looks_like_number($t->x_resource('%.x')) || - 1; #positive from left, negativ from right
+        $s->{y} = looks_like_number($t->x_resource('%.y')) || 0; #positive from top, negativ from bottom
         $s->{cpu} = $t->x_resource('%.cpu') // 'simple';     #simple | detail
-        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple';     #simple | detail
-        $s->{battery} = $t->x_resource('%.battery') // 'simple';     #simple | detail
-        $s->{disk_mounts} = $t->x_resource('%.disk.mounts') // 1; #TODO rename
-        $s->{refresh} = $t->x_resource('%.refresh') // 1;
-        $s->{sensitivity} = $t->x_resource('%.sensitivity') // 1; #percentage
-        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar'; #block | led
+        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple'; #simple | detail
+        $s->{battery} = $t->x_resource('%.battery') // 'simple'; #simple | detail
+        $s->{disk_mounts} = looks_like_number($t->x_resource('%.disk.mounts')) || 1; #TODO rename
+        $s->{refresh} = looks_like_number($t->x_resource('%.refresh')) || 1;
+        $s->{sensitivity} = looks_like_number($t->x_resource('%.sensitivity')) || 1; #percentage
+        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar'; #bar | led
 
-        $s->{gauges_order} = $t->x_resource('%.gauges.order') // ''; #Default
-        $s->{gauges_bg} = $t->x_resource('%.gauges.bg') // '1';
-        #$s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '246,2,4,3,1';
-        $s->{gauges_colors} = $t->x_resource('%.gauges.colors') // '-2';
+        $s->{gauges_order} = $t->x_resource('%.gauges.order') || '';
+        $s->{gauges_bg} = looks_like_number($t->x_resource('%.gauges.bg')) || '1';
+        $s->{gauges_colors} = looks_like_number($t->x_resource('%.gauges.colors')) || '-2';
         $s->{gauges_invert} = $t->x_resource('%.gauges.invert') // 'BAT';
 
         #DEBUG
@@ -527,12 +528,13 @@ package cdmn::resources {
         #    $s->{sensitivity} = 0.01;
         #    $s->{refresh} = 0.1;
         #    $s->{gauges_colors} = '0,52,88,124,160,196';
+        #    $s->{gauges_colors} = '246,2,4,3,1';
         #    #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
         #    $s->{label_fg} = '5';
         #    #$s->{label_bg} = '1';
         #    $s->{cpu} = 'detail';     #simple | detail
         #    $s->{gauges_bg} = '1';    #simple | full
-        #    $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT'; #Debug
+        #    $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
         #    $s->{network_rx} = 'eth0';
         #    $s->{network_tx} = 'eth0';
     }
@@ -866,8 +868,8 @@ package cdmn::visuals::container {
             if ( $_ eq CAPTION_BAR ) {
                 $s->{bg} = cdmn::visuals::overlay->new(
                     term      => $s->{term},
-                    x         => - 1,
-                    y         => 0,
+                    x         => $s->{x},
+                    y         => $s->{y},
                     width     => $xOff - $s->{padding},
                     height    => 1,
                     rendition => urxvt::SET_BGCOLOR cdmn::constants::REND, $s->{bg_color},
