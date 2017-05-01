@@ -1,3 +1,16 @@
+# alpha-0.5
+- Validate and harden reading resources
+- Add option to reverse Colors
+- Cleanup some code
+- Add option to set colors
+- Add LEDs as an alternative to bars
+- Add option to set refresh rate
+- Add option to set sensitivity
+- Add option to set padding (caption) background
+- Add awareness of disk mappers
+- Option to show all disks or only those with at least one mount point
+- Fix bugs
+
 # alpha-0.4
 - Add gauges for core temperatures
 - Add Option to show all CPUs, batteries and core temperatures gauges or just one
