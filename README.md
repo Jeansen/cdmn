@@ -1,4 +1,3 @@
-
 [![](https://rawgit.com/Jeansen/assets/master/license.svg)](LICENSE)
 ![](https://rawgit.com/Jeansen/assets/master/project-status.svg)
 ![](https://rawgit.com/Jeansen/assets/master/rxvt.svg)
