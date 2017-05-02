@@ -538,7 +538,7 @@ package cdmn::resources {
         $s->{sensitivity} = 0.01;
         $s->{refresh} = 0.1;
         #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
-        #$s->{gauges_colors} = '0,52,88,124,160,196';
+        $s->{gauges_colors} = '0,52,88,124,160,196';
         #$s->{gauges_colors} = '246,2,4,3,1';
         #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
         $s->{label_fg} = '5';
@@ -966,7 +966,8 @@ package cdmn::visuals::visual {
     use fields qw( count width height);
 
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
-    use constant LED => '⬛';
+    #use constant LED => '⬛';
+    use constant LED => '■';
     use constant { TRUE => 1, FALSE => 0 };
 
     my $m = 0;
