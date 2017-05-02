@@ -485,6 +485,12 @@ package cdmn::resources {
     }
 
     sub init {
+
+        local *_set = sub {
+            $t->x_resource("%.$_[0]") ? [ split( /[,[:space:]]/, $t->x_resource("%.$_[0]") ) ] : $_[1] ? [ split(
+                    /[,[:space:]]/, $_[1]) ]                                                           : [ () ];
+        };
+
         my $s = shift;
         $t = shift;
         $s->{label_network} = $t->x_resource('%.label.network') || 'NET';
@@ -515,11 +521,18 @@ package cdmn::resources {
         $s->{sensitivity} = looks_like_number($t->x_resource('%.sensitivity')) || 1; #percentage
         $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar'; #bar | led
 
-        $s->{gauges_order} = $t->x_resource('%.gauges.order') || '';
+        #$s->{gauges_order} = $t->x_resource('%.gauges.order') ? [ split( /[,[:space:]]/, $t->x_resource('%.gauges.order') ) ] : [split( /[,[:space:]]/, 'CPU,TEMP,DISK,MEM,NET,BAT')];
+
+        $s->{gauges_order} = _set('%.gauges.order');
+        $s->{gauges_disks} = _set('%.gauges.disks');
+        $s->{gauges_batteries} = _set('%.gauges.batteries');
+        $s->{gauges_cores} = _set('%.gauges.cores');
+        $s->{network_rx} = _set('%.network.rx');
+        $s->{network_tx} = _set('%.network.tx');
+        $s->{gauges_invert} = _set('%.gauges.invert', 'BAT');
+
         $s->{gauges_bg} = looks_like_number($t->x_resource('%.gauges.bg')) || '1';
         $s->{gauges_colors} = looks_like_number($t->x_resource('%.gauges.colors')) || '-2';
-        $s->{gauges_invert} = $t->x_resource('%.gauges.invert') // 'BAT';
-
 
         #DEBUG
         #  $s->{colors_network} = $t->x_resource('%.colors.network') || '0,52,88,124,160,196';
@@ -530,36 +543,36 @@ package cdmn::resources {
         #  $s->{colors_battery} = $t->x_resource('%.colors.battery') || '0,94,130,166,172,208';
 
 
-        #$s->{gauges_invert} = '';
-        $s->{cpu} = 'detail';     #simple | detail
-        $s->{cpu_temp} = 'detail';     #simple | detail
-        $s->{battery} = 'detail';     #simple | detail
-        $s->{visual_style} = 'led'; #block | led
-        $s->{sensitivity} = 0.01;
-        $s->{refresh} = 0.1;
-        #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
-        $s->{gauges_colors} = '0,52,88,124,160,196';
-        #$s->{gauges_colors} = '246,2,4,3,1';
-        #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
+        #   #$s->{gauges_invert} = '';
+        #   $s->{cpu} = 'detail';     #simple | detail
+        #   $s->{cpu_temp} = 'detail';     #simple | detail
+        #   $s->{battery} = 'detail';     #simple | detail
+        #   $s->{visual_style} = 'led'; #block | led
+        #   $s->{sensitivity} = 0.01;
+        #   $s->{refresh} = 0.1;
+        #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
+        #   $s->{gauges_colors} = '0,52,88,124,160,196';
+        $s->{gauges_colors} = '246,246,2,4,3,1';
+        #   #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
         $s->{label_fg} = '5';
-        #$s->{label_bg} = '1';
+        #   #$s->{label_bg} = '1';
         $s->{cpu} = 'detail';     #simple | detail
-        $s->{gauges_bg} = '1';    #simple | full
-        $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
-        $s->{network_rx} = 'eth0';
-        $s->{network_tx} = 'eth0';
-        $s->{y} = 0; #
+        #   $s->{gauges_bg} = '1';    #simple | full
+        #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
+        #   $s->{network_rx} = 'etasdh0';
+        #   $s->{network_tx} = 'etasdh0';
+        #   $s->{y} = 0; #
     }
+
+
     my $validate = sub {
         my $s = shift;
-        my $order = [ split( /[,[:space:]]/, $_[0] ) ];
-        my @order_default = map { $s->{$_} } (qw/label_network label_disk label_cpu label_memory label_battery label_cpu_temp/);
+        my @order_default = map { $s->{$_} } (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery /);
         my %gauges = map { $_ => 0 } @order_default;
-
-        $gauges{$_} = 1 for @$order;
+        $gauges{$_} = 1 for $_[0];
         $s->{gauges} = \%gauges; #TODO necessary?
-
-        return &cut_set($order, \@order_default);
+        return \@order_default if scalar @{$_[0]} eq 0;
+        return &cut_set($_[0], \@order_default);
     };
 
     sub set_order {
@@ -575,21 +588,12 @@ package cdmn::resources {
     sub set_nics {
         my $s = shift;
         my $nics_active = cdmn::proc->if_list;
-        my $rx_tx;
-        my @tx = ();
-        my @rx = ();
 
-        if ($s->{network_tx}) {
-            $rx_tx = [ split( /[,[:space:]]/, $s->{network_tx} ) ];
-            $rx_tx = &cut_set($rx_tx, $nics_active);
-            @tx = map {$_."_tx"} @$rx_tx;
-        }
+        my $rx_tx = &cut_set($s->{network_tx}, $nics_active);
+        my @tx = map {$_."_tx"} @$rx_tx;
 
-        if ($s->{network_rx}) {
-            $rx_tx = [ split( /[,[:space:]]/, $s->{network_rx} ) ];
-            $rx_tx = &cut_set($rx_tx, $nics_active);
-            @rx = map {$_."_rx"} @$rx_tx;
-        }
+        $rx_tx = &cut_set($s->{network_rx}, $nics_active);
+        my @rx = map {$_."_rx"} @$rx_tx;
 
         if (scalar @tx eq 0 and scalar @rx eq 0) {
             $s->{gauges_nics} = [ map {$_."_rx", $_."_tx"} @$nics_active ];
@@ -600,15 +604,9 @@ package cdmn::resources {
 
     sub set_disks {
         my $s = shift;
-        if ($t->x_resource('%.gauges.disks')) {
-            my $v = $t->x_resource('%.gauges.disks');
-            $v = [ split( /[,[:space:]]/, $v ) ];
-            $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $v) : cut_set (cdmn::proc::disks,
-                    $v);
-
-        } else {
-            $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks;
-        }
+        $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{gauges_disks}) : cut_set (
+                cdmn::proc::disks, $s->{gauges_disks});
+        $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks if scalar @{$s->{gauges_disks}} eq 0;
     }
 
     #TODO min count colors, check invalid values, ...
@@ -629,16 +627,11 @@ package cdmn::resources {
         eval qq{
             sub set_$h {
                 my \$s = shift;
-                if (\$t->x_resource('%.gauges.$h')) {
-                    my \$v = \$t->x_resource('%.gauges.$h');
-                    \$v = [ split( /[,[:space:]]/, \$v ) ];
-                    \$s->{gauges_$h} = cut_set(cdmn::proc::$h, \$v);
-                } else {
-                    \$s->{gauges_$h} = cdmn::proc::$h;
-                }
+                \$s->{gauges_$h} = cut_set(cdmn::proc::$h, \$s->{gauges_$h});
+                \$s->{gauges_$h} = cdmn::proc::$h if scalar \@{\$s->{gauges_$h}} eq 0;
             }
-        };
-    }
+        }
+    };
 }
 
 package cdmn::term {
