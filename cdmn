@@ -522,12 +522,12 @@ package cdmn::resources {
 
 
         #DEBUG
-        $s->{colors_network} = $t->x_resource('%.colors.network') || '0,52,88,124,160,196';
-        $s->{colors_disk} = $t->x_resource('%.colors.disk') || '0,17,18,19,20,21';
-        $s->{colors_cpu} = $t->x_resource('%.colors.cpu') || '0,22,28,34,40,46';
-        $s->{colors_cpu_temp} = $t->x_resource('%.colors.cpu.temp') || '0,94,130,166,172,208';
-        $s->{colors_memory} = $t->x_resource('%.colors.memory') || '0,100,184,226,';
-        $s->{colors_battery} = $t->x_resource('%.colors.battery') || '0,94,130,166,172,208';
+        #  $s->{colors_network} = $t->x_resource('%.colors.network') || '0,52,88,124,160,196';
+        #  $s->{colors_disk} = $t->x_resource('%.colors.disk') || '0,17,18,19,20,21';
+        #  $s->{colors_cpu} = $t->x_resource('%.colors.cpu') || '0,22,28,34,40,46';
+        #  $s->{colors_cpu_temp} = $t->x_resource('%.colors.cpu.temp') || '0,94,130,166,172,208';
+        #  $s->{colors_memory} = $t->x_resource('%.colors.memory') || '0,100,184,226,';
+        #  $s->{colors_battery} = $t->x_resource('%.colors.battery') || '0,94,130,166,172,208';
 
 
         #$s->{gauges_invert} = '';
@@ -537,7 +537,8 @@ package cdmn::resources {
         $s->{visual_style} = 'led'; #block | led
         $s->{sensitivity} = 0.01;
         $s->{refresh} = 0.1;
-        $s->{gauges_colors} = '0,52,88,124,160,196';
+        #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
+        #$s->{gauges_colors} = '0,52,88,124,160,196';
         #$s->{gauges_colors} = '246,2,4,3,1';
         #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
         $s->{label_fg} = '5';
@@ -614,9 +615,13 @@ package cdmn::resources {
     sub set_colors {
         my $s = shift;
         for my $h (qw(network disk cpu cpu_temp memory battery)) {
-            $s->{"colors_$h"} = [ map {$_ + 2} split( /[,[:space:]]/, $s->{"colors_$h"} ) ] if $s->{"colors_$h"};
+            $s->{"colors_$h"} = [
+                map {$_ + 2} grep (looks_like_number($_), split( /[,[:space:]]/, $s->{"colors_$h"}))
+            ] if $s->{"colors_$h"};
         }
-        $s->{gauges_colors} = [ map {$_ + 2} split( /[,[:space:]]/, $s->{gauges_colors} ) ];
+        $s->{gauges_colors} = [
+            map {$_ + 2} grep (looks_like_number($_), split( /[,[:space:]]/, $s->{gauges_colors}))
+        ];
     }
 
     for my $h (qw(batteries cores)) {
