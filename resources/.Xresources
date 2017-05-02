@@ -4,8 +4,6 @@ URxvt*color0:           rgba:0000/0000/0000/f000
 URxvt*depth:            32
 URxvt*perl-lib:         /home/<USERNAME>/.urxvt/
 
-URxvt.cdmn.gauges.order: CPU,DISK,RAM,NET,BAT
-
 #define S_base03        #002b36
 #define S_base02        #073642
 #define S_base01        #586e75
