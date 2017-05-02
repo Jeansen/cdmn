@@ -562,6 +562,14 @@ package cdmn::resources {
         #   $s->{network_rx} = 'etasdh0';
         #   $s->{network_tx} = 'etasdh0';
         #   $s->{y} = 0; #
+
+        $s->set_disks;
+        $s->set_batteries;
+        $s->set_cores;
+        $s->set_nics;
+        $s->set_order;
+        $s->set_invert;
+        $s->set_colors;
     }
 
 
@@ -1311,29 +1319,17 @@ sub on_tt_write {
     1;
 }
 
+
 ####################################################
 #   MAIN
 ####################################################
 
-
 sub on_init {
     my ($s) = @_;
-
     XR->init($s);
-
     $SHOWING = XR->{showing};
-
-    XR->set_disks;
-    XR->set_batteries;
-    XR->set_cores;
-    XR->set_nics;
-    XR->set_order;
-    XR->set_invert;
-    XR->set_colors;
-
     ();
 }
-
 
 sub on_start {
     my ($s) = @_;
