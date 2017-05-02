@@ -464,6 +464,7 @@ package cdmn::resources {
             gauges  gauges_disks  gauges_nics gauges_batteries gauges_order gauges_bg gauges_cores gauges_colors gauges_invert
             actions network_tx network_rx
             cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
+            colors_network colors_disk colors_cpu colors_cpu_temp colors_memory colors_battery
         );
 
     sub new {
@@ -519,7 +520,16 @@ package cdmn::resources {
         $s->{gauges_colors} = looks_like_number($t->x_resource('%.gauges.colors')) || '-2';
         $s->{gauges_invert} = $t->x_resource('%.gauges.invert') // 'BAT';
 
+
         #DEBUG
+        $s->{colors_network} = $t->x_resource('%.colors.network') || '0,52,88,124,160,196';
+        $s->{colors_disk} = $t->x_resource('%.colors.disk') || '0,17,18,19,20,21';
+        $s->{colors_cpu} = $t->x_resource('%.colors.cpu') || '0,22,28,34,40,46';
+        $s->{colors_cpu_temp} = $t->x_resource('%.colors.cpu.temp') || '0,94,130,166,172,208';
+        $s->{colors_memory} = $t->x_resource('%.colors.memory') || '0,100,184,226,';
+        $s->{colors_battery} = $t->x_resource('%.colors.battery') || '0,94,130,166,172,208';
+
+
         #$s->{gauges_invert} = '';
         $s->{cpu} = 'detail';     #simple | detail
         $s->{cpu_temp} = 'detail';     #simple | detail
@@ -537,7 +547,7 @@ package cdmn::resources {
         $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
         $s->{network_rx} = 'eth0';
         $s->{network_tx} = 'eth0';
-        $s->{y} = - 1; #
+        $s->{y} = 0; #
     }
     my $validate = sub {
         my $s = shift;
@@ -560,8 +570,6 @@ package cdmn::resources {
         my $s = shift;
         $s->{gauges_invert} = $validate->($s, $s->{gauges_invert});
     }
-
-
 
     sub set_nics {
         my $s = shift;
@@ -605,6 +613,9 @@ package cdmn::resources {
     #TODO min count colors, check invalid values, ...
     sub set_colors {
         my $s = shift;
+        for my $h (qw(network disk cpu cpu_temp memory battery)) {
+            $s->{"colors_$h"} = [ map {$_ + 2} split( /[,[:space:]]/, $s->{"colors_$h"} ) ] if $s->{"colors_$h"};
+        }
         $s->{gauges_colors} = [ map {$_ + 2} split( /[,[:space:]]/, $s->{gauges_colors} ) ];
     }
 
@@ -1114,17 +1125,17 @@ sub create_captions {
         local *add = sub {
             local $_ = XR->{label_battery_AC} if $_[0] eq 'battery' and &cdmn::proc::ac_online;
             $caption->add(label                 => $_, gauges => $arg{$_[0]}, label_bg => XR->{label_bg}, gauges_bg =>
-                XR->{gauges_bg}, label_fg       => XR->{label_fg}, gauges_colors => XR->{gauges_colors}, visual_style =>
+                XR->{gauges_bg}, label_fg       => XR->{label_fg}, gauges_colors => $_[1], visual_style =>
                 XR->{visual_style}, sensitivity => XR->{sensitivity});
         };
 
         for ( @{ XR->{gauges_order} } ) {
-            $_ eq XR->{label_cpu} and add('cpu');
-            $_ eq XR->{label_disk} and add('disk');
-            $_ eq XR->{label_memory} and add('memory');
-            $_ eq XR->{label_network} and add('network') if $arg{network};
-            $_ eq XR->{label_cpu_temp} and add('cores') if $arg{cores};
-            $_ eq XR->{label_battery} and add('battery') if $arg{battery};
+            $_ eq XR->{label_cpu} and add('cpu', XR->{colors_cpu} || XR->{gauges_colors});
+            $_ eq XR->{label_disk} and add('disk', XR->{colors_disk} || XR->{gauges_colors});
+            $_ eq XR->{label_memory} and add('memory', XR->{colors_memory} || XR->{gauges_colors});
+            $_ eq XR->{label_network} and add('network', XR->{colors_network} || XR->{gauges_colors}) if $arg{network};
+            $_ eq XR->{label_cpu_temp} and add('cores', XR->{colors_cpu_temp} || XR->{gauges_colors}) if $arg{cores};
+            $_ eq XR->{label_battery} and add('battery', XR->{colors_battery} || XR->{gauges_colors}) if $arg{battery};
         }
     };
 
