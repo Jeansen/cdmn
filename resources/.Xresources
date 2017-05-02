@@ -1,5 +1,6 @@
 URxvt*scrollBar:        false
 URxvt*background:       rgba:0000/0000/0000/f000
+URxvt*color0:           rgba:0000/0000/0000/f000
 URxvt*depth:            32
 URxvt*perl-lib:         /home/<USERNAME>/.urxvt/
 
