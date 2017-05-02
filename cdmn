@@ -341,7 +341,7 @@ package cdmn::proc {
             $sda{ $sda[0] } = $sda{ $sda[0] } // 0;
 
             my $diff_sda = $sda[10] - $sda{ $sda[0] };
-            $diff_usage = $diff_sda / ($_[0] * 1000) * 100 * $_[0];
+            $diff_usage = $diff_sda / (1000 * $_[0]) * 100;
 
             $sda{ $sda[0] }     = $sda[10];
             $results{ $sda[0] } = $diff_usage <= 100 ? $diff_usage : 100;
@@ -520,23 +520,24 @@ package cdmn::resources {
         $s->{gauges_invert} = $t->x_resource('%.gauges.invert') // 'BAT';
 
         #DEBUG
-        #    #$s->{gauges_invert} = '';
-        #    $s->{cpu} = 'detail';     #simple | detail
-        #    $s->{cpu_temp} = 'detail';     #simple | detail
-        #    $s->{battery} = 'detail';     #simple | detail
-        #    $s->{visual_style} = 'led'; #block | led
-        #    $s->{sensitivity} = 0.01;
-        #    $s->{refresh} = 0.1;
-        #    $s->{gauges_colors} = '0,52,88,124,160,196';
-        #    $s->{gauges_colors} = '246,2,4,3,1';
-        #    #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
-        #    $s->{label_fg} = '5';
-        #    #$s->{label_bg} = '1';
-        #    $s->{cpu} = 'detail';     #simple | detail
-        #    $s->{gauges_bg} = '1';    #simple | full
-        #    $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
-        #    $s->{network_rx} = 'eth0';
-        #    $s->{network_tx} = 'eth0';
+        #$s->{gauges_invert} = '';
+        $s->{cpu} = 'detail';     #simple | detail
+        $s->{cpu_temp} = 'detail';     #simple | detail
+        $s->{battery} = 'detail';     #simple | detail
+        $s->{visual_style} = 'led'; #block | led
+        $s->{sensitivity} = 0.01;
+        $s->{refresh} = 0.1;
+        $s->{gauges_colors} = '0,52,88,124,160,196';
+        #$s->{gauges_colors} = '246,2,4,3,1';
+        #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
+        $s->{label_fg} = '5';
+        #$s->{label_bg} = '1';
+        $s->{cpu} = 'detail';     #simple | detail
+        $s->{gauges_bg} = '1';    #simple | full
+        $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
+        $s->{network_rx} = 'eth0';
+        $s->{network_tx} = 'eth0';
+        $s->{y} = - 1; #
     }
     my $validate = sub {
         my $s = shift;
