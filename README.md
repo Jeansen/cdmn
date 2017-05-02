@@ -154,6 +154,14 @@ useful when using the LED style. Suppose you would like to simulate a red LED th
 20%. Setting `URxvt.cdmn.gauges.colors` to '0,52,88,124,160,196' would just do that, where the first color is the 
 color of inactivity - in this case 0 which is black.
 
+You can also set (and overwrite) colors individually for each gauge with the following resources:
+
+    URxvt.cdmn.colors.network
+    URxvt.cdmn.colors.disk
+    URxvt.cdmn.colors.cpu
+    URxvt.cdmn.colors.cpu.temp
+    URxvt.cdmn.colors.memory 
+    URxvt.cdmn.colors.battery
 
 ## Visual styles - refresh rate and sensitivity
 Even further tweaking is possible with options such as the refresh rate and sensitivity. The refresh rate is simply 
