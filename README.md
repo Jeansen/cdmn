@@ -163,6 +163,7 @@ You can also set (and overwrite) colors individually for each gauge with the fol
     URxvt.cdmn.colors.memory 
     URxvt.cdmn.colors.battery
 
+
 ## Visual styles - refresh rate and sensitivity
 Even further tweaking is possible with options such as the refresh rate and sensitivity. The refresh rate is simply 
 the time in seconds when all gauges should be updated or how fast the LED should blink. The sensitivity on the
@@ -195,10 +196,8 @@ Finally there are some settings that allow you to further tweak cdmn.
 | --- | --- | --- |
 | `URxvt.cdmn.disk.mounts` | Only show disk gauges for disks with at least one mount point. | 0 (1) |
 
-Here is an excerpt of the default settings. You do not have to put these in your resource file. They are the 
-implemented defaults. To start off, you only need to set `URxvt.cdmn.gauges.order`. For instance, put `URxvt.cdmn
-.gauges.order: CPU,DISK,MEM,NET` in your **.Xresources** file and reload it with `xrdb -load ~/.Xresources`. This 
-already tells cdmn what to show and in which order.
+
+## Resource Settings
 
 In addition you should set scrollbars to be invisible, activate 32bit colors and make the background black. Here is 
 an suggestion of the minimal settings necessary. 
@@ -208,25 +207,23 @@ an suggestion of the minimal settings necessary.
     URxvt*depth:            32
     URxvt*perl-lib:         /home/<USERNAME>/.urxvt/
     
-I have put an example .Xresouces file with the minimal necessary settings, including some color overwrites to make it
- look like in the example screenshots. Make sure you adapt the line `URxvt*perl-lib: /home/<USERNAME>/.urxvt/` 
- accordingly.
+There is an initial .Xresouces file in de resources folder with some minimal necessary settings, including some 
+color overwrites to make it look like the example screenshots. Make sure you adapt the line `URxvt*perl-lib: 
+/home/<USERNAME>/.urxvt/` accordingly.
  
  
 # Some words about robustness
 With reference to the [robustness principle](https://en.wikipedia.org/wiki/Robustness_principle) cdmn will silently 
 ignore incompatible or invalid values or configurations and apply defaults where applicable.
  
-In addition cdmn will not show anything where nothing is to be shown. For example, if you tell cdmn to show network 
-gauges but your network cable is not plugged in, gauges for this interface will not be shown. If all interfaces are 
-down the network caption will not show up, at all.
- 
-There are some implemented default settings, but cdmn will not force them on you. Rather, they are meant to support you.
+In addition, if you do not tell cdmn anything it will assume everything. This is also true if only invalid 
+values have been supplied for any resource. Say you want to view gauges for eth0 and eth1 but actually the interface 
+names are enp3s0 und enp3s1. After validation this would result in an empty list which to cdmn is the same as if this
+ resource had not been configured. Therefore cdmn would fall back to its default setting: to show all there is.
 
-Therefore cdmn does not expect any configuration in the first place. But no configuration will have the net effect 
-that nothing will be shown. So, tell cdmn what you want to see. cdmn will then apply some defaults to get you going. 
-For example, put `URxvt.cdmn.gauges.order: CPU,DISK,MEM,NET` in your .Xresources file to show some of the default 
-gauges. Then play around with the other settings!  
+On the other hand, cdmn will not show anything where nothing is to be shown. For example, if you tell cdmn to show 
+network gauges but your network cable is not plugged in, gauges for this interface will not be shown. If all 
+interfaces are down the network caption will not show up, at all.
 
 
 # Please note
