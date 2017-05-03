@@ -544,23 +544,22 @@ package cdmn::resources {
 
 
         #   #$s->{gauges_invert} = '';
-        #   $s->{cpu} = 'detail';     #simple | detail
         #   $s->{cpu_temp} = 'detail';     #simple | detail
         #   $s->{battery} = 'detail';     #simple | detail
-        #   $s->{visual_style} = 'led'; #block | led
-        #   $s->{sensitivity} = 0.01;
-        #   $s->{refresh} = 0.1;
+        $s->{visual_style} = 'led'; #block | led
+        $s->{sensitivity} = 0.1;
+        $s->{refresh} = 0.1;
         #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
-        #   $s->{gauges_colors} = '0,52,88,124,160,196';
-        $s->{gauges_colors} = '246,246,2,4,3,1';
+        $s->{gauges_colors} = '0,52,88,124,160,196';
+        #$s->{gauges_colors} = '246,246,2,4,3,1';
         #   #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
         $s->{label_fg} = '5';
         #   #$s->{label_bg} = '1';
-        $s->{cpu} = 'detail';     #simple | detail
+        #$s->{cpu} = 'detail';     #simple | detail
         #   $s->{gauges_bg} = '1';    #simple | full
         #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
-        #   $s->{network_rx} = 'etasdh0';
-        #   $s->{network_tx} = 'etasdh0';
+        $s->{network_rx} = [ ('eth0') ];
+        $s->{network_tx} = [ ('eth0') ];
         #   $s->{y} = 0; #
 
         $s->set_disks;
@@ -1390,9 +1389,9 @@ sub on_start {
                 %r = %{&cdmn::proc::memory_usages} if $h eq XR->{label_memory};
                 %r = %{&cdmn::proc::disk_usages(XR->{refresh})} if $h eq XR->{label_disk};
                 %r = %{&cdmn::proc::battery_usages} if $is_bat_ac;
-                %r = (%{ &cdmn::proc::network_usages("rx_bytes", XR->{refresh})}, %{&cdmn::proc::network_usages
-                        ("tx_bytes", XR->{refresh})}) if
-                    $h eq XR->{label_network};
+                %r = (%{ &cdmn::proc::network_usages(
+                        "rx_bytes", XR->{refresh})}, %{&cdmn::proc::network_usages ("tx_bytes", XR->{refresh})}
+                ) if $h eq XR->{label_network};
 
                 my @k = keys %r;
                 return 1 if scalar @k < 1;
