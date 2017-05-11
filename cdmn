@@ -550,7 +550,7 @@ package cdmn::resources {
         $s->{sensitivity} = 0.1;
         $s->{refresh} = 0.1;
         #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
-        $s->{gauges_colors} = '0,52,88,124,160,196';
+        $s->{gauges_colors} = '5,52,88,124,160,196';
         #$s->{gauges_colors} = '246,246,2,4,3,1';
         #   #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
         $s->{label_fg} = '5';
@@ -684,8 +684,9 @@ package cdmn::term {
     sub on_init {
         my $s = shift;
         $s->bind_action( 'M-h', 'perl:'.&cdmn::constants::ACTION_SHOW );
-        $s->bind_action( 'M-l', 'perl:'.&cdmn::constants::ACTION_SHOW_SIDEBAR );
+        $s->bind_action( 'M-p', 'perl:'.&cdmn::constants::ACTION_SHOW_SIDEBAR );
         $s->bind_action( 'M-o', 'perl:'.&cdmn::constants::ACTION_SHOW_TRANSPARENT );
+        $s->bind_action( 'M-l', 'perl:'.&cdmn::constants::ACTION_SHOW_LABELS );
         ();
     }
 
@@ -1192,49 +1193,64 @@ sub create_captions {
 }
 
 ####################################################
+#   ACTIONS
+####################################################
+
+my %user_command;
+
+$user_command{&cdmn::constants::ACTION_SHOW} = sub {
+    my $s = shift;
+    my $h = $s->fheight * ( $s->nrow - 1 );
+    my $w = $s->width;
+    my $x = 0;
+    my $y = XR->{y} >= 0 ? $s->fheight : - 1;
+
+    if ($s->{xterms}{main}{maximized}) {
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 );    #TODO why add 4?
+        $s->{xterms}{main}{maximized} = 0;
+        ${$s->{caption}->[0]}->hide;
+        $SHOWING = 1;
+    }
+    else {
+        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
+        $s->{xterms}{main}{maximized} = 1;
+        $SHOWING = 0;
+    }
+};
+
+$user_command{&cdmn::constants::ACTION_SHOW_TRANSPARENT} = sub {
+    my $s = shift;
+    if ($s->{xterms}{main}{maximized}) {
+        my $c = ${$s->{caption}->[0]};
+        if ($c->{visible}) {
+            $c->hide;
+            $SHOWING = 0;
+        }
+        else {
+            $c->show;
+            $SHOWING = 1;
+        }
+    }
+};
+
+$user_command{&cdmn::constants::ACTION_SHOW_SIDEBAR} = sub {
+    (shift)->{xterms}{sidebar}->toggle;
+};
+
+$user_command{&cdmn::constants::ACTION_SHOW_LABELS} = sub {
+    my $s = shift;
+    foreach (@{$s->{caption}}) {
+        $$_->toggle_labels if $$_->{visible};
+    }
+};
+
+####################################################
 #   HANDLERS
 ####################################################
 
 sub user_command {
     my ( $s, $action ) = (@_);
-
-    if ($action eq &cdmn::constants::ACTION_SHOW) {
-        my $h = $s->fheight * ( $s->nrow - 1 );
-        my $w = $s->width;
-        my $x = 0;
-        my $y = XR->{y} >= 0 ? $s->fheight : -1;
-
-        if ( $s->{xterms}{main}{maximized} ) {
-            $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 );    #TODO why add 4?
-            $s->{xterms}{main}{maximized} = 0;
-            ${$s->{caption}->[0]}->hide;
-            $SHOWING = 1;
-        }
-        else {
-            $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
-            $s->{xterms}{main}{maximized} = 1;
-            $SHOWING = 0;
-        }
-    }
-
-    if ($action eq &cdmn::constants::ACTION_SHOW_TRANSPARENT) {
-        if ( $s->{xterms}{main}{maximized} ) {
-            my $c = ${$s->{caption}->[0]};
-            if ($c->{visible}) {
-                $c->hide;
-                $SHOWING = 0;
-            }
-            else {
-                $c->show;
-                $SHOWING = 1;
-            }
-        }
-    }
-
-    if ($action eq &cdmn::constants::ACTION_SHOW_SIDEBAR and XR->{showing}) {
-        $s->{xterms}{sidebar}->toggle;
-    }
-
+    $user_command{$action}->($s);
     1;
 }
 
