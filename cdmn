@@ -849,7 +849,7 @@ package cdmn::visuals::container {
             sensitivity   => $arg{sensitivity},
         );
 
-        $s->{sprites}{$arg{label}} = $visual;
+        $s->{sprites}{$arg{name}} = $visual;
         if (@{$arg{gauges}} > $m && $s->{evenGauges}) {
             $m = @{$arg{gauges}};
             foreach ( values %{ $s->{sprites} } ) {
@@ -1133,7 +1133,7 @@ sub create_captions {
             local $_ = XR->{label_battery_AC} if $_[0] eq 'battery' and &cdmn::proc::ac_online;
             $caption->add(label                 => $_, gauges => $arg{$_[0]}, label_bg => XR->{label_bg}, gauges_bg =>
                 XR->{gauges_bg}, label_fg       => XR->{label_fg}, gauges_colors => $_[1], visual_style =>
-                XR->{visual_style}, sensitivity => XR->{sensitivity});
+                XR->{visual_style}, sensitivity => XR->{sensitivity}, name => $_[0]);
         };
 
         for ( @{ XR->{gauges_order} } ) {
@@ -1393,6 +1393,16 @@ sub on_start {
             return if !$SHOWING;
             my %r;
 
+            my %action;
+            $action{cpu} = sub {%{&cdmn::proc::cpu_usages}};
+            $action{memory} = sub {%{&cdmn::proc::memory_usages}};
+            $action{cores} = sub {%{&cdmn::proc::cpu_temp_usages}};
+            $action{battery} = sub {%{&cdmn::proc::battery_usages}};
+            $action{disk} = sub {%{&cdmn::proc::disk_usages(XR->{refresh})}};
+            $action{network} = sub {(%{ &cdmn::proc::network_usages(
+                    "rx_bytes", XR->{refresh})}, %{&cdmn::proc::network_usages ("tx_bytes", XR->{refresh})}
+            )};
+
             local *_set = sub {
                 my $h = shift;
                 my $simple = shift;
@@ -1400,14 +1410,7 @@ sub on_start {
                 my %inverts = map { $_ => 1 } @{XR->{gauges_invert}};
 
                 my $is_bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
-                %r = %{&cdmn::proc::cpu_usages} if $h eq XR->{label_cpu};
-                %r = %{&cdmn::proc::cpu_temp_usages} if $h eq XR->{label_cpu_temp};
-                %r = %{&cdmn::proc::memory_usages} if $h eq XR->{label_memory};
-                %r = %{&cdmn::proc::disk_usages(XR->{refresh})} if $h eq XR->{label_disk};
-                %r = %{&cdmn::proc::battery_usages} if $is_bat_ac;
-                %r = (%{ &cdmn::proc::network_usages(
-                        "rx_bytes", XR->{refresh})}, %{&cdmn::proc::network_usages ("tx_bytes", XR->{refresh})}
-                ) if $h eq XR->{label_network};
+                %r = $action{$h}->();
 
                 my @k = keys %r;
                 return 1 if scalar @k < 1;
@@ -1427,10 +1430,9 @@ sub on_start {
 
             foreach (keys %{${$s->{caption}[0]}->{sprites}}) {
                 my $v = $_;
-                $v eq XR->{label_cpu} and _set($v, XR->{cpu} eq 'simple') and next;
-                $v eq XR->{label_cpu_temp} and _set($v, XR->{cpu_temp} eq 'simple') and next;
-                ($v eq XR->{label_battery} or $v eq XR->{label_battery_AC} ) and _set($v,
-                    XR->{battery} eq 'simple') and next;
+                $v eq 'cpu' and _set($v, XR->{cpu} eq 'simple') and next;
+                $v eq 'cores' and _set($v, XR->{cpu_temp} eq 'simple') and next;
+                $v eq 'battery' and _set($v, XR->{battery} eq 'simple') and next;
                 _set($v);
             }
         }
