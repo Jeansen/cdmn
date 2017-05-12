@@ -28,6 +28,7 @@ use autodie;
 binmode STDOUT, ":encoding(UTF-8)";
 
 my $SHOWING;
+my $LABELS_SHOWING;
 
 package cdmn::proc {
     use List::Util qw(sum max min);
@@ -810,8 +811,8 @@ package cdmn::term {
 }
 
 package cdmn::visuals::container {
-    use fields qw( term rendition padding align evenGauges x y bg_color);
-    use fields qw( sprites visible bg backgroundVisible labelVisible);
+    use fields qw( term rendition padding align evenGauges x y bg_color );
+    use fields qw( gauges visible bg backgroundVisible labelVisible simpleGauges );
 
     use constant {
         TRUE          => 1,
@@ -849,10 +850,11 @@ package cdmn::visuals::container {
             sensitivity   => $arg{sensitivity},
         );
 
-        $s->{sprites}{$arg{name}} = $visual;
+        $s->{simpleGauges}{$arg{name}} = $arg{simple};
+        $s->{gauges}{$arg{name}} = $visual;
         if (@{$arg{gauges}} > $m && $s->{evenGauges}) {
             $m = @{$arg{gauges}};
-            foreach ( values %{ $s->{sprites} } ) {
+            foreach (values %{ $s->{gauges} }) {
                 $_->setEvenGauges($m);
                 $xOff += $visual->{width} if $s->{align} eq CAPTION_BAR;
             }
@@ -869,17 +871,17 @@ package cdmn::visuals::container {
             for ( $s->{align} ) {
                 if ( $_ eq CAPTION_BAR ) {
                     $_->{x} = $s->{term}->ncol - $xOff + $_->{x} + $s->{x} + $s->{padding} + 1
-                        foreach ( values %{ $s->{sprites} } );
+                        foreach ( values %{ $s->{gauges} } );
                 }
                 if ( $_ eq CAPTION_BLOCK ) {
-                    $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} + $s->{x} foreach ( values %{ $s->{sprites} } );
+                    $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} + $s->{x} foreach ( values %{ $s->{gauges} } );
                 }
             }
         }
         else {
-            $_->{x} += $s->{x} foreach values %{ $s->{sprites} };
+            $_->{x} += $s->{x} foreach values %{ $s->{gauges} };
         }
-        $_->create foreach values %{ $s->{sprites} };
+        $_->create foreach values %{ $s->{gauges} };
 
         #Background
         for ( $s->{align} ) {
@@ -900,17 +902,28 @@ package cdmn::visuals::container {
     }
 
     sub set {
-        my ( $s, $label, $i, $usage, $invert) = (@_);
-        if ( $s->{visible} ) {
-            $s->{sprites}{$label}->set( $i, $usage, $invert) if $s->{sprites}{$label};
+        my ( $s, $name, $usage, $invert) = (@_);
+        my $total = 0;
+        if ($s->{visible} && $s->{gauges}{$name}) {
+            if ($s->{simpleGauges}{$name}) {
+                $total += $_ foreach values %$usage;
+                $total /= scalar keys %$usage;
+                $s->{gauges}{$name}->set( 'simple', $total, $invert);
+            }
+            else {
+                while ( my ( $key, $value ) = each %$usage ) {
+                    $s->{gauges}{$name}->set( $key, $value, $invert);
+                }
+            }
         }
+
         $s->refresh_background;
     }
 
     sub show {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
-        foreach ( values %{ $s->{sprites} } ) {
+        foreach (values %{ $s->{gauges} }) {
             $visible ? $_->show : $_->hide;
         }
         $visible ? $s->show_labels : $s->hide_labels;
@@ -929,7 +942,7 @@ package cdmn::visuals::container {
     sub show_labels {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
-        foreach ( values %{ $s->{sprites} } ) {
+        foreach (values %{ $s->{gauges} }) {
             $visible ? $_->show_label : $_->hide_label;
         }
 
@@ -1123,26 +1136,29 @@ use constant XR => cdmn::resources->new();
 ####################################################
 
 sub create_captions {
-    my ($s) = (@_);
+    my ($s, $showLabels) = (@_);
     my $caption;
-
     local *_create = sub {
         my (%arg) = @_;
 
         local *add = sub {
             local $_ = XR->{label_battery_AC} if $_[0] eq 'battery' and &cdmn::proc::ac_online;
-            $caption->add(label                 => $_, gauges => $arg{$_[0]}, label_bg => XR->{label_bg}, gauges_bg =>
+            $caption->add(label                 => $showLabels ? $_ : '', gauges => $arg{$_[0]}, label_bg =>
+                XR->{label_bg}, gauges_bg       =>
                 XR->{gauges_bg}, label_fg       => XR->{label_fg}, gauges_colors => $_[1], visual_style =>
-                XR->{visual_style}, sensitivity => XR->{sensitivity}, name => $_[0]);
+                XR->{visual_style}, sensitivity => XR->{sensitivity}, name => $_[0], simple => $_[2]);
         };
 
         for ( @{ XR->{gauges_order} } ) {
-            $_ eq XR->{label_cpu} and add('cpu', XR->{colors_cpu} || XR->{gauges_colors});
-            $_ eq XR->{label_disk} and add('disk', XR->{colors_disk} || XR->{gauges_colors});
-            $_ eq XR->{label_memory} and add('memory', XR->{colors_memory} || XR->{gauges_colors});
-            $_ eq XR->{label_network} and add('network', XR->{colors_network} || XR->{gauges_colors}) if $arg{network};
-            $_ eq XR->{label_cpu_temp} and add('cores', XR->{colors_cpu_temp} || XR->{gauges_colors}) if $arg{cores};
-            $_ eq XR->{label_battery} and add('battery', XR->{colors_battery} || XR->{gauges_colors}) if $arg{battery};
+            $_ eq XR->{label_cpu} and add('cpu', XR->{colors_cpu} || XR->{gauges_colors}, XR->{cpu} eq 'simple' );
+            $_ eq XR->{label_disk} and add('disk', XR->{colors_disk} || XR->{gauges_colors}, 0);
+            $_ eq XR->{label_memory} and add('memory', XR->{colors_memory} || XR->{gauges_colors}, 0);
+            $_ eq XR->{label_network} and add('network', XR->{colors_network} || XR->{gauges_colors},
+                0) if $arg{network};
+            $_ eq XR->{label_cpu_temp} and add('cores', XR->{colors_cpu_temp} || XR->{gauges_colors},
+                XR->{cpu_temp} eq 'simple') if $arg{cores};
+            $_ eq XR->{label_battery} and add('battery', XR->{colors_battery} || XR->{gauges_colors},
+                XR->{battery} eq 'simple') if $arg{battery};
         }
     };
 
@@ -1238,9 +1254,10 @@ $user_command{&cdmn::constants::ACTION_SHOW_SIDEBAR} = sub {
 };
 
 $user_command{&cdmn::constants::ACTION_SHOW_LABELS} = sub {
-    my $s = shift;
-    foreach (@{$s->{caption}}) {
-        $$_->toggle_labels if $$_->{visible};
+    if ($SHOWING) {
+        my $s = shift;
+        $LABELS_SHOWING = !$LABELS_SHOWING;
+        redraw($s, $LABELS_SHOWING);
     }
 };
 
@@ -1259,28 +1276,31 @@ sub on_refresh_begin {
     my $nics_active = cdmn::proc->if_list;
     state $onAC = 0;
     state $nics = 0;
-
     if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::ac_online != $onAC || $nics != scalar @$nics_active) {
-        my @visible = map {$$_->{visible}} @{($s->{caption})};
-
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
 
         XR->set_nics;
-
-        $s->{w_sizse} = $s->{term}->ncol;
-        $s->{visuals_updater}->stop;
-        $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
-        $s->{caption}[1] = create_captions $s;
-
-        while ( my ( $key, $item ) = each @{($s->{caption})} ) {
-            ${$item}->create;
-            $visible[$key] ? ${$item}->show : ${$item}->hide;
-        }
-        $s->{visuals_updater}->start;
+        redraw($s, $LABELS_SHOWING);
     }
 
     1;
+}
+
+sub redraw {
+    my ($s, $showLabels) = @_;
+    my @visible = map {$$_->{visible}} @{($s->{caption})};
+
+    $s->{w_sizse} = $s->{term}->ncol;
+    $s->{visuals_updater}->stop;
+    $s->{caption}[0] = create_captions ($s->{xterms}{main}{term}, $showLabels);
+    $s->{caption}[1] = create_captions ($s, $showLabels);
+
+    while ( my ( $key, $item ) = each @{($s->{caption})} ) {
+        ${$item}->create;
+        $visible[$key] ? ${$item}->show : ${$item}->hide;
+    }
+    $s->{visuals_updater}->start;
 }
 
 ####################################################
@@ -1343,6 +1363,7 @@ sub on_init {
     my ($s) = @_;
     XR->init($s);
     $SHOWING = XR->{showing};
+    $LABELS_SHOWING = XR->{showing_labels};
     ();
 }
 
@@ -1393,48 +1414,30 @@ sub on_start {
             return if !$SHOWING;
             my %r;
 
-            my %action;
-            $action{cpu} = sub {%{&cdmn::proc::cpu_usages}};
-            $action{memory} = sub {%{&cdmn::proc::memory_usages}};
-            $action{cores} = sub {%{&cdmn::proc::cpu_temp_usages}};
-            $action{battery} = sub {%{&cdmn::proc::battery_usages}};
-            $action{disk} = sub {%{&cdmn::proc::disk_usages(XR->{refresh})}};
-            $action{network} = sub {(%{ &cdmn::proc::network_usages(
+            my %usage_of;
+            $usage_of{cpu} = sub {%{&cdmn::proc::cpu_usages}};
+            $usage_of{memory} = sub {%{&cdmn::proc::memory_usages}};
+            $usage_of{cores} = sub {%{&cdmn::proc::cpu_temp_usages}};
+            $usage_of{battery} = sub {%{&cdmn::proc::battery_usages}};
+            $usage_of{disk} = sub {%{&cdmn::proc::disk_usages(XR->{refresh})}};
+            $usage_of{network} = sub {(%{ &cdmn::proc::network_usages(
                     "rx_bytes", XR->{refresh})}, %{&cdmn::proc::network_usages ("tx_bytes", XR->{refresh})}
             )};
 
             local *_set = sub {
-                my $h = shift;
-                my $simple = shift;
-                my $total = 0;
+                my $gauge_name = shift;
                 my %inverts = map { $_ => 1 } @{XR->{gauges_invert}};
+                my $is_bat_ac = ($gauge_name eq XR->{label_battery} || $gauge_name eq XR->{label_battery_AC});
 
-                my $is_bat_ac = ($h eq XR->{label_battery} || $h eq XR->{label_battery_AC});
-                %r = $action{$h}->();
+                %r = $usage_of{$gauge_name}->();
 
-                my @k = keys %r;
-                return 1 if scalar @k < 1;
+                return 1 if scalar keys %r < 1;
 
-                if ($simple) {
-                    $total += $_ foreach values %r;
-                    $total /= scalar @k;
-                    $$_->set( $h, 'simple', $total, $inverts{$h}) foreach @{ $s->{caption} };
-                }
-                else {
-                    while ( my ( $key, $value ) = each %r ) {
-                        $$_->set( $h, $key, $value, $inverts{$h}) foreach @{ $s->{caption} };
-                    }
-                }
+                $$_->set( $gauge_name, \%r, $inverts{$gauge_name}) foreach @{ $s->{caption} };
                 1;
             };
 
-            foreach (keys %{${$s->{caption}[0]}->{sprites}}) {
-                my $v = $_;
-                $v eq 'cpu' and _set($v, XR->{cpu} eq 'simple') and next;
-                $v eq 'cores' and _set($v, XR->{cpu_temp} eq 'simple') and next;
-                $v eq 'battery' and _set($v, XR->{battery} eq 'simple') and next;
-                _set($v);
-            }
+            _set($_) foreach keys %{${$s->{caption}[0]}->{gauges}};
         }
     );
     refresh_bounds $s;
