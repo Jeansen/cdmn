@@ -129,7 +129,7 @@ Want to know what colors have which number? Try this one-liner in your terminal 
     for i in {0..255}; do echo -e "\e[38;05;${i}m${i}"; done | column -c 80 -s ' '; echo -e "\e[m"
 
 ## Layout
-To define how you want to position the gauges, use the following settings.
+Beginning with the layout, you can define the position, order, initial visibility and more with the following settings.
 
 | Resource | Function | Default |
 | --- | --- | --- |
@@ -137,6 +137,8 @@ To define how you want to position the gauges, use the following settings.
 | `URxvt.cdmn.x` | Horizontal position (by character) where values >= 0 will result in a left alignment and negative numbers in a right alignment. | -1 |
 | `URxvt.cdmn.y` | Vertical position (by row) where 0 will be the first line and -1 the last. | 0 |
 | `URxvt.cdmn.gauges.order` | List of gauges to show and their order. This list must contain existing labels. | DISK,CPU,MEM,NETWORK |
+| `URxvt.cdmn.showing` | Initially show gauges. | 1 |
+| `URxvt.cdmn.showing.labels` | Initially show labels. | 1 |
 
 
 ## Visual styles
@@ -144,7 +146,7 @@ You can further define the visual representation with the following settings.
 
 | Resource | Function | Default (Other) |
 | --- | --- | --- |
-| `URxvt.cdmn.cpu.temp`, `URxvt.cdmn.temp`, `URxvt.cdmn.battery` | How much details, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
+| `URxvt.cdmn.cpu.temp`, `URxvt.cdmn.temp`, `URxvt.cdmn.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
 | `URxvt.cdmn.style` | Visual representation. | bar (led) |
 
 
