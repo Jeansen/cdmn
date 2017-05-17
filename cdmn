@@ -1334,6 +1334,7 @@ sub on_configure_notify {
     1;
 }
 
+#TODO remove hard-coded constants
 sub calc_bounds {
     my $s = shift;
     my ($h, $w, $x, $y);
