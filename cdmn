@@ -559,7 +559,7 @@ package cdmn::resources {
         #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
         $s->{network_rx} = [ ('eth0') ];
         $s->{network_tx} = [ ('eth0') ];
-        $s->{y} = 0;
+        $s->{padding} = 0;
         $s->{caption} = 'block';
 
         $s->set_disks;
@@ -1231,26 +1231,20 @@ sub create_captions {
 
 my %user_command;
 
+#TODO why add 4 to w and h
 $user_command{&cdmn::constants::ACTION_SHOW} = sub {
     my $s = shift;
-    my ($h, $w, $x, $y);
-    $h = $s->fheight * ( $s->nrow - 1 ) if XR->{caption} eq 'bar';
-    $h = $s->fheight * ( $s->nrow ) if XR->{caption} eq 'block';
-    $w = $s->width - ${$s->{caption}[0]}->{width} if XR->{caption} eq 'block';
-    $w = $s->width if XR->{caption} eq 'bar';
-    $x = 0;
-    $y = XR->{y} >= 0 ? $s->fheight : - 1 if XR->{caption} eq 'bar';
-    $y = $s->fheight if XR->{caption} eq 'block';
+    my ($h, $w, $x, $y) = &calc_bounds($s);
 
     if ($s->{xterms}{main}{maximized}) {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{caption} eq 'bar';    #TODO why add 4?
-        $s->{xterms}{main}->bounds( 0, 0, $w + 4, $h + 4 ) if XR->{caption} eq 'block';    #TODO why add 4?
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{caption} eq 'bar';
+        $s->{xterms}{main}->bounds( 0, 0, $w + 4, $h + 4 ) if XR->{caption} eq 'block';
         $s->{xterms}{main}{maximized} = 0;
         ${$s->{caption}->[0]}->hide;
         $SHOWING = 1;
     }
     else {
-        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
+        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
         $s->{xterms}{main}{maximized} = 1;
         $SHOWING = 0;
     }
@@ -1340,7 +1334,7 @@ sub on_configure_notify {
     1;
 }
 
-sub refresh_bounds{
+sub calc_bounds {
     my $s = shift;
     my ($h, $w, $x, $y);
     $h = $s->fheight * ( $s->nrow - 1 ) if XR->{caption} eq 'bar';
@@ -1350,15 +1344,22 @@ sub refresh_bounds{
     $x = 0;
     $y = XR->{y} >= 0 ? $s->fheight : - 1 if XR->{caption} eq 'bar';
     $y = 0 if XR->{caption} eq 'block';
+    ($h, $w, $x, $y);
+}
+
+#TODO why add 4 to w and h
+sub refresh_bounds{
+    my $s = shift;
+    my ($h, $w, $x, $y) = &calc_bounds($s);
 
     if ( $s->{xterms}{main}{maximized} ) {
-        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
+        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
     }
     else {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );                 #TODO why add 4?
-        $s->{xterms}{main}->bounds( $x, $y, $w + 4, $h ) if XR->{caption} eq 'block';              #TODO why add 4?
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );
+        $s->{xterms}{main}->bounds( $x, $y, $w + 4, $h ) if XR->{caption} eq 'block';
     }
-    $s->{xterms}{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );    #TODO why add 4?
+    $s->{xterms}{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
     $s->{xterms}{sidebar}->create_content; #TODO Memory Leak / but will go away when refactoring the sidebar
 
 }
@@ -1428,7 +1429,7 @@ sub on_start {
 
     #$s->{xterms}{main}->hide if ( XR->{caption} eq cdmn::constants::CAPTION_BLOCK );
 
-    $s->{w_size} = $s->{term}->ncol; #TODO delete?
+    $s->{w_size} = $s->{term}->ncol;
     $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
     $s->{caption}[1] = create_captions $s;
     ${$s->{caption}[0]}->create;
