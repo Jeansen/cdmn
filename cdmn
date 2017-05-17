@@ -505,7 +505,7 @@ package cdmn::resources {
         $s->{label_bg} = looks_like_number($t->x_resource('%.label.fg')) || 1;
 
         $s->{showing} = looks_like_number($t->x_resource('%.showing')) || 1; #TODO
-        $s->{showing_labels} = looks_like_number($t->x_resource('%.showing.labels')) || 1; #TODO
+        $s->{showing_labels} = looks_like_number($t->x_resource('%.showing.labels')) || 1;
         $s->{showing_background} = looks_like_number($t->x_resource('%.showing.background')) || 1; #TODO
 
         $s->{caption} = $t->x_resource('%.caption') || 'bar'; #block | bar | solid-bar #TODO
@@ -521,8 +521,6 @@ package cdmn::resources {
         $s->{refresh} = looks_like_number($t->x_resource('%.refresh')) || 1;
         $s->{sensitivity} = looks_like_number($t->x_resource('%.sensitivity')) || 1; #percentage
         $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar'; #bar | led
-
-        #$s->{gauges_order} = $t->x_resource('%.gauges.order') ? [ split( /[,[:space:]]/, $t->x_resource('%.gauges.order') ) ] : [split( /[,[:space:]]/, 'CPU,TEMP,DISK,MEM,NET,BAT')];
 
         $s->{gauges_order} = _set('%.gauges.order');
         $s->{gauges_disks} = _set('%.gauges.disks');
@@ -561,7 +559,8 @@ package cdmn::resources {
         #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
         $s->{network_rx} = [ ('eth0') ];
         $s->{network_tx} = [ ('eth0') ];
-        #   $s->{y} = 0; #
+        $s->{y} = 0;
+        $s->{caption} = 'block';
 
         $s->set_disks;
         $s->set_batteries;
@@ -648,6 +647,7 @@ package cdmn::term {
 
     use fields qw(x y w h term parent bg_color content is_root resource maximized);
     use constant { REND => cdmn::constants::REND, };
+    use Params::Validate qw(:all);
 
     my @terminals;
     my $root;
@@ -656,7 +656,12 @@ package cdmn::term {
     sub new {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
-        (%$s) = @_;
+
+        (%$s) = validate( @_, { parent => 1, resource => 1, bg_color => 1, is_root => 1, x => { default => 1 },
+                y                      => { default => 1 }, w => { default => 1 }, h => { default => 1 } } );
+
+        #(%$s) = @_;
+        #@$s{qw/x y w h/} // 1;
 
         push @urxvt::TERM_INIT, sub {
                 my ($term) = @_;
@@ -670,6 +675,7 @@ package cdmn::term {
         my $environ = $s->{parent}->env;
         $environ->{SHELL} = 'sh' if !$s->{is_root};
 
+        #$s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg =>5 );
         $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32 );
         $s->bounds( @$s{qw/x y w h/} );
         $s->{is_root} ? $root = $s : push( @terminals, $s );
@@ -711,7 +717,7 @@ package cdmn::term {
 
     sub bounds {
         my $s = shift;
-        @$s{qw/x y w h/} = @_;
+        @$s{qw/x y w h/} = validate_pos( @_, 1, 1, 1, 1 );
         $s->{term}->XMoveResizeWindow( $s->{term}->parent, @_ );
     }
 
@@ -812,7 +818,8 @@ package cdmn::term {
 
 package cdmn::visuals::container {
     use fields qw( term rendition padding align evenGauges x y bg_color );
-    use fields qw( gauges visible bg backgroundVisible labelVisible simpleGauges );
+    use fields qw( gauges visible bg backgroundVisible labelVisible simpleGauges width height);
+    use Params::Validate qw(:all);
 
     use constant {
         TRUE          => 1,
@@ -827,7 +834,11 @@ package cdmn::visuals::container {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = @_;
+        (%$s) = validate( @_, { term => 1, rendition => 1, x => 1, y => 1, padding => 1,
+                align                => 1, evenGauges => 1, visible => 1, bg_color => 1 } );
+
+        #(%$s) = @_;
+        #$s->{width} = 1;
         ( $xOff, $yOff ) = ( 0, $s->{y} );
         $s;
     }
@@ -874,7 +885,7 @@ package cdmn::visuals::container {
                         foreach ( values %{ $s->{gauges} } );
                 }
                 if ( $_ eq CAPTION_BLOCK ) {
-                    $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} + $s->{x} foreach ( values %{ $s->{gauges} } );
+                    $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} foreach ( values %{ $s->{gauges} } );
                 }
             }
         }
@@ -899,6 +910,12 @@ package cdmn::visuals::container {
                 $s->{backgroundVisible} = 1;
             }
         }
+        my $w = 0;
+        while (my ($k, $v) = each %{$s->{gauges}} ) {
+            $w = $v->{width} if $v->{width} > $w;
+        }
+        $s->{width} = $w * $s->{term}->fwidth;
+        $s->{height} = $yOff + ($s->{padding} * ($yOff - 1) * $s->{term}->fheight);
     }
 
     sub set {
@@ -1181,9 +1198,9 @@ sub create_captions {
                 cdmn::visuals::container->new(
                     term       => $s,
                     rendition  => cdmn::constants::REND,
-                    x          => - 1,
+                    x          => XR->{x},
                     y          => XR->{y},
-                    padding    => 0,
+                    padding    => XR->{padding},
                     align      => $_,
                     evenGauges => 1,
                     visible    => XR->{showing},
@@ -1216,13 +1233,18 @@ my %user_command;
 
 $user_command{&cdmn::constants::ACTION_SHOW} = sub {
     my $s = shift;
-    my $h = $s->fheight * ( $s->nrow - 1 );
-    my $w = $s->width;
-    my $x = 0;
-    my $y = XR->{y} >= 0 ? $s->fheight : - 1;
+    my ($h, $w, $x, $y);
+    $h = $s->fheight * ( $s->nrow - 1 ) if XR->{caption} eq 'bar';
+    $h = $s->fheight * ( $s->nrow ) if XR->{caption} eq 'block';
+    $w = $s->width - ${$s->{caption}[0]}->{width} if XR->{caption} eq 'block';
+    $w = $s->width if XR->{caption} eq 'bar';
+    $x = 0;
+    $y = XR->{y} >= 0 ? $s->fheight : - 1 if XR->{caption} eq 'bar';
+    $y = $s->fheight if XR->{caption} eq 'block';
 
     if ($s->{xterms}{main}{maximized}) {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 );    #TODO why add 4?
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{caption} eq 'bar';    #TODO why add 4?
+        $s->{xterms}{main}->bounds( 0, 0, $w + 4, $h + 4 ) if XR->{caption} eq 'block';    #TODO why add 4?
         $s->{xterms}{main}{maximized} = 0;
         ${$s->{caption}->[0]}->hide;
         $SHOWING = 1;
@@ -1245,6 +1267,8 @@ $user_command{&cdmn::constants::ACTION_SHOW_TRANSPARENT} = sub {
         else {
             $c->show;
             $SHOWING = 1;
+            redraw($s, $LABELS_SHOWING);
+            refresh_bounds($s);
         }
     }
 };
@@ -1258,6 +1282,7 @@ $user_command{&cdmn::constants::ACTION_SHOW_LABELS} = sub {
         my $s = shift;
         $LABELS_SHOWING = !$LABELS_SHOWING;
         redraw($s, $LABELS_SHOWING);
+        refresh_bounds($s);
     }
 };
 
@@ -1276,12 +1301,14 @@ sub on_refresh_begin {
     my $nics_active = cdmn::proc->if_list;
     state $onAC = 0;
     state $nics = 0;
-    if ($s->{w_sizse} != $s->{term}->ncol || &cdmn::proc::ac_online != $onAC || $nics != scalar @$nics_active) {
+    if ($s->{w_size} != $s->{term}->ncol || &cdmn::proc::ac_online != $onAC || $nics != scalar @$nics_active) {
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
 
         XR->set_nics;
         redraw($s, $LABELS_SHOWING);
+        refresh_bounds($s);
+        $s->{w_size} = $s->{term}->ncol;
     }
 
     1;
@@ -1291,7 +1318,6 @@ sub redraw {
     my ($s, $showLabels) = @_;
     my @visible = map {$$_->{visible}} @{($s->{caption})};
 
-    $s->{w_sizse} = $s->{term}->ncol;
     $s->{visuals_updater}->stop;
     $s->{caption}[0] = create_captions ($s->{xterms}{main}{term}, $showLabels);
     $s->{caption}[1] = create_captions ($s, $showLabels);
@@ -1309,26 +1335,32 @@ sub redraw {
 
 sub on_configure_notify {
     my $s = shift;
-    return if $s->{w_sizse} eq $s->{term}->ncol;
+    return if $s->{w_size} eq $s->{term}->ncol;
     refresh_bounds $s;
     1;
 }
 
 sub refresh_bounds{
     my $s = shift;
-    my $h = $s->fheight * ( $s->nrow - 1 ) + 4;
-    my $w = $s->width;
-    my $x = 0;
-    my $y = XR->{y} >= 0 ? $s->fheight : -1;
+    my ($h, $w, $x, $y);
+    $h = $s->fheight * ( $s->nrow - 1 ) if XR->{caption} eq 'bar';
+    $h = $s->fheight * ( $s->nrow ) if XR->{caption} eq 'block';
+    $w = $s->width - ${$s->{caption}[0]}->{width} if XR->{caption} eq 'block';
+    $w = $s->width if XR->{caption} eq 'bar';
+    $x = 0;
+    $y = XR->{y} >= 0 ? $s->fheight : - 1 if XR->{caption} eq 'bar';
+    $y = 0 if XR->{caption} eq 'block';
 
     if ( $s->{xterms}{main}{maximized} ) {
         $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );    #TODO why add 4?
     }
     else {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );                 #TODO why add 4?
+        $s->{xterms}{main}->bounds( $x, $y, $w + 4, $h ) if XR->{caption} eq 'block';              #TODO why add 4?
     }
     $s->{xterms}{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );    #TODO why add 4?
     $s->{xterms}{sidebar}->create_content; #TODO Memory Leak / but will go away when refactoring the sidebar
+
 }
 
 for my $h (qw(key_press key_release)) {
@@ -1373,15 +1405,11 @@ sub on_start {
     $s->{xterms}{main} = cdmn::term->new(
         parent   => $s,
         resource => XR,
-        x        => 0,
-        y        => XR->{y} >= 0 ? $s->fheight : 0,
-        w        => $s->width,
-        h        => $s->fheight * ( $s->nrow - 1 ),
         bg_color => 4,
         is_root  => 1
     );
 
-    $s->{xterms}{main}{maximized} = 1 if XR->{caption} eq cdmn::constants::CAPTION_BAR;
+    $s->{xterms}{main}{maximized} = 1;
     $s->{xterms}{sidebar} = cdmn::term->new(
         parent   => $s,
         resource => XR,
@@ -1398,9 +1426,9 @@ sub on_start {
     $s->{xterms}{sidebar}->hide;
     $s->{xterms}{main}->show;
 
-    $s->{xterms}{main}->hide if ( XR->{caption} eq cdmn::constants::CAPTION_BLOCK );
+    #$s->{xterms}{main}->hide if ( XR->{caption} eq cdmn::constants::CAPTION_BLOCK );
 
-    $s->{w_sizse}    = $s->{term}->ncol;
+    $s->{w_size} = $s->{term}->ncol; #TODO delete?
     $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
     $s->{caption}[1] = create_captions $s;
     ${$s->{caption}[0]}->create;
