@@ -30,7 +30,7 @@ Anyway, if you first want to check what this extension can do for you, there is 
 
 **Make sure the version is 9.22. Anything else may not work!**
 
-Install Perl library Filesys::Df with `sudo apt-get install libfilesys-df-perl`
+Install needed Perl libraries: `sudo apt-get install libfilesys-df-perl libparams-validate-perl`
 
 Then clone this repository to a place of your liking and set the resource `URxvt*perl-lib`.
 
