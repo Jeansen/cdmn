@@ -559,8 +559,11 @@ package cdmn::resources {
         #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
         $s->{network_rx} = [ ('eth0') ];
         $s->{network_tx} = [ ('eth0') ];
-        $s->{padding} = 0;
-        $s->{caption} = 'block';
+
+        #$s->{padding} = 0;
+        #$s->{caption} = 'block';
+        #$s->{y} = -1;
+        #$s->{x} = -1;
 
         $s->set_disks;
         $s->set_batteries;
@@ -675,7 +678,7 @@ package cdmn::term {
         my $environ = $s->{parent}->env;
         $environ->{SHELL} = 'sh' if !$s->{is_root};
 
-        #$s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg =>5 );
+        #$s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg =>6 );
         $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32 );
         $s->bounds( @$s{qw/x y w h/} );
         $s->{is_root} ? $root = $s : push( @terminals, $s );
@@ -862,7 +865,6 @@ package cdmn::visuals::container {
         );
 
         $s->{simpleGauges}{$arg{name}} = $arg{simple};
-        $s->{gauges}{$arg{name}} = $visual;
         if (@{$arg{gauges}} > $m && $s->{evenGauges}) {
             $m = @{$arg{gauges}};
             foreach (values %{ $s->{gauges} }) {
@@ -873,25 +875,30 @@ package cdmn::visuals::container {
         $visual->setEvenGauges($m) if $s->{evenGauges};
         $xOff += $visual->{width} + $s->{padding}  if $s->{align} eq CAPTION_BAR;
         $yOff += $visual->{height} + $s->{padding} if $s->{align} eq CAPTION_BLOCK;
+        $s->{gauges}{$arg{name}} = $visual;
     }
 
     sub create {
         my $s = shift;
+        my $l = 0;
+        foreach (values %{ $s->{gauges}}) {
+            $l = $_->{width} if $l < $_->{width};
+        }
 
-        if ( $s->{x} < 0 ) {
-            for ( $s->{align} ) {
-                if ( $_ eq CAPTION_BAR ) {
-                    $_->{x} = $s->{term}->ncol - $xOff + $_->{x} + $s->{x} + $s->{padding} + 1
-                        foreach ( values %{ $s->{gauges} } );
-                }
-                if ( $_ eq CAPTION_BLOCK ) {
-                    $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} foreach ( values %{ $s->{gauges} } );
-                }
+        foreach (values %{ $s->{gauges}}) {
+            if ($s->{x} < 0) {
+                $_->{x} = $s->{term}->ncol - $xOff + $_->{x} + $s->{x} + $s->{padding} + 1 if ($s->{align} eq CAPTION_BAR);
+                $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} if ( $s->{align} eq CAPTION_BLOCK );
+            }
+            else {
+                $_->{x} += $s->{x} if $s->{align} eq CAPTION_BAR;
+                $_->{x} = $l - $_->{width} if ( $s->{align} eq CAPTION_BLOCK );
+            }
+            if ($s->{y} < 0) {
+                $_->{y} = $s->{term}->nrow - $yOff + $_->{y} + $s->{y} + $s->{padding} + 1 if ( $s->{align} eq CAPTION_BLOCK );
             }
         }
-        else {
-            $_->{x} += $s->{x} foreach values %{ $s->{gauges} };
-        }
+
         $_->create foreach values %{ $s->{gauges} };
 
         #Background
@@ -1104,7 +1111,7 @@ package cdmn::visuals::visual {
             $_->hide;
         }
 
-        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq 'bar';
+        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq cdmn::constants::CAPTION_BAR;
         $s->{gauges}{"$i"}{"$color"}->set( LED ) if $s->{visual_style} eq 'led';
         $s->{gauges}{"$i"}{"$color"}->show;
     }
@@ -1234,11 +1241,12 @@ my %user_command;
 #TODO why add 4 to w and h
 $user_command{&cdmn::constants::ACTION_SHOW} = sub {
     my $s = shift;
-    my ($h, $w, $x, $y) = &calc_bounds($s);
+    my ($h, $w, $x, $y) = &calc_bounds($s, XR->{caption});
 
     if ($s->{xterms}{main}{maximized}) {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{caption} eq 'bar';
-        $s->{xterms}{main}->bounds( 0, 0, $w + 4, $h + 4 ) if XR->{caption} eq 'block';
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{caption} eq cdmn::constants::CAPTION_BAR;
+        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
+            $h + 4 ) if XR->{caption} eq cdmn::constants::CAPTION_BLOCK;
         $s->{xterms}{main}{maximized} = 0;
         ${$s->{caption}->[0]}->hide;
         $SHOWING = 1;
@@ -1262,7 +1270,7 @@ $user_command{&cdmn::constants::ACTION_SHOW_TRANSPARENT} = sub {
             $c->show;
             $SHOWING = 1;
             redraw($s, $LABELS_SHOWING);
-            refresh_bounds($s);
+            refresh_bounds($s, XR->{caption});
         }
     }
 };
@@ -1276,7 +1284,7 @@ $user_command{&cdmn::constants::ACTION_SHOW_LABELS} = sub {
         my $s = shift;
         $LABELS_SHOWING = !$LABELS_SHOWING;
         redraw($s, $LABELS_SHOWING);
-        refresh_bounds($s);
+        refresh_bounds($s, XR->{caption});
     }
 };
 
@@ -1301,10 +1309,17 @@ sub on_refresh_begin {
 
         XR->set_nics;
         redraw($s, $LABELS_SHOWING);
-        refresh_bounds($s);
+        refresh_bounds($s, XR->{caption});
         $s->{w_size} = $s->{term}->ncol;
     }
 
+    1;
+}
+
+sub on_refresh_end {
+    my $s = shift;
+    my $str = $s->{term}->locale_encode("\e[0;0H\e[K");
+    $s->{term}->cmd_parse($str);    #do not show the cursor!
     1;
 }
 
@@ -1330,35 +1345,43 @@ sub redraw {
 sub on_configure_notify {
     my $s = shift;
     return if $s->{w_size} eq $s->{term}->ncol;
-    refresh_bounds $s;
+    refresh_bounds($s, XR->{caption});
     1;
 }
 
-#TODO remove hard-coded constants
 sub calc_bounds {
     my $s = shift;
-    my ($h, $w, $x, $y);
-    $h = $s->fheight * ( $s->nrow - 1 ) if XR->{caption} eq 'bar';
-    $h = $s->fheight * ( $s->nrow ) if XR->{caption} eq 'block';
-    $w = $s->width - ${$s->{caption}[0]}->{width} if XR->{caption} eq 'block';
-    $w = $s->width if XR->{caption} eq 'bar';
+    my $t = shift;
+    my ($h, $w, $x, $y) = (0, 0, $s->{x}, $s->{y});
+
+    if ($t eq cdmn::constants::CAPTION_BAR) {
+        $h = $s->fheight * ( $s->nrow - 1 );
+        $w = $s->width;
+        $y = XR->{y} >= 0 ? $s->fheight : - 1;
+    }
+    if ($t eq cdmn::constants::CAPTION_BLOCK) {
+        $h = $s->fheight * ( $s->nrow );
+        $w = $s->width - ${$s->{caption}[0]}->{width};
+        $y = 0;
+    }
     $x = 0;
-    $y = XR->{y} >= 0 ? $s->fheight : - 1 if XR->{caption} eq 'bar';
-    $y = 0 if XR->{caption} eq 'block';
     ($h, $w, $x, $y);
 }
 
 #TODO why add 4 to w and h
 sub refresh_bounds{
     my $s = shift;
-    my ($h, $w, $x, $y) = &calc_bounds($s);
+    my $t = shift;
+    my ($h, $w, $x, $y) = &calc_bounds($s, $t);
 
     if ( $s->{xterms}{main}{maximized} ) {
         $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
     }
     else {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );
-        $s->{xterms}{main}->bounds( $x, $y, $w + 4, $h ) if XR->{caption} eq 'block';
+        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
+            $h + 4 ) if XR->{caption} eq cdmn::constants::CAPTION_BLOCK;
+
     }
     $s->{xterms}{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
     $s->{xterms}{sidebar}->create_content; #TODO Memory Leak / but will go away when refactoring the sidebar
@@ -1401,6 +1424,9 @@ sub on_init {
     ();
 }
 
+
+
+
 sub on_start {
     my ($s) = @_;
 
@@ -1436,9 +1462,8 @@ sub on_start {
     ${$s->{caption}[0]}->create;
     ${$s->{caption}[1]}->create;
 
-    $s->cmd_parse("\e[2T\e[2B"); #Scroll down and move cursor down 2 line.
+    #$s->cmd_parse("\e[2T\e[2B"); #Scroll down and move cursor down 2 line.
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
-
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(XR->{refresh})->cb(
         sub {
             return if !$SHOWING;
@@ -1470,6 +1495,6 @@ sub on_start {
             _set($_) foreach keys %{${$s->{caption}[0]}->{gauges}};
         }
     );
-    refresh_bounds $s;
+    refresh_bounds($s, XR->{caption});
     ();
 }
