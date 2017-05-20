@@ -147,7 +147,7 @@ You can further define the visual representation with the following settings.
 | Resource | Function | Default (Other) |
 | --- | --- | --- |
 | `URxvt.cdmn.cpu.temp`, `URxvt.cdmn.temp`, `URxvt.cdmn.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
-| `URxvt.cdmn.style` | Visual representation. | bar (led) |
+| `URxvt.cdmn.style` | Visual representation. | bar (block, led) |
 
 
 ## Visual styles - gauges colors
