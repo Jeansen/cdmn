@@ -562,7 +562,7 @@ package cdmn::resources {
 
         #$s->{padding} = 0;
         #$s->{caption} = 'block';
-        #$s->{y} = -1;
+        #$s->{y} = 0;
         #$s->{x} = -1;
 
         $s->set_disks;
@@ -901,22 +901,23 @@ package cdmn::visuals::container {
 
         $_->create foreach values %{ $s->{gauges} };
 
-        #Background
-        for ( $s->{align} ) {
-            if ( $_ eq CAPTION_BAR ) {
-                $s->{bg} = cdmn::visuals::overlay->new(
-                    term      => $s->{term},
-                    x         => $s->{x},
-                    y         => $s->{y},
-                    width     => $xOff - $s->{padding},
-                    height    => 1,
-                    rendition => urxvt::SET_BGCOLOR cdmn::constants::REND, $s->{bg_color},
-                );
+        $s->{width} = $s->{align} eq CAPTION_BAR ? $xOff - $s->{padding} : $l;
+        $s->{height} = $s->{align} eq CAPTION_BAR ? 1 : $yOff - $s->{padding} + 1;
 
-                $s->{bg}->create("show");
-                $s->{backgroundVisible} = 1;
-            }
-        }
+        #Background
+        $s->{bg} = cdmn::visuals::overlay->new(
+            term      => $s->{term},
+            x         => $s->{x},
+            y         => $s->{y},
+            width     => $s->{width},
+            height    => $s->{height},
+            #rendition => urxvt::SET_BGCOLOR cdmn::constants::REND, 4,
+            rendition => urxvt::SET_BGCOLOR cdmn::constants::REND, $s->{bg_color},
+        );
+
+        $s->{bg}->create("show");
+        $s->{backgroundVisible} = 1;
+
         my $w = 0;
         while (my ($k, $v) = each %{$s->{gauges}} ) {
             $w = $v->{width} if $v->{width} > $w;
@@ -979,10 +980,8 @@ package cdmn::visuals::container {
     sub show_background {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
-        if ( $s->{align} eq CAPTION_BAR ) {
-            $visible ? $s->{bg}->show : $s->{bg}->hide;
-            $s->{backgroundVisible} = $visible;
-        }
+        $visible ? $s->{bg}->show : $s->{bg}->hide;
+        $s->{backgroundVisible} = $visible;
     }
 
     # TODO still necessary?
@@ -1303,7 +1302,8 @@ sub on_refresh_begin {
     my $nics_active = cdmn::proc->if_list;
     state $onAC = 0;
     state $nics = 0;
-    if ($s->{w_size} != $s->{term}->ncol || &cdmn::proc::ac_online != $onAC || $nics != scalar @$nics_active) {
+    if ($s->{w_size} != $s->{term}->ncol || $s->{y_size} != $s->{term}->nrow ||
+        &cdmn::proc::ac_online != $onAC || $nics != scalar @$nics_active) {
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
 
@@ -1311,6 +1311,7 @@ sub on_refresh_begin {
         redraw($s, $LABELS_SHOWING);
         refresh_bounds($s, XR->{caption});
         $s->{w_size} = $s->{term}->ncol;
+        $s->{y_size} = $s->{term}->nrow;
     }
 
     1;
@@ -1344,7 +1345,7 @@ sub redraw {
 
 sub on_configure_notify {
     my $s = shift;
-    return if $s->{w_size} eq $s->{term}->ncol;
+    return if $s->{w_size} eq $s->{term}->ncol && $s->{y_size} eq $s->{term}->nrow;
     refresh_bounds($s, XR->{caption});
     1;
 }
@@ -1457,6 +1458,7 @@ sub on_start {
     #$s->{xterms}{main}->hide if ( XR->{caption} eq cdmn::constants::CAPTION_BLOCK );
 
     $s->{w_size} = $s->{term}->ncol;
+    $s->{y_size} = $s->{term}->nrow;
     $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
     $s->{caption}[1] = create_captions $s;
     ${$s->{caption}[0]}->create;
