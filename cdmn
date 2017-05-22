@@ -30,6 +30,34 @@ binmode STDOUT, ":encoding(UTF-8)";
 my $SHOWING;
 my $LABELS_SHOWING;
 
+package cdmn::constants {
+    use constant {
+        ACTION_SHOW             => 'cdmn:show',
+        ACTION_SHOW_LABELS      => 'cdmn:show-labels',
+        ACTION_SHOW_SIDEBAR     => 'cdmn:show-sidebar',
+        ACTION_SHOW_TRANSPARENT => 'cdmn:action-show-transparent',
+    };
+
+    use constant {
+        CAPTION_BLOCK     => 'block',
+        CAPTION_BAR       => 'bar',
+        CAPTION_SOLID_BAR => 'solid-bar',
+    };
+
+    use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
+}
+
+use constant {
+    ACTION_SHOW             => cdmn::constants::ACTION_SHOW,
+    ACTION_SHOW_LABELS      => cdmn::constants::ACTION_SHOW_LABELS,
+    ACTION_SHOW_SIDEBAR     => cdmn::constants::ACTION_SHOW_SIDEBAR,
+    ACTION_SHOW_TRANSPARENT => cdmn::constants::ACTION_SHOW_TRANSPARENT,
+    CAPTION_BLOCK           => cdmn::constants::CAPTION_BLOCK,
+    CAPTION_BAR             => cdmn::constants::CAPTION_BAR,
+    CAPTION_SOLID_BAR       => cdmn::constants::CAPTION_SOLID_BAR,
+    REND                    => cdmn::constants::REND,
+};
+
 package cdmn::proc {
     use List::Util qw(sum max min);
 
@@ -124,19 +152,6 @@ package cdmn::proc {
         $path;
     }
 
-    sub sysfs_bat {
-        my $path = SYSFS_BAT."/$_[0]";
-        opendir( my $dh, $path );
-        if ($_[1]) {
-            while ( readdir $dh ) {
-                $path .= "/".$_ if /^energy_full$|^charge_full$/ && $_[1] eq BAT_FULL;
-                $path .= "/".$_ if /^energy_now$|^charge_now$/ && $_[1] eq BAT_NOW;
-            }
-        }
-        closedir $dh;
-        $path;
-    }
-
     sub ac_online {
         opendir( my $dh, SYSFS_BAT );
         my @dir = readdir $dh; #while ( readdir $dh ) too slow?
@@ -199,6 +214,19 @@ package cdmn::proc {
     }
 
     sub battery_usages {
+        local *sysfs_bat = sub {
+            my $path = SYSFS_BAT."/$_[0]";
+            opendir( my $dh, $path );
+            if ($_[1]) {
+                while ( readdir $dh ) {
+                    $path .= "/".$_ if /^energy_full$|^charge_full$/ && $_[1] eq BAT_FULL;
+                    $path .= "/".$_ if /^energy_now$|^charge_now$/ && $_[1] eq BAT_NOW;
+                }
+            }
+            closedir $dh;
+            $path;
+        };
+
         my %results;
         my @bats = @{&batteries};
         for (@bats) {
@@ -400,7 +428,7 @@ package cdmn::proc {
         return \%results;
     }
 
-    sub getWanInterface {
+    sub if_default {
         open( my $fh, '<', NET_ROUTE );
 
         my $if = <$fh>;
@@ -436,22 +464,6 @@ package cdmn::proc {
     }
 }
 
-package cdmn::constants {
-    use constant {
-        ACTION_SHOW             => 'cdmn:show',
-        ACTION_SHOW_LABELS      => 'cdmn:show-labels',
-        ACTION_SHOW_SIDEBAR     => 'cdmn:show-sidebar',
-        ACTION_SHOW_TRANSPARENT => 'cdmn:action-show-transparent',
-    };
-
-    use constant {
-        CAPTION_BLOCK     => 'block',
-        CAPTION_BAR       => 'bar',
-        CAPTION_SOLID_BAR => 'solid-bar',
-    };
-
-    use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
-}
 
 package cdmn::resources {
     use Scalar::Util qw(looks_like_number);
@@ -644,101 +656,48 @@ package cdmn::resources {
     };
 }
 
-package cdmn::term {
+package cdmn::sidebar {
     use Filesys::Df;
+    use Params::Validate qw(:all);
     use POSIX qw(ceil floor);
 
-    use fields qw(x y w h term parent bg_color content is_root resource maximized);
-    use constant { REND => cdmn::constants::REND, };
-    use Params::Validate qw(:all);
+    use constant {
+        REND => cdmn::constants::REND,
+    };
 
-    my @terminals;
-    my $root;
     my @data;
+
+    use fields qw(term);
 
     sub new {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = validate( @_, { parent => 1, resource => 1, bg_color => 1, is_root => 1, x => { default => 1 },
-                y                      => { default => 1 }, w => { default => 1 }, h => { default => 1 } } );
+        (%$s) = validate( @_, { term => 1 } );
 
-        #(%$s) = @_;
-        #@$s{qw/x y w h/} // 1;
-
-        push @urxvt::TERM_INIT, sub {
-                my ($term) = @_;
-                $term->{termclass} = $s;
-                $term->{parent} = $s->{parent} if $s->{is_root};
-                $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
-            };
-
-        push @urxvt::TERM_EXT, __PACKAGE__;
-
-        my $environ = $s->{parent}->env;
-        $environ->{SHELL} = 'sh' if !$s->{is_root};
-
-        #$s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg =>6 );
-        $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32 );
-        $s->bounds( @$s{qw/x y w h/} );
-        $s->{is_root} ? $root = $s : push( @terminals, $s );
-
-        $s;
+        return $s;
     }
 
-    sub on_user_command {
-        (shift)->{term}{termclass}{parent}->user_command(@_);
-        1;
+    sub hide {
+        (shift)->{term}->hide;
     }
 
-    sub on_init {
-        my $s = shift;
-        $s->bind_action( 'M-h', 'perl:'.&cdmn::constants::ACTION_SHOW );
-        $s->bind_action( 'M-p', 'perl:'.&cdmn::constants::ACTION_SHOW_SIDEBAR );
-        $s->bind_action( 'M-o', 'perl:'.&cdmn::constants::ACTION_SHOW_TRANSPARENT );
-        $s->bind_action( 'M-l', 'perl:'.&cdmn::constants::ACTION_SHOW_LABELS );
-        ();
+    sub show {
+        (shift)->{term}->show;
     }
 
-    sub on_tt_write {
-        if (!(shift)->{term}{parent}) {
-            $root->{term}->tt_write(shift);
-            1;
-        }
-        ();
+    sub hide_cursor {
+        (shift)->{term}->hide_cursor;
     }
 
-    sub on_refresh_begin {
-        my $s = shift;
-        if ( !$s->{term}{parent} ) {
-            my $str = $s->{term}->locale_encode("\e[0;0H\e[K");
-            $s->{term}->cmd_parse($str);    #do not show the cursor!
-            1;
-        }
-        ();
+    sub toggle {
+        (shift)->{term}->toggle;
     }
 
     sub bounds {
-        my $s = shift;
-        @$s{qw/x y w h/} = validate_pos( @_, 1, 1, 1, 1 );
-        $s->{term}->XMoveResizeWindow( $s->{term}->parent, @_ );
+        (shift)->{term}->bounds( @_ );
     }
 
-    sub on_destroy {
-        if ( $_[0]{term}{parent} ) {
-            ${$_[0]{term}{parent}{caption}[0]}->hide;    #prevent segmentation fauls!
-            $_->{term}->destroy for @terminals;
-            my $p = $_[0]{term}{parent} or return;
-            $p->{d} = urxvt::iw->new->start->cb( sub { $p->destroy } );
-        }
-        1;
-    }
-
-    sub destroy_All { $root->{term}->destroy; }
-
-    sub disableCursor { (shift)->{term}->cmd_parse("\033[?25l"); }
-
-    #TODO refactor - just for testing at the moment
     sub create_content {
         my $s      = shift;
         my $mounts = cdmn::proc::mounts;
@@ -749,7 +708,7 @@ package cdmn::term {
             x         => 0,
             y         => 0,
             width     => 1,
-            height    => $root->{parent}->nrow,
+            height    => $s->{term}->nrow,
             rendition => $r,
             caption   => "│"
         );
@@ -802,6 +761,104 @@ package cdmn::term {
         }
         $data[0]->create("show");
     }
+}
+
+package cdmn::term {
+    use Params::Validate qw(:all);
+
+    use fields qw(x y w h term parent bg_color content is_root resource maximized);
+    use constant {
+        REND                    => cdmn::constants::REND,
+        ACTION_SHOW             => cdmn::constants::ACTION_SHOW,
+        ACTION_SHOW_SIDEBAR     => cdmn::constants::ACTION_SHOW_SIDEBAR,
+        ACTION_SHOW_TRANSPARENT => cdmn::constants::ACTION_SHOW_TRANSPARENT,
+        ACTION_SHOW_LABELS      => cdmn::constants::ACTION_SHOW_LABELS,
+    };
+
+    my @terminals;
+    my $root;
+
+    sub new {
+        my $s = shift;
+        $s = fields::new($s) unless ref $s;
+
+        (%$s) = validate( @_, { parent => 1, resource => 1, bg_color => 1, is_root => 1, x => { default => 1 },
+                y                      => { default => 1 }, w => { default => 1 }, h => { default => 1 } } );
+
+        #(%$s) = @_;
+        #@$s{qw/x y w h/} // 1;
+
+        push @urxvt::TERM_INIT, sub {
+                my ($term) = @_;
+                $term->{termclass} = $s;
+                $term->{parent} = $s->{parent} if $s->{is_root};
+                $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
+            };
+
+        push @urxvt::TERM_EXT, __PACKAGE__;
+
+        my $environ = $s->{parent}->env;
+        $environ->{SHELL} = 'sh' if !$s->{is_root};
+
+        #$s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg =>6 );
+        $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32 );
+        $s->bounds( @$s{qw/x y w h/} );
+        $s->{is_root} ? $root = $s : push( @terminals, $s );
+
+        $s;
+    }
+
+    sub on_user_command {
+        (shift)->{term}{termclass}{parent}->user_command(@_);
+        1;
+    }
+
+    sub on_init {
+        my $s = shift;
+        $s->bind_action( 'M-h', 'perl:'.ACTION_SHOW );
+        $s->bind_action( 'M-p', 'perl:'.ACTION_SHOW_SIDEBAR );
+        $s->bind_action( 'M-o', 'perl:'.ACTION_SHOW_TRANSPARENT );
+        $s->bind_action( 'M-l', 'perl:'.ACTION_SHOW_LABELS );
+        ();
+    }
+
+    sub on_tt_write {
+        if (!(shift)->{term}{parent}) {
+            $root->{term}->tt_write(shift);
+            1;
+        }
+        ();
+    }
+
+    sub on_refresh_begin {
+        my $s = shift;
+        if (!$s->{term}{parent}) {
+            my $str = $s->{term}->locale_encode("\e[0;0H\e[K");
+            $s->{term}->cmd_parse($str);    #do not show the cursor!
+            1;
+        }
+        ();
+    }
+
+    sub bounds {
+        my $s = shift;
+        @$s{qw/x y w h/} = validate_pos( @_, 1, 1, 1, 1 );
+        $s->{term}->XMoveResizeWindow( $s->{term}->parent, @_ );
+    }
+
+    sub on_destroy {
+        if ($_[0]{term}{parent}) {
+            ${$_[0]{term}{parent}{caption}[0]}->hide;    #prevent segmentation fauls!
+            $_->{term}->destroy for @terminals;
+            my $p = $_[0]{term}{parent} or return;
+            $p->{d} = urxvt::iw->new->start->cb( sub { $p->destroy } );
+        }
+        1;
+    }
+
+    sub destroy_all { $root->{term}->destroy; }
+
+    sub hide_cursor { (shift)->{term}->cmd_parse("\033[?25l"); }
 
     sub hide {
         my $s = shift;
@@ -829,6 +886,7 @@ package cdmn::visuals::container {
         FALSE         => 0,
         CAPTION_BAR   => cdmn::constants::CAPTION_BAR,
         CAPTION_BLOCK => cdmn::constants::CAPTION_BLOCK,
+        REND          => cdmn::constants::REND,
     };
 
     my ( $xOff, $yOff, $m ) = ( 0, 0, 0 );
@@ -868,11 +926,11 @@ package cdmn::visuals::container {
         if (@{$arg{gauges}} > $m && $s->{evenGauges}) {
             $m = @{$arg{gauges}};
             foreach (values %{ $s->{gauges} }) {
-                $_->setEvenGauges($m);
+                $_->even_gauges($m);
                 $xOff += $visual->{width} if $s->{align} eq CAPTION_BAR;
             }
         }
-        $visual->setEvenGauges($m) if $s->{evenGauges};
+        $visual->even_gauges($m) if $s->{evenGauges};
         $xOff += $visual->{width} + $s->{padding}  if $s->{align} eq CAPTION_BAR;
         $yOff += $visual->{height} + $s->{padding} if $s->{align} eq CAPTION_BLOCK;
         $s->{gauges}{$arg{name}} = $visual;
@@ -911,8 +969,8 @@ package cdmn::visuals::container {
             y         => $s->{y},
             width     => $s->{width},
             height    => $s->{height},
-            #rendition => urxvt::SET_BGCOLOR cdmn::constants::REND, 4,
-            rendition => urxvt::SET_BGCOLOR cdmn::constants::REND, $s->{bg_color},
+            #rendition => urxvt::SET_BGCOLOR REND, 4,
+            rendition => urxvt::SET_BGCOLOR REND, $s->{bg_color},
         );
 
         $s->{bg}->create("show");
@@ -927,7 +985,7 @@ package cdmn::visuals::container {
     }
 
     sub set {
-        my ( $s, $name, $usage, $invert) = (@_);
+        my ( $s, $name, $usage, $invert) = validate_pos( @_, 1, 1, 1, 1 );
         my $total = 0;
         if ($s->{visible} && $s->{gauges}{$name}) {
             if ($s->{simpleGauges}{$name}) {
@@ -984,7 +1042,6 @@ package cdmn::visuals::container {
         $s->{backgroundVisible} = $visible;
     }
 
-    # TODO still necessary?
     sub refresh_background {
         my $s = shift;
         if ( $s->{backgroundVisible} ) {
@@ -998,6 +1055,7 @@ package cdmn::visuals::container {
 
 package cdmn::visuals::visual {
     use List::Util qw(max);
+    use Params::Validate qw(:all);
 
     use fields qw( term rendition x y label gauges label_bg label_fg gauges_colors gauges_bg visual_style sensitivity);
     use fields qw( count width height);
@@ -1006,6 +1064,7 @@ package cdmn::visuals::visual {
     #use constant LED => '⬛';
     use constant LED => '■';
     use constant { TRUE => 1, FALSE => 0 };
+    use constant { CAPTION_BAR => cdmn::constants::CAPTION_BAR, };
 
     my $m = 0;
 
@@ -1020,7 +1079,7 @@ package cdmn::visuals::visual {
         return $s;
     }
 
-    sub setEvenGauges {
+    sub even_gauges {
         my ( $self, $max ) = @_;
         $self->{width} += ( - @{ $self->{gauges} } + $max );
     }
@@ -1095,7 +1154,7 @@ package cdmn::visuals::visual {
     }
 
     sub set {
-        my ( $s, $i, $usage, $invert) = @_;
+        my ( $s, $i, $usage, $invert) = validate_pos( @_, 1, 1, 1, 1 );
         return if !$s->{gauges}{"$i"};
 
         my $size = scalar @{&BLOCKS};
@@ -1110,7 +1169,7 @@ package cdmn::visuals::visual {
             $_->hide;
         }
 
-        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq cdmn::constants::CAPTION_BAR;
+        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq CAPTION_BAR;
         $s->{gauges}{"$i"}{"$color"}->set( LED ) if $s->{visual_style} eq 'led';
         $s->{gauges}{"$i"}{"$color"}->show;
     }
@@ -1154,9 +1213,64 @@ package cdmn::visuals::overlay {
 
 use constant XR => cdmn::resources->new();
 
-####################################################
-#   UTILITY METHODS
-####################################################
+
+#-----------------------------------------------------------------------------------------------------------------------
+#   HELPERS
+#-----------------------------------------------------------------------------------------------------------------------
+
+sub redraw {
+    my ($s, $showLabels) = @_;
+    my @visible = map {$$_->{visible}} @{($s->{caption})};
+
+    $s->{visuals_updater}->stop;
+    $s->{caption}[0] = create_captions ($s->{xterms}{main}{term}, $showLabels);
+    $s->{caption}[1] = create_captions ($s, $showLabels);
+
+    while ( my ( $key, $item ) = each @{($s->{caption})} ) {
+        ${$item}->create;
+        $visible[$key] ? ${$item}->show : ${$item}->hide;
+    }
+    $s->{visuals_updater}->start;
+}
+
+sub calc_bounds {
+    my $s = shift;
+    my $t = shift;
+    my ($h, $w, $x, $y) = (0, 0, $s->{x}, $s->{y});
+
+    if ($t eq CAPTION_BAR) {
+        $h = $s->fheight * ( $s->nrow - 1 );
+        $w = $s->width;
+        $y = XR->{y} >= 0 ? $s->fheight : - 1;
+    }
+    if ($t eq CAPTION_BLOCK) {
+        $h = $s->fheight * ( $s->nrow );
+        $w = $s->width - ${$s->{caption}[0]}->{width};
+        $y = 0;
+    }
+    $x = 0;
+    ($h, $w, $x, $y);
+}
+
+#TODO why add 4 to w and h
+sub refresh_bounds{
+    my $s = shift;
+    my $t = shift;
+    my ($h, $w, $x, $y) = &calc_bounds($s, $t);
+
+    if ($s->{xterms}{main}{maximized}) {
+        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
+    }
+    else {
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );
+        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
+            $h + 4 ) if XR->{caption} eq CAPTION_BLOCK;
+
+    }
+    $s->{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
+    $s->{sidebar}->create_content;
+
+}
 
 sub create_captions {
     my ($s, $showLabels) = (@_);
@@ -1187,10 +1301,10 @@ sub create_captions {
 
     for ( XR->{caption} ) {
         $caption = do {
-            if ($_ eq cdmn::constants::CAPTION_BAR) {
+            if ($_ eq CAPTION_BAR) {
                 cdmn::visuals::container->new(
                     term       => $s,
-                    rendition  => cdmn::constants::REND,
+                    rendition  => REND,
                     x          => XR->{x},
                     y          => XR->{y},
                     padding    => XR->{padding},
@@ -1200,10 +1314,10 @@ sub create_captions {
                     bg_color   => XR->{caption_bg},
                 );
             }
-            elsif ($_ eq cdmn::constants::CAPTION_BLOCK) {
+            elsif ($_ eq CAPTION_BLOCK) {
                 cdmn::visuals::container->new(
                     term       => $s,
-                    rendition  => cdmn::constants::REND,
+                    rendition  => REND,
                     x          => XR->{x},
                     y          => XR->{y},
                     padding    => XR->{padding},
@@ -1231,21 +1345,22 @@ sub create_captions {
     return \$caption;
 }
 
-####################################################
+
+#-----------------------------------------------------------------------------------------------------------------------
 #   ACTIONS
-####################################################
+#-----------------------------------------------------------------------------------------------------------------------
 
 my %user_command;
 
 #TODO why add 4 to w and h
-$user_command{&cdmn::constants::ACTION_SHOW} = sub {
+$user_command{&ACTION_SHOW} = sub {
     my $s = shift;
     my ($h, $w, $x, $y) = &calc_bounds($s, XR->{caption});
 
     if ($s->{xterms}{main}{maximized}) {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{caption} eq cdmn::constants::CAPTION_BAR;
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{caption} eq CAPTION_BAR;
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
-            $h + 4 ) if XR->{caption} eq cdmn::constants::CAPTION_BLOCK;
+            $h + 4 ) if XR->{caption} eq CAPTION_BLOCK;
         $s->{xterms}{main}{maximized} = 0;
         ${$s->{caption}->[0]}->hide;
         $SHOWING = 1;
@@ -1257,7 +1372,7 @@ $user_command{&cdmn::constants::ACTION_SHOW} = sub {
     }
 };
 
-$user_command{&cdmn::constants::ACTION_SHOW_TRANSPARENT} = sub {
+$user_command{&ACTION_SHOW_TRANSPARENT} = sub {
     my $s = shift;
     if ($s->{xterms}{main}{maximized}) {
         my $c = ${$s->{caption}->[0]};
@@ -1274,11 +1389,11 @@ $user_command{&cdmn::constants::ACTION_SHOW_TRANSPARENT} = sub {
     }
 };
 
-$user_command{&cdmn::constants::ACTION_SHOW_SIDEBAR} = sub {
-    (shift)->{xterms}{sidebar}->toggle;
+$user_command{&ACTION_SHOW_SIDEBAR} = sub {
+    (shift)->{sidebar}->toggle;
 };
 
-$user_command{&cdmn::constants::ACTION_SHOW_LABELS} = sub {
+$user_command{&ACTION_SHOW_LABELS} = sub {
     if ($SHOWING) {
         my $s = shift;
         $LABELS_SHOWING = !$LABELS_SHOWING;
@@ -1287,9 +1402,10 @@ $user_command{&cdmn::constants::ACTION_SHOW_LABELS} = sub {
     }
 };
 
-####################################################
-#   HANDLERS
-####################################################
+
+#-----------------------------------------------------------------------------------------------------------------------
+#   RXVT HANDLERS
+#-----------------------------------------------------------------------------------------------------------------------
 
 sub user_command {
     my ( $s, $action ) = (@_);
@@ -1324,69 +1440,11 @@ sub on_refresh_end {
     1;
 }
 
-sub redraw {
-    my ($s, $showLabels) = @_;
-    my @visible = map {$$_->{visible}} @{($s->{caption})};
-
-    $s->{visuals_updater}->stop;
-    $s->{caption}[0] = create_captions ($s->{xterms}{main}{term}, $showLabels);
-    $s->{caption}[1] = create_captions ($s, $showLabels);
-
-    while ( my ( $key, $item ) = each @{($s->{caption})} ) {
-        ${$item}->create;
-        $visible[$key] ? ${$item}->show : ${$item}->hide;
-    }
-    $s->{visuals_updater}->start;
-}
-
-####################################################
-#   TERM HANDLERS
-####################################################
-
 sub on_configure_notify {
     my $s = shift;
     return if $s->{w_size} eq $s->{term}->ncol && $s->{y_size} eq $s->{term}->nrow;
     refresh_bounds($s, XR->{caption});
     1;
-}
-
-sub calc_bounds {
-    my $s = shift;
-    my $t = shift;
-    my ($h, $w, $x, $y) = (0, 0, $s->{x}, $s->{y});
-
-    if ($t eq cdmn::constants::CAPTION_BAR) {
-        $h = $s->fheight * ( $s->nrow - 1 );
-        $w = $s->width;
-        $y = XR->{y} >= 0 ? $s->fheight : - 1;
-    }
-    if ($t eq cdmn::constants::CAPTION_BLOCK) {
-        $h = $s->fheight * ( $s->nrow );
-        $w = $s->width - ${$s->{caption}[0]}->{width};
-        $y = 0;
-    }
-    $x = 0;
-    ($h, $w, $x, $y);
-}
-
-#TODO why add 4 to w and h
-sub refresh_bounds{
-    my $s = shift;
-    my $t = shift;
-    my ($h, $w, $x, $y) = &calc_bounds($s, $t);
-
-    if ( $s->{xterms}{main}{maximized} ) {
-        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
-    }
-    else {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );
-        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
-            $h + 4 ) if XR->{caption} eq cdmn::constants::CAPTION_BLOCK;
-
-    }
-    $s->{xterms}{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
-    $s->{xterms}{sidebar}->create_content; #TODO Memory Leak / but will go away when refactoring the sidebar
-
 }
 
 for my $h (qw(key_press key_release)) {
@@ -1403,7 +1461,7 @@ for my $h (qw(focus_in focus_out)) {
 }
 
 sub on_wm_delete_window {
-    cdmn::term::destroy_All;
+    cdmn::term::destroy_all;
     1;
 }
 
@@ -1413,9 +1471,9 @@ sub on_tt_write {
 }
 
 
-####################################################
-#   MAIN
-####################################################
+#-----------------------------------------------------------------------------------------------------------------------
+#   MAIN ENTRYPOINT
+#-----------------------------------------------------------------------------------------------------------------------
 
 sub on_init {
     my ($s) = @_;
@@ -1424,9 +1482,6 @@ sub on_init {
     $LABELS_SHOWING = XR->{showing_labels};
     ();
 }
-
-
-
 
 sub on_start {
     my ($s) = @_;
@@ -1439,7 +1494,7 @@ sub on_start {
     );
 
     $s->{xterms}{main}{maximized} = 1;
-    $s->{xterms}{sidebar} = cdmn::term->new(
+    my $st = cdmn::term->new(
         parent   => $s,
         resource => XR,
         x        => $s->width / 2,
@@ -1450,12 +1505,13 @@ sub on_start {
         is_root  => 0
     );
 
-    $s->{xterms}{sidebar}->disableCursor;
-    $s->{xterms}{sidebar}->create_content;
-    $s->{xterms}{sidebar}->hide;
+    $st->hide_cursor;
+    $s->{sidebar} = cdmn::sidebar->new(term => $st);
+    $s->{sidebar}->create_content;
+    $s->{sidebar}->hide;
     $s->{xterms}{main}->show;
 
-    #$s->{xterms}{main}->hide if ( XR->{caption} eq cdmn::constants::CAPTION_BLOCK );
+    #$s->{xterms}{main}->hide if ( XR->{caption} eq CAPTION_BLOCK );
 
     $s->{w_size} = $s->{term}->ncol;
     $s->{y_size} = $s->{term}->nrow;
@@ -1500,3 +1556,4 @@ sub on_start {
     refresh_bounds($s, XR->{caption});
     ();
 }
+
