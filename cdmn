@@ -469,6 +469,7 @@ package cdmn::resources {
     use Scalar::Util qw(looks_like_number);
 
     my $t;
+    my %notset;
     use fields qw(
         x  y  padding
             showing  showing_labels  showing_background
@@ -534,6 +535,11 @@ package cdmn::resources {
         $s->{sensitivity} = looks_like_number($t->x_resource('%.sensitivity')) || 1; #percentage
         $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar'; #bar | led
 
+        $notset{gauges_disks} = $s->{gauges_disks} ? 0 : 1;
+        $notset{network_rx} = $s->{network_rx} ? 0 : 1;
+        $notset{network_tx} = $s->{network_tx} ? 0 : 1;
+        $notset{gauges_cores} = $s->{gauges_cores} ? 0 : 1;
+
         $s->{gauges_order} = _set('%.gauges.order');
         $s->{gauges_disks} = _set('%.gauges.disks');
         $s->{gauges_batteries} = _set('%.gauges.batteries');
@@ -569,11 +575,12 @@ package cdmn::resources {
         #$s->{cpu} = 'detail';     #simple | detail
         #   $s->{gauges_bg} = '1';    #simple | full
         #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
+        $s->{gauges_order} = [ 'CPU', 'DISK', 'MEM', 'BAT' ];
         $s->{network_rx} = [ ('eth0') ];
         $s->{network_tx} = [ ('eth0') ];
 
         #$s->{padding} = 0;
-        #$s->{caption} = 'block';
+        $s->{caption} = 'block';
         #$s->{y} = 0;
         #$s->{x} = -1;
 
@@ -600,16 +607,19 @@ package cdmn::resources {
     sub set_order {
         my $s = shift;
         $s->{gauges_order} = $validate->($s, $s->{gauges_order});
+        1;
     }
 
     sub set_invert {
         my $s = shift;
         $s->{gauges_invert} = $validate->($s, $s->{gauges_invert});
+        1;
     }
 
     sub set_nics {
         my $s = shift;
         my $nics_active = cdmn::proc->if_list;
+        my $ov = $s->{gauges_nics} ? scalar @{$s->{gauges_nics}} : 0;
 
         my $rx_tx = &cut_set($s->{network_tx}, $nics_active);
         my @tx = map {$_."_tx"} @$rx_tx;
@@ -617,18 +627,23 @@ package cdmn::resources {
         $rx_tx = &cut_set($s->{network_rx}, $nics_active);
         my @rx = map {$_."_rx"} @$rx_tx;
 
-        if (scalar @tx eq 0 and scalar @rx eq 0) {
+        if ((scalar @tx eq 0 and scalar @rx eq 0) || ($notset{network_rx} && $notset{network_tx})) {
             $s->{gauges_nics} = [ map {$_."_rx", $_."_tx"} @$nics_active ];
         } else {
             $s->{gauges_nics} = [ @rx, @tx ];
         }
+        $ov != $s->{gauges_nics} ? 1 : 0;
     }
 
     sub set_disks {
         my $s = shift;
+        my $ov = $s->{gauges_disks} ? scalar @{$s->{gauges_disks}} : 0;
+
         $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{gauges_disks}) : cut_set (
                 cdmn::proc::disks, $s->{gauges_disks});
-        $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks if scalar @{$s->{gauges_disks}} eq 0;
+        $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks if scalar
+            @{$s->{gauges_disks}} eq 0 || $notset{gauges_disks};
+        $ov != $s->{gauges_disks} ? 1 : 0;
     }
 
     #TODO min count colors, check invalid values, ...
@@ -642,6 +657,7 @@ package cdmn::resources {
         $s->{gauges_colors} = [
             map {$_ + 2} grep (looks_like_number($_), split( /[,[:space:]]/, $s->{gauges_colors}))
         ];
+        1;
     }
 
     for my $h (qw(batteries cores)) {
@@ -649,8 +665,10 @@ package cdmn::resources {
         eval qq{
             sub set_$h {
                 my \$s = shift;
+                my \$ov = \$s->{gauges_$h} ? scalar \@{\$s->{gauges_$h}} : 0;
                 \$s->{gauges_$h} = cut_set(cdmn::proc::$h, \$s->{gauges_$h});
-                \$s->{gauges_$h} = cdmn::proc::$h if scalar \@{\$s->{gauges_$h}} eq 0;
+                \$s->{gauges_$h} = cdmn::proc::$h if scalar \@{\$s->{gauges_$h}} eq 0 || \$notset{gauges_$h};
+                \$ov != \$s->{gauges_disks} ? 1 : 0;
             }
         }
     };
@@ -667,13 +685,13 @@ package cdmn::sidebar {
 
     my @data;
 
-    use fields qw(term);
+    use fields qw(term width);
 
     sub new {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = validate( @_, { term => 1 } );
+        (%$s) = validate( @_, { term => 1, width => { default => 32 } } );
 
         return $s;
     }
@@ -691,7 +709,9 @@ package cdmn::sidebar {
     }
 
     sub toggle {
-        (shift)->{term}->toggle;
+        my $s = shift;
+        $s->create_content;
+        ($s)->{term}->toggle;
     }
 
     sub bounds {
@@ -699,10 +719,12 @@ package cdmn::sidebar {
     }
 
     sub create_content {
+        @data = ();
         my $s      = shift;
         my $mounts = cdmn::proc::mounts;
         my $r = urxvt::SET_FGCOLOR REND, 240;         #TODO remove magic number/hard-coded value
 
+        #border
         $data[0] = cdmn::visuals::overlay->new(
             term      => $s->{term},
             x         => 0,
@@ -717,19 +739,20 @@ package cdmn::sidebar {
         $r = $r | urxvt::RS_Uline;
 
         my $i = 1;
+        #title
         push @data, cdmn::visuals::overlay->new(
                 term      => $s->{term},
                 x         => - 1,
                 y         => $i++,
-                width     => 32,
+                width     => $s->{width},
                 height    => 1,
                 rendition => $r,
                 caption   => 'FS USAGE'
             );
 
         $r = urxvt::SET_FGCOLOR REND, 250;
-        for (keys %$mounts) {
-            my $ref = df( $mounts->{$_} );
+        for (sort values %$mounts) {
+            my $ref = df( $_ );
             my $u   = ceil( 25 * $ref->{per} / 100 );
             my $f   = floor( 25 - 25 * $ref->{per} / 100 );
 
@@ -738,10 +761,10 @@ package cdmn::sidebar {
                     term      => $s->{term},
                     x         => - 1,
                     y         => $i++,
-                    width     => 32,
+                    width     => $s->{width},
                     height    => 1,
                     rendition => $r,
-                    caption   => $$mounts{$_}
+                    caption   => $_
                 );
 
             push @data,
@@ -749,7 +772,7 @@ package cdmn::sidebar {
                     term      => $s->{term},
                     x         => - 1,
                     y         => $i++,
-                    width     => 32,
+                    width     => $s->{width},
                     height    => 1,
                     rendition => $r,
                     caption   => "■" x $u."□" x $f." $ref->{per}%"
@@ -847,16 +870,9 @@ package cdmn::term {
     }
 
     sub on_destroy {
-        if ($_[0]{term}{parent}) {
-            ${$_[0]{term}{parent}{caption}[0]}->hide;    #prevent segmentation fauls!
-            $_->{term}->destroy for @terminals;
-            my $p = $_[0]{term}{parent} or return;
-            $p->{d} = urxvt::iw->new->start->cb( sub { $p->destroy } );
-        }
+        exit;
         1;
     }
-
-    sub destroy_all { $root->{term}->destroy; }
 
     sub hide_cursor { (shift)->{term}->cmd_parse("\033[?25l"); }
 
@@ -1245,7 +1261,8 @@ sub calc_bounds {
     }
     if ($t eq CAPTION_BLOCK) {
         $h = $s->fheight * ( $s->nrow );
-        $w = $s->width - ${$s->{caption}[0]}->{width};
+        #$w = $s->width - ${$s->{caption}[0]}->{width};
+        $w = $s->width;
         $y = 0;
     }
     $x = 0;
@@ -1267,6 +1284,7 @@ sub refresh_bounds{
             $h + 4 ) if XR->{caption} eq CAPTION_BLOCK;
 
     }
+    say $w;
     $s->{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
     $s->{sidebar}->create_content;
 
@@ -1331,6 +1349,7 @@ sub create_captions {
     }
 
     state $cpus = cdmn::proc::cpu_count() - 1;
+
 
     my %args;
     $args{cores} = (XR->{cpu_temp} eq 'simple' ? [ "simple" ] : XR->{gauges_cores}) if @{XR->{gauges_cores}} > 0;
@@ -1461,7 +1480,7 @@ for my $h (qw(focus_in focus_out)) {
 }
 
 sub on_wm_delete_window {
-    cdmn::term::destroy_all;
+    exit;
     1;
 }
 
@@ -1526,6 +1545,8 @@ sub on_start {
         sub {
             return if !$SHOWING;
             my %r;
+
+            redraw($s, $LABELS_SHOWING) if XR->set_disks || XR->set_batteries || XR->set_nics;
 
             my %usage_of;
             $usage_of{cpu} = sub {%{&cdmn::proc::cpu_usages}};
