@@ -575,12 +575,12 @@ package cdmn::resources {
         #$s->{cpu} = 'detail';     #simple | detail
         #   $s->{gauges_bg} = '1';    #simple | full
         #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
-        $s->{gauges_order} = [ 'CPU', 'DISK', 'MEM', 'BAT' ];
+        #$s->{gauges_order} = [ 'CPU', 'DISK', 'MEM', 'BAT' ];
         $s->{network_rx} = [ ('eth0') ];
         $s->{network_tx} = [ ('eth0') ];
 
         #$s->{padding} = 0;
-        $s->{caption} = 'block';
+        #$s->{caption} = 'block';
         #$s->{y} = 0;
         #$s->{x} = -1;
 
@@ -632,7 +632,7 @@ package cdmn::resources {
         } else {
             $s->{gauges_nics} = [ @rx, @tx ];
         }
-        $ov != $s->{gauges_nics} ? 1 : 0;
+        $ov != scalar @{$s->{gauges_nics}} ? 1 : 0;
     }
 
     sub set_disks {
@@ -643,7 +643,7 @@ package cdmn::resources {
                 cdmn::proc::disks, $s->{gauges_disks});
         $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks if scalar
             @{$s->{gauges_disks}} eq 0 || $notset{gauges_disks};
-        $ov != $s->{gauges_disks} ? 1 : 0;
+        $ov != scalar @{$s->{gauges_disks}} ? 1 : 0;
     }
 
     #TODO min count colors, check invalid values, ...
@@ -668,7 +668,7 @@ package cdmn::resources {
                 my \$ov = \$s->{gauges_$h} ? scalar \@{\$s->{gauges_$h}} : 0;
                 \$s->{gauges_$h} = cut_set(cdmn::proc::$h, \$s->{gauges_$h});
                 \$s->{gauges_$h} = cdmn::proc::$h if scalar \@{\$s->{gauges_$h}} eq 0 || \$notset{gauges_$h};
-                \$ov != \$s->{gauges_disks} ? 1 : 0;
+                \$ov != scalar \@{\$s->{gauges_$h}} ? 1 : 0;
             }
         }
     };
@@ -1284,7 +1284,6 @@ sub refresh_bounds{
             $h + 4 ) if XR->{caption} eq CAPTION_BLOCK;
 
     }
-    say $w;
     $s->{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
     $s->{sidebar}->create_content;
 
