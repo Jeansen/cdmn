@@ -43,8 +43,8 @@ package cdmn::constants {
     };
 
     use constant {
-        CAPTION_BLOCK     => 'col',
-        CAPTION_BAR       => 'row',
+        ALIGN_COL         => 'col',
+        ALIGN_ROW         => 'row',
         CAPTION_SOLID_BAR => 'solid-bar', #TODO remove?
     };
 
@@ -58,9 +58,9 @@ use constant {
     ACTION_SHOW_TRANSPARENT => cdmn::constants::ACTION_SHOW_TRANSPARENT,
     ACTION_NEXT_PANE        => cdmn::constants::ACTION_NEXT_PANE,
     ACTION_PREV_PANE        => cdmn::constants::ACTION_PREV_PANE,
-    CAPTION_BLOCK           => cdmn::constants::CAPTION_BLOCK,
-    CAPTION_BAR             => cdmn::constants::CAPTION_BAR,
-    CAPTION_SOLID_BAR       => cdmn::constants::CAPTION_SOLID_BAR,
+    ALIGN_COL               => cdmn::constants::ALIGN_COL,
+    ALIGN_ROW               => cdmn::constants::ALIGN_ROW,
+    CAPTION_SOLID_BAR       => cdmn::constants::CAPTION_SOLID_BAR, #TODO
     REND                    => cdmn::constants::REND,
 };
 
@@ -953,11 +953,11 @@ package cdmn::visuals::container {
     use Params::Validate qw(:all);
 
     use constant {
-        TRUE          => 1,
-        FALSE         => 0,
-        CAPTION_BAR   => cdmn::constants::CAPTION_BAR,
-        CAPTION_BLOCK => cdmn::constants::CAPTION_BLOCK,
-        REND          => cdmn::constants::REND,
+        TRUE      => 1,
+        FALSE     => 0,
+        ALIGN_ROW => cdmn::constants::ALIGN_ROW,
+        ALIGN_COL => cdmn::constants::ALIGN_COL,
+        REND      => cdmn::constants::REND,
     };
 
     my ( $xOff, $yOff, $m ) = ( 0, 0, 0 );
@@ -998,12 +998,12 @@ package cdmn::visuals::container {
             $m = @{$arg{gauges}};
             foreach (values %{ $s->{gauges} }) {
                 $_->even_gauges($m);
-                $xOff += $visual->{width} if $s->{align} eq CAPTION_BAR;
+                $xOff += $visual->{width} if $s->{align} eq ALIGN_ROW;
             }
         }
         $visual->even_gauges($m) if $s->{evenGauges};
-        $xOff += $visual->{width} + $s->{padding}  if $s->{align} eq CAPTION_BAR;
-        $yOff += $visual->{height} + $s->{padding} if $s->{align} eq CAPTION_BLOCK;
+        $xOff += $visual->{width} + $s->{padding} if $s->{align} eq ALIGN_ROW;
+        $yOff += $visual->{height} + $s->{padding} if $s->{align} eq ALIGN_COL;
         $s->{gauges}{$arg{name}} = $visual;
     }
 
@@ -1016,22 +1016,22 @@ package cdmn::visuals::container {
 
         foreach (values %{ $s->{gauges}}) {
             if ($s->{x} < 0) {
-                $_->{x} = $s->{term}->ncol - $xOff + $_->{x} + $s->{x} + $s->{padding} + 1 if ($s->{align} eq CAPTION_BAR);
-                $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} if ( $s->{align} eq CAPTION_BLOCK );
+                $_->{x} = $s->{term}->ncol - $xOff + $_->{x} + $s->{x} + $s->{padding} + 1 if ($s->{align} eq ALIGN_ROW);
+                $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} if ( $s->{align} eq ALIGN_COL );
             }
             else {
-                $_->{x} += $s->{x} if $s->{align} eq CAPTION_BAR;
-                $_->{x} = $l - $_->{width} if ( $s->{align} eq CAPTION_BLOCK );
+                $_->{x} += $s->{x} if $s->{align} eq ALIGN_ROW;
+                $_->{x} = $l - $_->{width} if ( $s->{align} eq ALIGN_COL );
             }
             if ($s->{y} < 0) {
-                $_->{y} = $s->{term}->nrow - $yOff + $_->{y} + $s->{y} + $s->{padding} + 1 if ( $s->{align} eq CAPTION_BLOCK );
+                $_->{y} = $s->{term}->nrow - $yOff + $_->{y} + $s->{y} + $s->{padding} + 1 if ( $s->{align} eq ALIGN_COL );
             }
         }
 
         $_->create foreach values %{ $s->{gauges} };
 
-        $s->{width} = $s->{align} eq CAPTION_BAR ? $xOff - $s->{padding} : $l;
-        $s->{height} = $s->{align} eq CAPTION_BAR ? 1 : $yOff - $s->{padding} + 1;
+        $s->{width} = $s->{align} eq ALIGN_ROW ? $xOff - $s->{padding} : $l;
+        $s->{height} = $s->{align} eq ALIGN_ROW ? 1 : $yOff - $s->{padding} + 1;
 
         #Background
         $s->{bg} = cdmn::visuals::overlay->new(
@@ -1135,7 +1135,7 @@ package cdmn::visuals::visual {
     #use constant LED => '⬛';
     use constant LED => '■';
     use constant { TRUE => 1, FALSE => 0 };
-    use constant { CAPTION_BAR => cdmn::constants::CAPTION_BAR, };
+    use constant { ALIGN_ROW => cdmn::constants::ALIGN_ROW, };
 
     my $m = 0;
 
@@ -1240,7 +1240,7 @@ package cdmn::visuals::visual {
             $_->hide;
         }
 
-        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq CAPTION_BAR;
+        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq ALIGN_ROW;
         $s->{gauges}{"$i"}{"$color"}->set( LED ) if $s->{visual_style} eq 'led';
         $s->{gauges}{"$i"}{"$color"}->show;
     }
@@ -1310,12 +1310,12 @@ sub calc_bounds {
     my $t = shift;
     my ($h, $w, $x, $y) = (0, 0, $s->{x}, $s->{y});
 
-    if ($t eq CAPTION_BAR) {
+    if ($t eq ALIGN_ROW) {
         $h = $s->fheight * ( $s->nrow - 1 );
         $w = $s->width;
         $y = XR->{y} >= 0 ? $s->fheight : - 1;
     }
-    if ($t eq CAPTION_BLOCK) {
+    if ($t eq ALIGN_COL) {
         $h = $s->fheight * ( $s->nrow );
         $w = $s->width - ${$s->{caption}[0]}->{width};
         $y = 0;
@@ -1336,10 +1336,10 @@ sub refresh_bounds{
     else {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
-            $h + 4 ) if XR->{visual_alignment} eq CAPTION_BLOCK;
+            $h + 4 ) if XR->{visual_alignment} eq ALIGN_COL;
 
     }
-    $s->{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
+    $s->{sidebar}->bounds( $s->width - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
     #$s->{sidebar}->refresh_pane if $s->{sidebar}{visible};
 
 }
@@ -1373,7 +1373,7 @@ sub create_captions {
 
     for (XR->{visual_alignment}) {
         $caption = do {
-            if ($_ eq CAPTION_BAR) {
+            if ($_ eq ALIGN_ROW) {
                 cdmn::visuals::container->new(
                     term       => $s,
                     rendition  => REND,
@@ -1386,7 +1386,7 @@ sub create_captions {
                     bg_color   => XR->{caption_bg},
                 );
             }
-            elsif ($_ eq CAPTION_BLOCK) {
+            elsif ($_ eq ALIGN_COL) {
                 cdmn::visuals::container->new(
                     term       => $s,
                     rendition  => REND,
@@ -1431,9 +1431,9 @@ $user_command{&ACTION_SHOW} = sub {
     my ($h, $w, $x, $y) = &calc_bounds($s, XR->{visual_alignment});
 
     if ($s->{xterms}{main}{maximized}) {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{visual_alignment} eq CAPTION_BAR;
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{visual_alignment} eq ALIGN_ROW;
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
-            $h + 4 ) if XR->{visual_alignment} eq CAPTION_BLOCK;
+            $h + 4 ) if XR->{visual_alignment} eq ALIGN_COL;
         $s->{xterms}{main}{maximized} = 0;
         ${$s->{caption}->[0]}->hide;
         $SHOWING = 1;
@@ -1592,7 +1592,7 @@ sub on_start {
     $s->{sidebar}->hide;
     $s->{xterms}{main}->show;
 
-    #$s->{xterms}{main}->hide if ( XR->{visual_alignment} eq CAPTION_BLOCK );
+    #$s->{xterms}{main}->hide if ( XR->{visual_alignment} eq ALIGN_COL );
 
     $s->{w_size} = $s->{term}->ncol;
     $s->{y_size} = $s->{term}->nrow;
