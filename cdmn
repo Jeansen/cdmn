@@ -25,6 +25,7 @@ use warnings FATAL => 'all';
 use utf8;
 use autodie;
 
+use Filesys::Df;
 binmode STDOUT, ":encoding(UTF-8)";
 
 my $SHOWING;
@@ -36,12 +37,15 @@ package cdmn::constants {
         ACTION_SHOW_LABELS      => 'cdmn:show-labels',
         ACTION_SHOW_SIDEBAR     => 'cdmn:show-sidebar',
         ACTION_SHOW_TRANSPARENT => 'cdmn:action-show-transparent',
+        ACTION_NEXT_PANE        => 'cdmn:action-next-pane',
+        ACTION_PREV_PANE        => 'cdmn:action-prev-pane',
+
     };
 
     use constant {
-        CAPTION_BLOCK     => 'block',
-        CAPTION_BAR       => 'bar',
-        CAPTION_SOLID_BAR => 'solid-bar',
+        CAPTION_BLOCK     => 'col',
+        CAPTION_BAR       => 'row',
+        CAPTION_SOLID_BAR => 'solid-bar', #TODO remove?
     };
 
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
@@ -52,6 +56,8 @@ use constant {
     ACTION_SHOW_LABELS      => cdmn::constants::ACTION_SHOW_LABELS,
     ACTION_SHOW_SIDEBAR     => cdmn::constants::ACTION_SHOW_SIDEBAR,
     ACTION_SHOW_TRANSPARENT => cdmn::constants::ACTION_SHOW_TRANSPARENT,
+    ACTION_NEXT_PANE        => cdmn::constants::ACTION_NEXT_PANE,
+    ACTION_PREV_PANE        => cdmn::constants::ACTION_PREV_PANE,
     CAPTION_BLOCK           => cdmn::constants::CAPTION_BLOCK,
     CAPTION_BAR             => cdmn::constants::CAPTION_BAR,
     CAPTION_SOLID_BAR       => cdmn::constants::CAPTION_SOLID_BAR,
@@ -308,6 +314,7 @@ package cdmn::proc {
         return \@disks;
     }
 
+    #TODO quick calls result in wrong values
     sub cpu_usages {
         state %cpus;
         my $diff_usage = 0;
@@ -473,7 +480,7 @@ package cdmn::resources {
     use fields qw(
         x  y  padding
             showing  showing_labels  showing_background
-            caption  caption_bg
+            visual_alignment caption_bg
             label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp label_bg label_fg
             gauges  gauges_disks  gauges_nics gauges_batteries gauges_order gauges_bg gauges_cores gauges_colors gauges_invert
             actions network_tx network_rx
@@ -521,7 +528,7 @@ package cdmn::resources {
         $s->{showing_labels} = looks_like_number($t->x_resource('%.showing.labels')) || 1;
         $s->{showing_background} = looks_like_number($t->x_resource('%.showing.background')) || 1; #TODO
 
-        $s->{caption} = $t->x_resource('%.caption') || 'bar'; #block | bar | solid-bar #TODO
+        $s->{visual_alignment} = $t->x_resource('%.visual.alignment') || 'row'; #row | col | solid-bar #TODO
         $s->{caption_bg} = looks_like_number($t->x_resource('%.caption.bg')) || 1; # 0/1 map onto terminal fg/bg color
 
         $s->{padding} = looks_like_number($t->x_resource('%.padding')) || 2; #Padding between visuals
@@ -580,7 +587,7 @@ package cdmn::resources {
         $s->{network_tx} = [ ('eth0') ];
 
         #$s->{padding} = 0;
-        #$s->{caption} = 'block';
+        $s->{visual_alignment} = 'col';
         #$s->{y} = 0;
         #$s->{x} = -1;
 
@@ -675,7 +682,6 @@ package cdmn::resources {
 }
 
 package cdmn::sidebar {
-    use Filesys::Df;
     use Params::Validate qw(:all);
     use POSIX qw(ceil floor);
 
@@ -683,25 +689,29 @@ package cdmn::sidebar {
         REND => cdmn::constants::REND,
     };
 
-    my @data;
-
-    use fields qw(term width);
+    use fields qw(term width panes data active_pane visible order);
 
     sub new {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = validate( @_, { term => 1, width => { default => 32 } } );
+        (%$s) = validate( @_, { term => 1, width => { default => 32 }, visible => { default => 0 } } );
+        $s->{data} = ();
+        $s->{order} = ();
 
         return $s;
     }
 
     sub hide {
-        (shift)->{term}->hide;
+        my $s = shift;
+        ($s)->{term}->hide;
+        $s->{visible} = 0;
     }
 
     sub show {
-        (shift)->{term}->show;
+        my $s = shift;
+        $s->{term}->show;
+        $s->{visible} = 1;
     }
 
     sub hide_cursor {
@@ -710,18 +720,65 @@ package cdmn::sidebar {
 
     sub toggle {
         my $s = shift;
-        $s->create_content;
-        ($s)->{term}->toggle;
+        $s->{visible} = !$s->{visible};
+        $s->{term}->toggle;
+        $s->show_pane($s->{order}[$s->{active_pane}]);
     }
 
     sub bounds {
         (shift)->{term}->bounds( @_ );
     }
 
-    sub create_content {
-        @data = ();
-        my $s      = shift;
-        my $mounts = cdmn::proc::mounts;
+    sub show_pane{
+        my ($s, $title) = (@_);
+        return if !$s->{visible};
+        1;
+        my $data = $s->{panes}{$title};
+        for (my $j = 1; $j < @$data; $j++) {
+            $$data[$j]->create("show");
+        }
+        $$data[0]->create("show");
+    }
+
+    sub set_pane {
+        my ($s, $title, $args) = (@_);
+        $s->{panes}{$title} = $s->create_pane($title, $args);
+        $s->{data}{$title} = $args;
+        $s->show_pane($title) if $title eq $s->{order}[$s->{active_pane}];
+        1;
+    }
+
+    sub next_pane {
+        my $s = shift;
+        state $i = $s->{active_pane};
+        $i++;
+        $i = 0 if $i ge scalar @{$s->{order}};
+        $s->{active_pane} = $i;
+        $s->show_pane($s->{order}[$i]);
+    }
+
+    sub prev_pane {
+        my $s = shift;
+        state $i = $s->{active_pane};
+        $i--;
+        $i = scalar @{$s->{order}} - 1 if $i lt 0;
+        $s->{active_pane} = $i;
+        $s->show_pane($s->{order}[$i]);
+    }
+
+    sub add_pane {
+        my ($s, $title, $args) = (@_);
+        $s->{panes}{$title} = $s->create_pane($title, $args);
+        $s->{data}{$title} = $args;
+        push @{$s->{order}}, $title;
+        1;
+    }
+
+    sub create_pane {
+        my @data;
+        my $s = shift;
+        my $title = shift;
+        my $args = shift;
         my $r = urxvt::SET_FGCOLOR REND, 240;         #TODO remove magic number/hard-coded value
 
         #border
@@ -747,14 +804,11 @@ package cdmn::sidebar {
                 width     => $s->{width},
                 height    => 1,
                 rendition => $r,
-                caption   => 'FS USAGE'
+                caption   => $title
             );
 
         $r = urxvt::SET_FGCOLOR REND, 250;
-        for (sort values %$mounts) {
-            my $ref = df( $_ );
-            my $u   = ceil( 25 * $ref->{per} / 100 );
-            my $f   = floor( 25 - 25 * $ref->{per} / 100 );
+        for (sort keys %$args) {
 
             $i++;
             push @data, cdmn::visuals::overlay->new(
@@ -766,7 +820,8 @@ package cdmn::sidebar {
                     rendition => $r,
                     caption   => $_
                 );
-
+            my $c = ceil( 25 * $args->{$_} / 100 );
+            my $f = 25 - $c;
             push @data,
                 cdmn::visuals::overlay->new(
                     term      => $s->{term},
@@ -775,14 +830,10 @@ package cdmn::sidebar {
                     width     => $s->{width},
                     height    => 1,
                     rendition => $r,
-                    caption   => "■" x $u."□" x $f." $ref->{per}%"
+                    caption   => "■" x $c."□" x $f." ".ceil($args->{$_})."%"
                 );
         }
-
-        for ( my $j = 1 ; $j < @data ; $j++ ) {
-            $data[$j]->create("show");
-        }
-        $data[0]->create("show");
+        return \@data;
     }
 }
 
@@ -796,6 +847,8 @@ package cdmn::term {
         ACTION_SHOW_SIDEBAR     => cdmn::constants::ACTION_SHOW_SIDEBAR,
         ACTION_SHOW_TRANSPARENT => cdmn::constants::ACTION_SHOW_TRANSPARENT,
         ACTION_SHOW_LABELS      => cdmn::constants::ACTION_SHOW_LABELS,
+        ACTION_NEXT_PANE        => cdmn::constants::ACTION_NEXT_PANE,
+        ACTION_PREV_PANE        => cdmn::constants::ACTION_PREV_PANE,
     };
 
     my @terminals;
@@ -842,6 +895,8 @@ package cdmn::term {
         $s->bind_action( 'M-p', 'perl:'.ACTION_SHOW_SIDEBAR );
         $s->bind_action( 'M-o', 'perl:'.ACTION_SHOW_TRANSPARENT );
         $s->bind_action( 'M-l', 'perl:'.ACTION_SHOW_LABELS );
+        $s->bind_action( 'M-k', 'perl:'.ACTION_NEXT_PANE );
+        $s->bind_action( 'M-j', 'perl:'.ACTION_PREV_PANE );
         ();
     }
 
@@ -1246,6 +1301,7 @@ sub redraw {
         ${$item}->create;
         $visible[$key] ? ${$item}->show : ${$item}->hide;
     }
+    #$s->{sidebar}->refresh_pane if $s->{sidebar}{visible};
     $s->{visuals_updater}->start;
 }
 
@@ -1281,11 +1337,11 @@ sub refresh_bounds{
     else {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
-            $h + 4 ) if XR->{caption} eq CAPTION_BLOCK;
+            $h + 4 ) if XR->{visual_alignment} eq CAPTION_BLOCK;
 
     }
     $s->{sidebar}->bounds( $w - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
-    $s->{sidebar}->create_content;
+    #$s->{sidebar}->refresh_pane if $s->{sidebar}{visible};
 
 }
 
@@ -1316,7 +1372,7 @@ sub create_captions {
         }
     };
 
-    for ( XR->{caption} ) {
+    for (XR->{visual_alignment}) {
         $caption = do {
             if ($_ eq CAPTION_BAR) {
                 cdmn::visuals::container->new(
@@ -1373,12 +1429,12 @@ my %user_command;
 #TODO why add 4 to w and h
 $user_command{&ACTION_SHOW} = sub {
     my $s = shift;
-    my ($h, $w, $x, $y) = &calc_bounds($s, XR->{caption});
+    my ($h, $w, $x, $y) = &calc_bounds($s, XR->{visual_alignment});
 
     if ($s->{xterms}{main}{maximized}) {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{caption} eq CAPTION_BAR;
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{visual_alignment} eq CAPTION_BAR;
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
-            $h + 4 ) if XR->{caption} eq CAPTION_BLOCK;
+            $h + 4 ) if XR->{visual_alignment} eq CAPTION_BLOCK;
         $s->{xterms}{main}{maximized} = 0;
         ${$s->{caption}->[0]}->hide;
         $SHOWING = 1;
@@ -1402,7 +1458,7 @@ $user_command{&ACTION_SHOW_TRANSPARENT} = sub {
             $c->show;
             $SHOWING = 1;
             redraw($s, $LABELS_SHOWING);
-            refresh_bounds($s, XR->{caption});
+            refresh_bounds($s, XR->{visual_alignment});
         }
     }
 };
@@ -1411,12 +1467,20 @@ $user_command{&ACTION_SHOW_SIDEBAR} = sub {
     (shift)->{sidebar}->toggle;
 };
 
+$user_command{&ACTION_NEXT_PANE} = sub {
+    (shift)->{sidebar}->next_pane;
+};
+
+$user_command{&ACTION_PREV_PANE} = sub {
+    (shift)->{sidebar}->prev_pane;
+};
+
 $user_command{&ACTION_SHOW_LABELS} = sub {
     if ($SHOWING) {
         my $s = shift;
         $LABELS_SHOWING = !$LABELS_SHOWING;
         redraw($s, $LABELS_SHOWING);
-        refresh_bounds($s, XR->{caption});
+        refresh_bounds($s, XR->{visual_alignment});
     }
 };
 
@@ -1443,7 +1507,7 @@ sub on_refresh_begin {
 
         XR->set_nics;
         redraw($s, $LABELS_SHOWING);
-        refresh_bounds($s, XR->{caption});
+        refresh_bounds($s, XR->{visual_alignment});
         $s->{w_size} = $s->{term}->ncol;
         $s->{y_size} = $s->{term}->nrow;
     }
@@ -1461,7 +1525,7 @@ sub on_refresh_end {
 sub on_configure_notify {
     my $s = shift;
     return if $s->{w_size} eq $s->{term}->ncol && $s->{y_size} eq $s->{term}->nrow;
-    refresh_bounds($s, XR->{caption});
+    refresh_bounds($s, XR->{visual_alignment});
     1;
 }
 
@@ -1525,11 +1589,11 @@ sub on_start {
 
     $st->hide_cursor;
     $s->{sidebar} = cdmn::sidebar->new(term => $st);
-    $s->{sidebar}->create_content;
+
     $s->{sidebar}->hide;
     $s->{xterms}{main}->show;
 
-    #$s->{xterms}{main}->hide if ( XR->{caption} eq CAPTION_BLOCK );
+    #$s->{xterms}{main}->hide if ( XR->{visual_alignment} eq CAPTION_BLOCK );
 
     $s->{w_size} = $s->{term}->ncol;
     $s->{y_size} = $s->{term}->nrow;
@@ -1540,6 +1604,12 @@ sub on_start {
 
     #$s->cmd_parse("\e[2T\e[2B"); #Scroll down and move cursor down 2 line.
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
+
+    #TODO WIP
+    $s->{sidebar}->add_pane($_) foreach keys %{${$s->{caption}[0]}->{gauges}};
+    $s->{sidebar}->add_pane('FS');
+    $s->{sidebar}{active_pane} = 0;
+
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(XR->{refresh})->cb(
         sub {
             return if !$SHOWING;
@@ -1557,6 +1627,7 @@ sub on_start {
                     "rx_bytes", XR->{refresh})}, %{&cdmn::proc::network_usages ("tx_bytes", XR->{refresh})}
             )};
 
+
             local *_set = sub {
                 my $gauge_name = shift;
                 my %inverts = map { $_ => 1 } @{XR->{gauges_invert}};
@@ -1565,15 +1636,18 @@ sub on_start {
                 %r = $usage_of{$gauge_name}->();
 
                 return 1 if scalar keys %r < 1;
-
+                $s->{sidebar}->set_pane($gauge_name, \%r) if $s->{sidebar}{visible};
                 $$_->set( $gauge_name, \%r, $inverts{$gauge_name}) foreach @{ $s->{caption} };
+
                 1;
             };
-
             _set($_) foreach keys %{${$s->{caption}[0]}->{gauges}};
+            my $mounts = cdmn::proc::mounts;
+            %r = map { $_ => df($_)->{per} } (sort values %$mounts );
+            $s->{sidebar}->set_pane('FS', \%r) if $s->{sidebar}{visible};
         }
     );
-    refresh_bounds($s, XR->{caption});
+    refresh_bounds($s, XR->{visual_alignment});
     ();
 }
 

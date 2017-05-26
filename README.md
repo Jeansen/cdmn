@@ -57,25 +57,33 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 | Keysym    | Function  |
 | --------- | --------- |
 | Meta-l    | Show left panel |
-| Meta-o    | Toggle visibility in overlay style |
-| Meta-h    | Toggle visibility in bar style <br> Switch from overlay to bar style |
+| Meta-o    | Show/Hide cpations in overlay mode |
+| Meta-h    | Show/Hide cpations in bar mode <br> Toggle between overlay to bar mode |
+| Meta-p    | Show/Hide sidebar |
+| Meta-k    | Show next pane |
+| Meta-j    | Show previous pane |
 
+Normally the Meta key maps to the ALT key. If the bindings do not work, please check your system mappings.
 
 # How to use cdmn
 *cdmn* offers two visual modes: overlay and bar.
 
-The *overlay* mode simply does what the name already implies. It creates an overlay on top of the current terminal. This style will not interfere with your terminal output. If some text is not visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
+The *overlay* mode simply does what the name already implies. It creates an overlay on top of the current terminal. 
+This mode will not interfere with your terminal output. If some text is not visible, just hide *cdmn* for a moment. 
+This is what the `Meta-o` binding is for. 
 
-On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current typing, then simply use the *bar* mode. In this mode a complete line will be reserved for *cdmn*. You can switch to this mode with `Meta-h`.
+On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current 
+typing, then simply use the *bar* mode. In this mode a complete line or columng (depending on your settings) will be 
+reserved for *cdmn*. You can switch to this mode with `Meta-h`.
 
 Each binding can be used to switch modes or to hide and show cdmn in a given mode. For instance, if you were in 
 overlay mode you could use `Meta-h` to go to bar mode and then use `Meta-h` repeatedly to toggle the visibility of 
 cdmn. Justtry it! It should be fairly intuitive.
 
-Additional information can be accessed with the `Meta-l` binding. At the moment this will only show some simple 
-filesystem information. But there are already plans for more ...
+Additional information can be accessed with the `Meta-p` binding. This will show the sidebar containing multiple 
+panes with more verbose information. Use `Meta-j` and `Meta-k` to navigate between the panes. 
 
-Normally the Meta key maps to the ALT key. If the bindings do not work, please check your system mappings.
+The sidebar is in heavy develpment at the moment. Stay tuned but do not expect too much ;-)
 
 
 # How to compile rxvt-unicode
@@ -142,12 +150,14 @@ Beginning with the layout, you can define the position, order, initial visibilit
 
 
 ## Visual styles
-You can further define the visual representation with the following settings.
+You can further define the visual representation and orientation with the following settings.
 
 | Resource | Function | Default (Other) |
 | --- | --- | --- |
-| `URxvt.cdmn.cpu.temp`, `URxvt.cdmn.temp`, `URxvt.cdmn.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
-| `URxvt.cdmn.style` | Visual representation. | bar (block, led) |
+| `URxvt.cdmn.cpu.temp`<br>`URxvt.cdmn.temp`<br>`URxvt.cdmn.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
+| `URxvt.cdmn.visual.style` | The kind of gauges you prefer. Either a bar that can grow and shrink or simple 
+flashing LED. | bar (led) |
+| `URxvt.cdmn.visual.alignment` | Vertial or horizontal alignment. | row (col) |
 
 
 ## Visual styles - gauges colors
