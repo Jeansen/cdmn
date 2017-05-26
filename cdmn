@@ -1317,8 +1317,7 @@ sub calc_bounds {
     }
     if ($t eq CAPTION_BLOCK) {
         $h = $s->fheight * ( $s->nrow );
-        #$w = $s->width - ${$s->{caption}[0]}->{width};
-        $w = $s->width;
+        $w = $s->width - ${$s->{caption}[0]}->{width};
         $y = 0;
     }
     $x = 0;
