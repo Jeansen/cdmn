@@ -558,39 +558,6 @@ package cdmn::resources {
         $s->{gauges_bg} = looks_like_number($t->x_resource('%.gauges.bg')) || '1';
         $s->{gauges_colors} = looks_like_number($t->x_resource('%.gauges.colors')) || '-2';
 
-        #DEBUG
-        #  $s->{colors_network} = $t->x_resource('%.colors.network') || '0,52,88,124,160,196';
-        #  $s->{colors_disk} = $t->x_resource('%.colors.disk') || '0,17,18,19,20,21';
-        #  $s->{colors_cpu} = $t->x_resource('%.colors.cpu') || '0,22,28,34,40,46';
-        #  $s->{colors_cpu_temp} = $t->x_resource('%.colors.cpu.temp') || '0,94,130,166,172,208';
-        #  $s->{colors_memory} = $t->x_resource('%.colors.memory') || '0,100,184,226,';
-        #  $s->{colors_battery} = $t->x_resource('%.colors.battery') || '0,94,130,166,172,208';
-
-
-        #   #$s->{gauges_invert} = '';
-        #   $s->{cpu_temp} = 'detail';     #simple | detail
-        #   $s->{battery} = 'detail';     #simple | detail
-        $s->{visual_style} = 'led'; #block | led
-        $s->{sensitivity} = 0.1;
-        $s->{refresh} = 0.1;
-        #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
-        $s->{gauges_colors} = '5,52,88,124,160,196';
-        #$s->{gauges_colors} = '246,246,2,4,3,1';
-        #   #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
-        $s->{label_fg} = '5';
-        #   #$s->{label_bg} = '1';
-        #$s->{cpu} = 'detail';     #simple | detail
-        #   $s->{gauges_bg} = '1';    #simple | full
-        #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
-        #$s->{gauges_order} = [ 'CPU', 'DISK', 'MEM', 'BAT' ];
-        $s->{network_rx} = [ ('eth0') ];
-        $s->{network_tx} = [ ('eth0') ];
-
-        #$s->{padding} = 0;
-        $s->{visual_alignment} = 'col';
-        #$s->{y} = 0;
-        #$s->{x} = -1;
-
         $s->set_disks;
         $s->set_batteries;
         $s->set_cores;
