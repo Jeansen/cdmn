@@ -48,6 +48,11 @@ package cdmn::constants {
         CAPTION_SOLID_BAR => 'solid-bar', #TODO remove?
     };
 
+    use constant {
+        STYLE_LED => 'led',
+        STYLE_BAR => 'bar',
+    };
+
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
 }
 
@@ -1102,7 +1107,11 @@ package cdmn::visuals::visual {
     #use constant LED => '⬛';
     use constant LED => '■';
     use constant { TRUE => 1, FALSE => 0 };
-    use constant { ALIGN_ROW => cdmn::constants::ALIGN_ROW, };
+    use constant {
+        ALIGN_ROW => cdmn::constants::ALIGN_ROW,
+        STYLE_BAR => cdmn::constants::STYLE_BAR,
+        STYLE_LED => cdmn::constants::STYLE_LED,
+    };
 
     my $m = 0;
 
@@ -1207,8 +1216,8 @@ package cdmn::visuals::visual {
             $_->hide;
         }
 
-        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq ALIGN_ROW;
-        $s->{gauges}{"$i"}{"$color"}->set( LED ) if $s->{visual_style} eq 'led';
+        $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq STYLE_BAR;
+        $s->{gauges}{"$i"}{"$color"}->set( LED ) if $s->{visual_style} eq STYLE_LED;
         $s->{gauges}{"$i"}{"$color"}->show;
     }
 }
