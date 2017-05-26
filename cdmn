@@ -704,12 +704,19 @@ package cdmn::sidebar {
     sub show_pane{
         my ($s, $title) = (@_);
         return if !$s->{visible};
-        1;
         my $data = $s->{panes}{$title};
         for (my $j = 1; $j < @$data; $j++) {
-            $$data[$j]->create("show");
+            $$data[$j]->show;
         }
-        $$data[0]->create("show");
+    }
+
+    sub hide_pane{
+        my ($s, $title) = (@_);
+        return if !$s->{visible};
+        my $data = $s->{panes}{$title};
+        for (my $j = 1; $j < @$data; $j++) {
+            $$data[$j]->hide;
+        }
     }
 
     sub set_pane {
@@ -723,6 +730,7 @@ package cdmn::sidebar {
     sub next_pane {
         my $s = shift;
         state $i = $s->{active_pane};
+        $s->hide_pane($s->{order}[$i]);
         $i++;
         $i = 0 if $i ge scalar @{$s->{order}};
         $s->{active_pane} = $i;
@@ -732,6 +740,7 @@ package cdmn::sidebar {
     sub prev_pane {
         my $s = shift;
         state $i = $s->{active_pane};
+        $s->hide_pane($s->{order}[$i]);
         $i--;
         $i = scalar @{$s->{order}} - 1 if $i lt 0;
         $s->{active_pane} = $i;
@@ -805,6 +814,10 @@ package cdmn::sidebar {
                     caption   => "■" x $c."□" x $f." ".ceil($args->{$_})."%"
                 );
         }
+        for (my $j = 1; $j < @data; $j++) {
+            $data[$j]->create();
+        }
+        $data[0]->create();
         return \@data;
     }
 }
