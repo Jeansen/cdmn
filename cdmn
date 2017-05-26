@@ -705,7 +705,7 @@ package cdmn::sidebar {
         my ($s, $title) = (@_);
         return if !$s->{visible};
         my $data = $s->{panes}{$title};
-        for (my $j = 1; $j < @$data; $j++) {
+        for (my $j = 0; $j < @$data; $j++) {
             $$data[$j]->show;
         }
     }
@@ -714,7 +714,7 @@ package cdmn::sidebar {
         my ($s, $title) = (@_);
         return if !$s->{visible};
         my $data = $s->{panes}{$title};
-        for (my $j = 1; $j < @$data; $j++) {
+        for (my $j = 0; $j < @$data; $j++) {
             $$data[$j]->hide;
         }
     }
@@ -814,10 +814,9 @@ package cdmn::sidebar {
                     caption   => "■" x $c."□" x $f." ".ceil($args->{$_})."%"
                 );
         }
-        for (my $j = 1; $j < @data; $j++) {
+        for (my $j = 0; $j < @data; $j++) {
             $data[$j]->create();
         }
-        $data[0]->create();
         return \@data;
     }
 }
