@@ -7,12 +7,9 @@
 # cdmn
 *cdmn* (**c**pu, **d**isk, **m**emory, **n**etwork) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources.
 
-Originally I just wanted to have some LED-like indicators but soon decided to make this extension more verbose and 
+Originally I planned to have some LED-like indicators but soon decided to make this extension more verbose and 
 changed the simple LED look to animated bars. With time, increasing knowledge and a lot of trial and error, I 
 continued to optimize the UX and added additional features.
-
-I tried to make the tool as indempotent as possible. But for querying the filesystem I had to resort to an external 
-library. I plan to remove this dependency in the future.
 
 Here's a screenshot of what it looks like:
 
@@ -34,7 +31,7 @@ Install needed Perl libraries: `sudo apt-get install libfilesys-df-perl libparam
 
 Then clone this repository to a place of your liking and set the resource `URxvt*perl-lib`.
 
-For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<USERNAME>/.urxvt/` and 
+For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<YOUR_USERNAME_HERE>/.urxvt/` and 
 load the changes with `xrdb -load ~/.Xresources`.
 
 Then create the folder `mkdir ~/.urxvt` and put a symlink in it `ln -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
@@ -50,7 +47,7 @@ Wireless is a bit of a speciality because there is no constant maximal rx/tx spe
 and not available via *sysfs* or *procfs*. Therefore cdmn uses `iwconfig` as part of its calculation. 
 Unfortunately this requires root privileges. To make thinks work, put the following in `/et/sudoers`:
 
-    <username> ALL = NOPASSWD: /sbin/iwconfig
+    <your username here> ALL = NOPASSWD: /sbin/iwconfig
     
 
 # Default keysyms
@@ -66,19 +63,18 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 Normally the Meta key maps to the ALT key. If the bindings do not work, please check your system mappings.
 
 # How to use cdmn
-*cdmn* offers two visual modes: overlay and bar.
+*cdmn* offers two visual modes: overlay and normal.
 
 The *overlay* mode simply does what the name already implies. It creates an overlay on top of the current terminal. 
-This mode will not interfere with your terminal output. If some text is not visible, just hide *cdmn* for a moment. 
-This is what the `Meta-o` binding is for. 
+If some text is not visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
 
 On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current 
-typing, then simply use the *bar* mode. In this mode a complete line or columng (depending on your settings) will be 
+typing, then simply use the *normal* mode. In this mode a complete line or column (depending on your settings) will be 
 reserved for *cdmn*. You can switch to this mode with `Meta-h`.
 
-Each binding can be used to switch modes or to hide and show cdmn in a given mode. For instance, if you were in 
-overlay mode you could use `Meta-h` to go to bar mode and then use `Meta-h` repeatedly to toggle the visibility of 
-cdmn. Justtry it! It should be fairly intuitive.
+Each binding can be used to switch modes or to hide and show *cdmn* in a given mode. For instance, if you are in 
+overlay mode you can use `Meta-h` to go to normal mode and then use `Meta-h` repeatedly to toggle the visibility of 
+*cdmn*. Just try it! It should be fairly intuitive.
 
 Additional information can be accessed with the `Meta-p` binding. This will show the sidebar containing multiple 
 panes with more verbose information. Use `Meta-j` and `Meta-k` to navigate between the panes. 
@@ -86,31 +82,12 @@ panes with more verbose information. Use `Meta-j` and `Meta-k` to navigate betwe
 The sidebar is in heavy develpment at the moment. Stay tuned but do not expect too much ;-)
 
 
-# How to compile rxvt-unicode
-It might happen that your distribution does not offer version 9.22 of rxvt, even not via backports or other repositories. In this case you can still compile rxvt yourself. I recommend to first install the available version of your distribution anyway to pull in all its dependencies. Then uninstall it directly afterwards (but keep the dependencies). Now you can build rxvt yourself. This should take less than 5 minutes. Here is what you need to do on Debian:
-
-- First you will need to install some development packages to compile rxvt with all the necessary features.
- 
-        sudo apt-get install libxft-dev libperl-dev checkinstall
-
-- Get the source from [http://dist.schmorp.de/rxvt-unicode/](http://dist.schmorp.de/rxvt-unicode/) and extract it to a 
-place of your liking. Navigate into the just extracted folder and run the following commands:
-
-        patch /path/to/cdmn/resources/rxvtperl.xs.path src/rxvtperl.xs
-        ./configure --enable-everything --enable-256-color
-        make
-        sudo checkinstall
-    
-After that a package with the name `rxvt-unicode` will be installed and you should be able to call `urxvt`.
-    
-
 # How to customize cdmn (so far)
 Here are some settings, that already work with more to come:
 
 
 ## Labels
-Labels can be defined with the following resource settings. Each label defines the text you would like to see next to 
-the corresponding gauges:
+Labels can be defined with the following resources. Each label defines the text you would like to see next to the corresponding gauges:
 
 | Resource | Default |
 | --- | --- |
@@ -136,8 +113,9 @@ Want to know what colors have which number? Try this one-liner in your terminal 
 
     for i in {0..255}; do echo -e "\e[38;05;${i}m${i}"; done | column -c 80 -s ' '; echo -e "\e[m"
 
+
 ## Layout
-Beginning with the layout, you can define the position, order, initial visibility and more with the following settings.
+Starting with the layout, you can define the position, order, initial visibility and more with the following resources.
 
 | Resource | Function | Default |
 | --- | --- | --- |
@@ -148,6 +126,12 @@ Beginning with the layout, you can define the position, order, initial visibilit
 | `URxvt.cdmn.showing` | Initially show gauges. | 1 |
 | `URxvt.cdmn.showing.labels` | Initially show labels. | 1 |
 
+More fine-grained settings are possible with the following resources:
+
+| Resource | Function | Default |
+| --- | --- | --- |
+| `URxvt.cdmn.gauges.disks`<br>`URxvt.cdmn.gauges.batteries`<br>`URxvt.cdmn.gauges.cores`<br>`URxvt.cdmn.network.rx`<br> `URxvt.cdmn.network.tx` | List of device names to show gauges for. | not set |
+
 
 ## Visual styles
 You can further define the visual representation and orientation with the following settings.
@@ -155,8 +139,7 @@ You can further define the visual representation and orientation with the follow
 | Resource | Function | Default (Other) |
 | --- | --- | --- |
 | `URxvt.cdmn.cpu.temp`<br>`URxvt.cdmn.temp`<br>`URxvt.cdmn.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
-| `URxvt.cdmn.visual.style` | The kind of gauges you prefer. Either a bar that can grow and shrink or simple 
-flashing LED. | bar (led) |
+| `URxvt.cdmn.visual.style` | The kind of gauges you prefer. Either a bar that can grow and shrink or simple flashing LED. | bar (led) |
 | `URxvt.cdmn.visual.alignment` | Vertial or horizontal alignment. | row (col) |
 
 
@@ -178,10 +161,10 @@ You can also set (and overwrite) colors individually for each gauge with the fol
 
 ## Visual styles - refresh rate and sensitivity
 Even further tweaking is possible with options such as the refresh rate and sensitivity. The refresh rate is simply 
-the time in seconds when all gauges should be updated or how fast the LED should blink. The sensitivity on the
- other hand defines the threshold when to first indicate any change, at all.
+the time in seconds when all gauges should be updated. The sensitivity on the other hand defines the threshold when to 
+first indicate any change.
  
-Here is an example. Say we have the following settings excerpt:
+Here is an example. Say we have the following resources excerpt:
     
     URxvt.cdmn.gauges.order: CPU 
     URxvt.cdmn.gauges.colors: 0,52,88,124,160,196
@@ -196,22 +179,21 @@ increase), which flashes (updates) every second but only if there is at least 1%
 
 
 ## Visual styles - invert
-It might be of interest to revert some colors, especially when you are interested in how much energy is left when on 
+It might be of interest to revert some colors, e.g. when you are interested in how much energy is left when running on 
 battery power. But of course this is open for debate ;-) Anyway, you cant set `URxvt.cdmn.gauges.invert` to a list 
 of labels for which gauges should use inverted colors. BAT ist inverted be default.
 
 
 ## Miscellaneous settings
-Finally there are some settings that allow you to further tweak cdmn.
+Finally there are even more settings ...
 
 | Resource | Function | Default (Other) |
 | --- | --- | --- |
 | `URxvt.cdmn.disk.mounts` | Only show disk gauges for disks with at least one mount point. | 0 (1) |
 
 
-## Resource Settings
-
-In addition you should set scrollbars to be invisible, activate 32bit colors and make the background black. Here is 
+## Resource Settings for rxvt
+For this extension to work properly, you will have to set scrollbars to be invisible, activate 32bit colors and make the background black. Here is 
 an suggestion of the minimal settings necessary. 
 
     URxvt*scrollBar:        false
@@ -219,24 +201,50 @@ an suggestion of the minimal settings necessary.
     URxvt*depth:            32
     URxvt*perl-lib:         /home/<USERNAME>/.urxvt/
     
-There is an initial .Xresouces file in de resources folder with some minimal necessary settings, including some 
+There is an initial .Xresouces file inthde resources folder with some minimal necessary settings, including some 
 color overwrites to make it look like the example screenshots. Make sure you adapt the line `URxvt*perl-lib: 
 /home/<USERNAME>/.urxvt/` accordingly.
  
- 
+# Context awareness
+*cdmn* tries hard to watch for any changes. For instance, if you remove your laptop from any power supply, *cdmn* 
+will be aware of this change and render the label next to your battery gauge(s) differently by removing the 
+flash symbol.
+
+If you do not overwrite the default settings, *cdmn* will show you everything available and all changes it becomes 
+aware of. On the other hand, if you do define some overwrites *cdmn* will show you only those. If a specified device 
+is not available, it will be simply ignored until it is available. 
+
+
 # Some words about robustness
 With reference to the [robustness principle](https://en.wikipedia.org/wiki/Robustness_principle) cdmn will silently 
 ignore incompatible or invalid values or configurations and apply defaults where applicable.
  
 In addition, if you do not tell cdmn anything it will assume everything. This is also true if only invalid 
 values have been supplied for any resource. Say you want to view gauges for eth0 and eth1 but actually the interface 
-names are enp3s0 und enp3s1. After validation this would result in an empty list which to cdmn is the same as if this
- resource had not been configured. Therefore cdmn would fall back to its default setting: to show all there is.
+names are enp3s0 und enp3s1. After validation this would result in an empty list which to *cdmn* is the same as if this
+resource had not been configured. Therefore *cdmn* would fall back to its default setting: and show everything there is.
 
-On the other hand, cdmn will not show anything where nothing is to be shown. For example, if you tell cdmn to show 
+On the other hand, *cdmn* will not show anything where nothing is to be shown. For example, if you tell *cdmn* to show 
 network gauges but your network cable is not plugged in, gauges for this interface will not be shown. If all 
 interfaces are down the network caption will not show up, at all.
 
+
+# How to compile rxvt-unicode
+It might happen that your distribution does not offer version 9.22 of rxvt, even not via backports or other repositories. In this case you can still compile rxvt yourself. I recommend to first install the available version of your distribution anyway to pull in all its dependencies. Then uninstall it directly afterwards (but keep the dependencies). Now you can build rxvt yourself. This should take less than 5 minutes. Here is what you need to do on Debian:
+
+- First you will need to install some development packages to compile rxvt with all the necessary features.
+ 
+        sudo apt-get install libxft-dev libperl-dev checkinstall
+
+- Get the source from [http://dist.schmorp.de/rxvt-unicode/](http://dist.schmorp.de/rxvt-unicode/) and extract it to a 
+place of your liking. Navigate into the just extracted folder and run the following commands:
+
+        patch /path/to/cdmn/resources/rxvtperl.xs.path src/rxvtperl.xs
+        ./configure --enable-everything --enable-256-color
+        make
+        sudo checkinstall
+    
+After that a package with the name `rxvt-unicode` will be installed and you should be able to call `urxvt`.
 
 # Please note
 This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). 
