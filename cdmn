@@ -22,6 +22,7 @@
 use 5.10.1;
 use strict;
 use warnings FATAL => 'all';
+use diagnostics;
 use utf8;
 use autodie;
 
@@ -71,6 +72,7 @@ use constant {
 
 package cdmn::proc {
     use List::Util qw(sum max min);
+    use Params::Validate qw(:all);
 
     use constant {
         PARTITIONS  => '/proc/partitions',
@@ -96,6 +98,13 @@ package cdmn::proc {
         SYSFS_NET   => '/sys/class/net/',
         SYSFS_BAT   => '/sys/class/power_supply/',
         SYSFS_BLOCK => '/sys/block/',
+    };
+
+    use constant {
+        POSTFIX_TX    => '_tx',
+        POSTFIX_RX    => '_rx',
+        POSTFIX_READ  => '_read',
+        POSTFIX_WRITE => '_write',
     };
 
     #TODO sometimes no results are given - check
@@ -365,9 +374,12 @@ package cdmn::proc {
 
     #p1 = refresh in seconds, e.g. 1, 0.1
     sub disk_usages {
-        state %sda;
-        my $diff_usage;
-        my %results;
+        my %diff_usage;
+        state (%results, $n_stat, $o_stat);
+        state $t = urxvt::NOW- 1;
+        my $ct = urxvt::NOW;
+        my $refresh = $ct - $t;
+        $t = $ct;
 
         open( my $f, '<', DISKSTATS );
         while (<$f>) {
@@ -375,17 +387,33 @@ package cdmn::proc {
                 next;
             }
             my @sda = split /\s+/, $_;
-            shift @sda;
-            shift @sda;
-            shift @sda;
+            shift @sda for 1 .. 3;
 
-            $sda{ $sda[0] } = $sda{ $sda[0] } // 0;
+            my $name = shift @sda;
+            my $stats;
 
-            my $diff_sda = $sda[10] - $sda{ $sda[0] };
-            $diff_usage = $diff_sda / (1000 * $_[0]) * 100;
+            @$stats{qw/r_ios r_merged r_sectors r_time w_ios w_merged w_sectors w_time in_progress io_time weighted/} = (@sda);
+            $o_stat->{$name} = $stats if !defined $o_stat->{$name};
+            $n_stat->{$name} = $stats if !defined $n_stat->{$name};
 
-            $sda{ $sda[0] }     = $sda[10];
-            $results{ $sda[0] } = $diff_usage <= 100 ? $diff_usage : 100;
+            $o_stat->{$name} = $n_stat->{$name};
+            $n_stat->{$name} = $stats;
+
+            $diff_usage{$_} = $n_stat->{$name}->{$_} - $o_stat->{$name}->{$_} foreach (keys %$stats);
+
+            $diff_usage{io_time} = $diff_usage{io_time} / (1000 * $refresh) * 100;
+            $diff_usage{io_time} = 100 if $diff_usage{io_time} > 100;
+
+            my $w = 0;
+            $w = $diff_usage{'w_ios'} / $diff_usage{'r_ios'} if $diff_usage{'r_ios'} > 0;
+            my $r = $w < 1 ? 1 - $w : 1 - 1 / $w;
+
+            $r *= $diff_usage{io_time};
+            $w *= $diff_usage{io_time};
+
+            $results{ $name } = $diff_usage{io_time};
+            $results{ $name.POSTFIX_READ } = $r;
+            $results{ $name.POSTFIX_WRITE } = $w;
         }
         return \%results;
     }
@@ -414,18 +442,17 @@ package cdmn::proc {
 
     #p1 = refresh in seconds, e.g. 1, 0.1
     sub network_usages {
-        my $direction = shift;
-
         my %results;
         my $bytes = 0;
         state %nics;
+        state $t = urxvt::NOW- 1;
+        my $ct = urxvt::NOW;
+        my $refresh = $ct - $t;
+        $t = $ct;
 
-        for (@{&if_list}) {
-            my $nic = $_;
-            if (!defined $nics{$nic}) {
-                $nics{$nic}{$_} = 0 for (RX, TX);
-            }
-
+        local *_set = sub {
+            my $nic = shift;
+            my $direction = shift;
             open( my $f, '<', sysfs_net($nic, $direction) );
             {
                 local $/;
@@ -434,8 +461,18 @@ package cdmn::proc {
 
             my $diff_rx = $bytes - $nics{$nic}{$direction};
             $nics{$nic}{$direction} = $bytes;
-            my $diff_usage = $diff_rx / (&nic_speed_bytes($nic) * $_[0]) * 100;
-            $results{ $nic.( $direction eq RX ? '_rx' : '_tx' ) } = $diff_usage;
+            my $diff_usage = $diff_rx / (&nic_speed_bytes($nic) * $refresh) * 100;
+            $results{ $nic.( $direction eq RX ? POSTFIX_RX : POSTFIX_TX ) } = $diff_usage;
+        };
+
+        for (@{&if_list}) {
+            my $nic = $_;
+            if (!defined $nics{$nic}) {
+                $nics{$nic}{$_} = 0 for (RX, TX);
+            }
+            _set($nic, RX);
+            _set($nic, TX);
+
         }
         return \%results;
     }
@@ -474,6 +511,17 @@ package cdmn::proc {
         $speed *= 1000000 / 8;
         return $speed;
     }
+
+    sub needs_refresh {
+        my $r = shift;
+        state $t = 0;
+        my $ct = urxvt::NOW;
+
+        return 0 if ($ct - $t) < $r;
+        $t = $ct;
+        1;
+
+    }
 }
 
 
@@ -488,10 +536,17 @@ package cdmn::resources {
             visual_alignment caption_bg
             label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp label_bg label_fg
             gauges  gauges_disks  gauges_nics gauges_batteries gauges_order gauges_bg gauges_cores gauges_colors gauges_invert
-            actions network_tx network_rx
+            actions network_tx network_rx disks_read disks_write
             cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
             colors_network colors_disk colors_cpu colors_cpu_temp colors_memory colors_battery
         );
+
+    use constant {
+        POSTFIX_TX    => '_tx',
+        POSTFIX_RX    => '_rx',
+        POSTFIX_READ  => '_read',
+        POSTFIX_WRITE => '_write',
+    };
 
     sub new {
         my $s = shift;
@@ -547,13 +602,10 @@ package cdmn::resources {
         $s->{sensitivity} = looks_like_number($t->x_resource('%.sensitivity')) || 1; #percentage
         $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar'; #bar | led
 
-        $notset{gauges_disks} = $s->{gauges_disks} ? 0 : 1;
-        $notset{network_rx} = $s->{network_rx} ? 0 : 1;
-        $notset{network_tx} = $s->{network_tx} ? 0 : 1;
-        $notset{gauges_cores} = $s->{gauges_cores} ? 0 : 1;
-
         $s->{gauges_order} = _set('%.gauges.order');
         $s->{gauges_disks} = _set('%.gauges.disks');
+        $s->{disks_read} = _set('%.gauges.disks.read');
+        $s->{disks_write} = _set('%.gauges.disks.write');
         $s->{gauges_batteries} = _set('%.gauges.batteries');
         $s->{gauges_cores} = _set('%.gauges.cores');
         $s->{network_rx} = _set('%.network.rx');
@@ -562,6 +614,39 @@ package cdmn::resources {
 
         $s->{gauges_bg} = looks_like_number($t->x_resource('%.gauges.bg')) || '1';
         $s->{gauges_colors} = looks_like_number($t->x_resource('%.gauges.colors')) || '-2';
+
+        $notset{gauges_disks} = $s->{gauges_disks} ? 0 : 1;
+        $notset{network_rx} = $s->{network_rx} ? 0 : 1;
+        $notset{network_tx} = $s->{network_tx} ? 0 : 1;
+        $notset{gauges_cores} = $s->{gauges_cores} ? 0 : 1;
+
+        #DEBUG
+        #   #$s->{gauges_invert} = '';
+        #   $s->{cpu_temp} = 'detail';     #simple | detail
+        #   $s->{battery} = 'detail';     #simple | detail
+        $s->{cpu} = 'detail';     #simple | detail
+        $s->{visual_style} = 'bar'; #bar | led
+        $s->{sensitivity} = 0.1;
+        $s->{refresh} = 1;
+        #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
+        #$s->{gauges_colors} = '5,52,88,124,160,196';
+        $s->{gauges_colors} = '246,246,2,4,3,1';
+        #   #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
+        $s->{label_fg} = '5';
+        #   #$s->{label_bg} = '1';
+        #$s->{cpu} = 'detail';     #simple | detail
+        #   $s->{gauges_bg} = '1';    #simple | full
+        #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
+        $s->{gauges_order} = [ 'CPU', 'DISK', 'MEM', 'NET', 'BAT' ];
+        #$s->{network_rx} = [ 'eth0' ];
+        #$s->{network_tx} = [ 'eth0' ];
+        $s->{disks_read} = [ 'sda' ];
+        $s->{disks_write} = [ 'sda' ];
+
+        #$s->{padding} = 0;
+        #$s->{visual_alignment} = 'col';
+        #$s->{y} = 0;
+        #$s->{x} = -1;
 
         $s->set_disks;
         $s->set_batteries;
@@ -601,13 +686,13 @@ package cdmn::resources {
         my $ov = $s->{gauges_nics} ? scalar @{$s->{gauges_nics}} : 0;
 
         my $rx_tx = &cut_set($s->{network_tx}, $nics_active);
-        my @tx = map {$_."_tx"} @$rx_tx;
+        my @tx = map {$_.POSTFIX_TX} @$rx_tx;
 
         $rx_tx = &cut_set($s->{network_rx}, $nics_active);
-        my @rx = map {$_."_rx"} @$rx_tx;
+        my @rx = map {$_.POSTFIX_RX} @$rx_tx;
 
         if ((scalar @tx eq 0 and scalar @rx eq 0) || ($notset{network_rx} && $notset{network_tx})) {
-            $s->{gauges_nics} = [ map {$_."_rx", $_."_tx"} @$nics_active ];
+            $s->{gauges_nics} = [ map {$_.POSTFIX_RX, $_.POSTFIX_TX} @$nics_active ];
         } else {
             $s->{gauges_nics} = [ @rx, @tx ];
         }
@@ -620,8 +705,20 @@ package cdmn::resources {
 
         $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{gauges_disks}) : cut_set (
                 cdmn::proc::disks, $s->{gauges_disks});
+
         $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks if scalar
             @{$s->{gauges_disks}} eq 0 || $notset{gauges_disks};
+
+        my $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_read}) : cut_set (
+                cdmn::proc::disks, $s->{disks_read});
+        my @r = map {$_.POSTFIX_READ} @$rw;
+
+        $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_write}) : cut_set (
+                cdmn::proc::disks, $s->{disks_write});
+        my @w = map {$_.POSTFIX_WRITE} @$rw;
+
+        push @{$s->{gauges_disks}}, (@r, @w);
+
         $ov != scalar @{$s->{gauges_disks}} ? 1 : 0;
     }
 
@@ -1392,11 +1489,10 @@ sub create_captions {
 
     state $cpus = cdmn::proc::cpu_count() - 1;
 
-
     my %args;
     $args{cores} = (XR->{cpu_temp} eq 'simple' ? [ "simple" ] : XR->{gauges_cores}) if @{XR->{gauges_cores}} > 0;
     $args{cpu} = XR->{cpu} eq 'simple' ? [ "simple" ] : [ map "cpu".$_, 0 .. $cpus ];
-    $args{disk} = XR->{gauges_disks} if @{XR->{gauges_disks}} > 0;
+    $args{disk} = XR->{gauges_disks} if @{XR->{gauges_disks}} > 0 || @{XR->{disks_write}} > 0 || @{XR->{disks_read}} > 0;
     $args{memory} = [ "MemAvailable:" ];
     $args{network} = XR->{gauges_nics} if @{XR->{gauges_nics}} > 0;
     $args{battery} = (XR->{battery} eq 'simple' ? [ "simple" ] : XR->{gauges_batteries}) if XR->{gauges_batteries} > 0;
@@ -1609,10 +1705,8 @@ sub on_start {
             $usage_of{memory} = sub {%{&cdmn::proc::memory_usages}};
             $usage_of{cores} = sub {%{&cdmn::proc::cpu_temp_usages}};
             $usage_of{battery} = sub {%{&cdmn::proc::battery_usages}};
-            $usage_of{disk} = sub {%{&cdmn::proc::disk_usages(XR->{refresh})}};
-            $usage_of{network} = sub {(%{ &cdmn::proc::network_usages(
-                    "rx_bytes", XR->{refresh})}, %{&cdmn::proc::network_usages ("tx_bytes", XR->{refresh})}
-            )};
+            $usage_of{disk} = sub {%{&cdmn::proc::disk_usages}};
+            $usage_of{network} = sub {%{&cdmn::proc::network_usages}};
 
 
             local *_set = sub {
