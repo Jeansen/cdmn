@@ -372,7 +372,6 @@ package cdmn::proc {
         }
     }
 
-    #p1 = refresh in seconds, e.g. 1, 0.1
     sub disk_usages {
         my %diff_usage;
         state (%results, $n_stat, $o_stat);
@@ -440,7 +439,6 @@ package cdmn::proc {
         return \%results;
     }
 
-    #p1 = refresh in seconds, e.g. 1, 0.1
     sub network_usages {
         my %results;
         my $bytes = 0;
@@ -539,6 +537,9 @@ package cdmn::resources {
             actions network_tx network_rx disks_read disks_write
             cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
             colors_network colors_disk colors_cpu colors_cpu_temp colors_memory colors_battery
+            sidebar_colors_header_fg sidebar_colors_header_bg sidebar_colors_fg sidebar_colors_bg sidebar_colors_boarder_fg
+            sidebar_colors_boarder_bg
+
         );
 
     use constant {
@@ -568,8 +569,8 @@ package cdmn::resources {
     sub init {
 
         local *_set = sub {
-            $t->x_resource("%.$_[0]") ? [ split( /[,[:space:]]/, $t->x_resource("%.$_[0]") ) ] : $_[1] ? [ split(
-                    /[,[:space:]]/, $_[1]) ]                                                           : [ () ];
+            $t->x_resource("%.$_[0]") ? [ split(/[,[:space:]]/, $t->x_resource("%.$_[0]") ) ]
+                                      : $_[1] ? [ split(/[,[:space:]]/, $_[1]) ] : [ () ];
         };
 
         my $s = shift;
@@ -612,8 +613,15 @@ package cdmn::resources {
         $s->{network_tx} = _set('%.network.tx');
         $s->{gauges_invert} = _set('%.gauges.invert', 'BAT');
 
-        $s->{gauges_bg} = looks_like_number($t->x_resource('%.gauges.bg')) || '1';
+        $s->{gauges_bg} = looks_like_number($t->x_resource('%.gauges.bg')) || '-1';
         $s->{gauges_colors} = looks_like_number($t->x_resource('%.gauges.colors')) || '-2';
+
+        $s->{sidebar_colors_header_fg} = looks_like_number($t->x_resource('%.sidebar.colors.header.fg')) || '-2';
+        $s->{sidebar_colors_header_bg} = looks_like_number($t->x_resource('%.sidebar.colors.header.bg')) || '-1';
+        $s->{sidebar_colors_fg} = looks_like_number($t->x_resource('%.sidebar.colors.fg')) || '-2';
+        $s->{sidebar_colors_bg} = looks_like_number($t->x_resource('%.sidebar.colors.bg')) || '-1';
+        $s->{sidebar_colors_boarder_fg} = looks_like_number($t->x_resource('%.sidebar.colors.boarder.fg')) || '-2';
+        $s->{sidebar_colors_boarder_bg} = looks_like_number($t->x_resource('%.sidebar.colors.boarder.bg')) || '-1';
 
         $notset{gauges_disks} = $s->{gauges_disks} ? 0 : 1;
         $notset{network_rx} = $s->{network_rx} ? 0 : 1;
@@ -630,6 +638,7 @@ package cdmn::resources {
         $s->{refresh} = 1;
         #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
         #$s->{gauges_colors} = '5,52,88,124,160,196';
+        $s->{gauges_bg} = 1;
         $s->{gauges_colors} = '246,246,2,4,3,1';
         #   #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
         $s->{label_fg} = '5';
@@ -642,6 +651,13 @@ package cdmn::resources {
         #$s->{network_tx} = [ 'eth0' ];
         $s->{disks_read} = [ 'sda' ];
         $s->{disks_write} = [ 'sda' ];
+
+        $s->{sidebar_colors_header_fg} = 250;
+        $s->{sidebar_colors_header_bg} = 1;
+        $s->{sidebar_colors_fg} = 250;
+        $s->{sidebar_colors_bg} = 1;
+        $s->{sidebar_colors_boarder_fg} = 240;
+        $s->{sidebar_colors_boarder_bg} = 1;
 
         #$s->{padding} = 0;
         #$s->{visual_alignment} = 'col';
@@ -703,18 +719,18 @@ package cdmn::resources {
         my $s = shift;
         my $ov = $s->{gauges_disks} ? scalar @{$s->{gauges_disks}} : 0;
 
-        $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{gauges_disks}) : cut_set (
-                cdmn::proc::disks, $s->{gauges_disks});
+        $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{gauges_disks})
+                                               : cut_set (cdmn::proc::disks, $s->{gauges_disks});
 
-        $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks if scalar
-            @{$s->{gauges_disks}} eq 0 || $notset{gauges_disks};
+        $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts
+                                               : cdmn::proc::disks if scalar@{$s->{gauges_disks}} eq 0 || $notset{gauges_disks};
 
-        my $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_read}) : cut_set (
-                cdmn::proc::disks, $s->{disks_read});
+        my $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_read})
+                                   : cut_set (cdmn::proc::disks, $s->{disks_read});
         my @r = map {$_.POSTFIX_READ} @$rw;
 
-        $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_write}) : cut_set (
-                cdmn::proc::disks, $s->{disks_write});
+        $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_write})
+                                : cut_set (cdmn::proc::disks, $s->{disks_write});
         my @w = map {$_.POSTFIX_WRITE} @$rw;
 
         push @{$s->{gauges_disks}}, (@r, @w);
@@ -758,13 +774,23 @@ package cdmn::sidebar {
         REND => cdmn::constants::REND,
     };
 
-    use fields qw(term width panes data active_pane visible order);
+    use fields qw(term width panes data active_pane visible order bg fg bg_header fg_header bg_boarder fg_boarder);
 
     sub new {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = validate( @_, { term => 1, width => { default => 32 }, visible => { default => 0 } } );
+        (%$s) = validate( @_, {
+                term       => 1,
+                width      => { default => 32 },
+                visible    => { default => 0 },
+                bg         => 1,
+                fg         => 1,
+                bg_header  => 1,
+                fg_header  => 1,
+                bg_boarder => 1,
+                fg_boarder => 1,
+            } );
         $s->{data} = ();
         $s->{order} = ();
 
@@ -857,7 +883,7 @@ package cdmn::sidebar {
         my $s = shift;
         my $title = shift;
         my $args = shift;
-        my $r = urxvt::SET_FGCOLOR REND, 240;         #TODO remove magic number/hard-coded value
+        my $r = urxvt::SET_FGCOLOR REND, $s->{fg_boarder};
 
         #border
         $data[0] = cdmn::visuals::overlay->new(
@@ -870,7 +896,7 @@ package cdmn::sidebar {
             caption   => "│"
         );
 
-        $r = urxvt::SET_FGCOLOR REND, 250;            #TODO remove magic number/hard-coded value
+        $r = urxvt::SET_FGCOLOR REND, $s->{fg_header};
         $r = $r | urxvt::RS_Uline;
 
         my $i = 1;
@@ -885,7 +911,7 @@ package cdmn::sidebar {
                 caption   => $title
             );
 
-        $r = urxvt::SET_FGCOLOR REND, 250;
+        $r = urxvt::SET_FGCOLOR REND, $s->{fg};
         for (sort keys %$args) {
 
             $i++;
@@ -1671,7 +1697,15 @@ sub on_start {
     );
 
     $st->hide_cursor;
-    $s->{sidebar} = cdmn::sidebar->new(term => $st);
+    $s->{sidebar} = cdmn::sidebar->new(
+        term       => $st,
+        fg         => XR->{sidebar_colors_fg},
+        bg         => XR->{sidebar_colors_bg},
+        bg_header  => XR->{sidebar_colors_header_bg},
+        fg_header  => XR->{sidebar_colors_header_fg},
+        fg_boarder => XR->{sidebar_colors_boarder_fg},
+        bg_boarder => XR->{sidebar_colors_boarder_bg},
+    );
 
     $s->{sidebar}->hide;
     $s->{xterms}{main}->show;
