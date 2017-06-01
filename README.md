@@ -102,6 +102,9 @@ In addition you can set colors for different parts. All colors default to the te
 (-1). Normally you will not need to use these values. After all, they are the defaults. But you might want to 
 use any number between 0 and 255.
 
+
+
+
 | Resource | Function | Default |
 | --- | --- | --- |
 | `URxvt.cdmn.label.fg` | Foreground color for all labels. | -2 |
@@ -130,7 +133,14 @@ More fine-grained settings are possible with the following resources:
 
 | Resource | Function | Default |
 | --- | --- | --- |
-| `URxvt.cdmn.gauges.disks`<br>`URxvt.cdmn.gauges.batteries`<br>`URxvt.cdmn.gauges.cores`<br>`URxvt.cdmn.network.rx`<br> `URxvt.cdmn.network.tx` | List of device names to show gauges for. | not set |
+| `URxvt.cdmn.gauges.disks`<br>`URxvt.cdmn.disk.read`<br>`URxvt.cdmn.disk.write`<br>`URxvt.cdmn.gauges.batteries`<br>`URxvt.cdmn.gauges.cores`<br>`URxvt.cdmn.network.rx`<br>`URxvt.cdmn.network.tx`<br> | List of device names to show gauges for. | not set |
+
+By default if you do not specify anything *cdmn* will assume you would like to see everything. That is, if you do specify valid values for `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx` then you will only see what you specified.
+  
+The only exceptions to this rule are `URxvt.cdmn.disk.read` and `URxvt.cdmn.disk.write`. These act as an addition to `URxvt.cdmn.gauges.disks` and allow you to define for which disks you would like to see additional read and/or write utilization. Of course you could leave out `URxvt.cdmn.gauges.disks` and only provide values for disks you would like to monitor in detail.
+  
+Also note, that the additinal gauges are divisions of `URxvt.cdmn.disk.read`. If you were to set all three settings to a value of `sda` and copied a large file from one folder to another on the same disk (sda), you would see three gauges. one with about 100 percent for the the combinded read and write utilization and two others with about 50 percent each because half of the time was spent reading in data and the other half of the time was spent writing data.
+
 
 
 ## Visual styles
@@ -138,7 +148,7 @@ You can further define the visual representation and orientation with the follow
 
 | Resource | Function | Default (Other) |
 | --- | --- | --- |
-| `URxvt.cdmn.cpu.temp`<br>`URxvt.cdmn.temp`<br>`URxvt.cdmn.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
+| `URxvt.cdmn.cpu`<br>`URxvt.cdmn.cpu.temp`<br>`URxvt.cdmn.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
 | `URxvt.cdmn.visual.style` | The kind of gauges you prefer. Either a bar that can grow and shrink or simple flashing LED. | bar (led) |
 | `URxvt.cdmn.visual.alignment` | Vertial or horizontal alignment. | row (col) |
 
@@ -239,7 +249,7 @@ It might happen that your distribution does not offer version 9.22 of rxvt, even
 - Get the source from [http://dist.schmorp.de/rxvt-unicode/](http://dist.schmorp.de/rxvt-unicode/) and extract it to a 
 place of your liking. Navigate into the just extracted folder and run the following commands:
 
-        patch /path/to/cdmn/resources/rxvtperl.xs.path src/rxvtperl.xs
+        patch src/rxvtperl.xs /path/to/cdmn/resources/rxvtperl.xs.path 
         ./configure --enable-everything --enable-256-color
         make
         sudo checkinstall
