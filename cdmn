@@ -29,6 +29,7 @@ use autodie;
 use Filesys::Df;
 binmode STDOUT, ":encoding(UTF-8)";
 
+
 my $SHOWING;
 my $LABELS_SHOWING;
 
@@ -530,17 +531,18 @@ package cdmn::resources {
     my %notset;
     use fields qw(
         x  y  padding
-            showing  showing_labels  showing_background
-            visual_alignment caption_bg
-            label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp label_bg label_fg
-            gauges  gauges_disks  gauges_nics gauges_batteries gauges_order gauges_bg gauges_cores gauges_colors gauges_invert
-            actions network_tx network_rx disks_read disks_write
-            cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
-            colors_network colors_disk colors_cpu colors_cpu_temp colors_memory colors_battery
-            sidebar_colors_header_fg sidebar_colors_header_bg sidebar_colors_fg sidebar_colors_bg sidebar_colors_boarder_fg
-            sidebar_colors_boarder_bg
+        showing  showing_labels  showing_background
+        visual_alignment caption_bg
+        label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp label_bg label_fg
+        label_position
+        gauges  gauges_disks  gauges_nics gauges_batteries gauges_order gauges_bg gauges_cores gauges_colors gauges_invert
+        actions network_tx network_rx disks_read disks_write
+        cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
+        colors_network colors_disk colors_cpu colors_cpu_temp colors_memory colors_battery
+        sidebar_colors_header_fg sidebar_colors_header_bg sidebar_colors_fg sidebar_colors_bg sidebar_colors_boarder_fg
+        sidebar_colors_boarder_bg
 
-        );
+    );
 
     use constant {
         POSTFIX_TX    => '_tx',
@@ -584,6 +586,7 @@ package cdmn::resources {
         $s->{label_battery_AC} = $s->{label_battery}."(⌁)";
         $s->{label_fg} = looks_like_number($t->x_resource('%.label.fg')) || 0;
         $s->{label_bg} = looks_like_number($t->x_resource('%.label.fg')) || 1;
+        $s->{label_position} = $t->x_resource('%.label.position') || 'left';
 
         $s->{showing} = looks_like_number($t->x_resource('%.showing')) || 1; #TODO
         $s->{showing_labels} = looks_like_number($t->x_resource('%.showing.labels')) || 1;
@@ -722,15 +725,17 @@ package cdmn::resources {
         $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{gauges_disks})
                                                : cut_set (cdmn::proc::disks, $s->{gauges_disks});
 
-        $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts
-                                               : cdmn::proc::disks if scalar@{$s->{gauges_disks}} eq 0 || $notset{gauges_disks};
+        $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks
+            if scalar@{$s->{gauges_disks}} eq 0 || $notset{gauges_disks};
 
         my $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_read})
                                    : cut_set (cdmn::proc::disks, $s->{disks_read});
+
         my @r = map {$_.POSTFIX_READ} @$rw;
 
         $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_write})
                                 : cut_set (cdmn::proc::disks, $s->{disks_write});
+
         my @w = map {$_.POSTFIX_WRITE} @$rw;
 
         push @{$s->{gauges_disks}}, (@r, @w);
@@ -829,7 +834,7 @@ package cdmn::sidebar {
         return if !$s->{visible};
         my $data = $s->{panes}{$title};
         for (my $j = 0; $j < @$data; $j++) {
-            $$data[$j]->show;
+            $$data[$j]->show if $$data[$j]->{y} < $s->{term}->nrow;
         }
     }
 
@@ -893,13 +898,14 @@ package cdmn::sidebar {
             width     => 1,
             height    => $s->{term}->nrow,
             rendition => $r,
-            caption   => "│"
+            text   => "│"
         );
 
         $r = urxvt::SET_FGCOLOR REND, $s->{fg_header};
         $r = $r | urxvt::RS_Uline;
 
         my $i = 1;
+
         #title
         push @data, cdmn::visuals::overlay->new(
                 term      => $s->{term},
@@ -908,12 +914,11 @@ package cdmn::sidebar {
                 width     => $s->{width},
                 height    => 1,
                 rendition => $r,
-                caption   => $title
+                text   => $title
             );
 
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
         for (sort keys %$args) {
-
             $i++;
             push @data, cdmn::visuals::overlay->new(
                     term      => $s->{term},
@@ -922,7 +927,7 @@ package cdmn::sidebar {
                     width     => $s->{width},
                     height    => 1,
                     rendition => $r,
-                    caption   => $_
+                    text   => $_
                 );
             my $c = ceil( 25 * $args->{$_} / 100 );
             my $f = 25 - $c;
@@ -934,7 +939,7 @@ package cdmn::sidebar {
                     width     => $s->{width},
                     height    => 1,
                     rendition => $r,
-                    caption   => "■" x $c."□" x $f." ".ceil($args->{$_})."%"
+                    text   => "■" x $c."□" x $f." ".ceil($args->{$_})."%"
                 );
         }
         for (my $j = 0; $j < @data; $j++) {
@@ -1055,7 +1060,7 @@ package cdmn::term {
 }
 
 package cdmn::visuals::container {
-    use fields qw( term rendition padding align evenGauges x y bg_color );
+    use fields qw( term rendition padding align evenGauges x y bg_color label_pos);
     use fields qw( gauges visible bg backgroundVisible labelVisible simpleGauges width height);
     use Params::Validate qw(:all);
 
@@ -1073,8 +1078,9 @@ package cdmn::visuals::container {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = validate( @_, { term => 1, rendition => 1, x => 1, y => 1, padding => 1,
-                align                => 1, evenGauges => 1, visible => 1, bg_color => 1 } );
+        (%$s) = validate( @_, {
+                term => 1, rendition => 1, x => 1, y => 1, padding => 1, align => 1, evenGauges => 1,
+                visible => 1, bg_color => 1, label_pos => 1 } );
 
         #(%$s) = @_;
         #$s->{width} = 1;
@@ -1098,6 +1104,7 @@ package cdmn::visuals::container {
             gauges_bg     => $arg{gauges_bg},
             visual_style  => $arg{visual_style},
             sensitivity   => $arg{sensitivity},
+            label_pos   => $s->{label_pos},
         );
 
         $s->{simpleGauges}{$arg{name}} = $arg{simple};
@@ -1235,7 +1242,7 @@ package cdmn::visuals::visual {
     use List::Util qw(max);
     use Params::Validate qw(:all);
 
-    use fields qw( term rendition x y label gauges label_bg label_fg gauges_colors gauges_bg visual_style sensitivity);
+    use fields qw( term rendition x y label gauges label_bg label_fg gauges_colors gauges_bg visual_style sensitivity label_pos);
     use fields qw( count width height);
 
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
@@ -1254,7 +1261,21 @@ package cdmn::visuals::visual {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = @_;
+        (%$s) = validate(@_, {
+                term          => 1,
+                rendition     => 1,
+                x             => 1,
+                y             => 1,
+                label         => 1,
+                gauges        => 1,
+                label_bg      => 1,
+                label_fg      => 1,
+                gauges_colors => 1,
+                gauges_bg     => 1,
+                visual_style  => 1,
+                sensitivity   => 1,
+                label_pos     => 1,
+            });
 
         $s->{width} = ( length $s->{label} ) + 1 + @{ $s->{gauges} };
         $s->{height} = 1;
@@ -1268,47 +1289,61 @@ package cdmn::visuals::visual {
 
     sub create {
         my $s          = shift;
-        my $w          = ( length $s->{label} ) + 1;
+        my $w = ( length $s->{label} );
         my @gauges = @{ $s->{gauges} };
 
         $s->{gauges} = { };
         $s->{x}          = -( $w + $m ) if $s->{x} < 0;
-        $s->{rendition} = urxvt::SET_COLOR $s->{rendition}, $s->{label_fg}, $s->{label_bg};
 
-        my $labelObj =
-            cdmn::visuals::overlay->new(
+        my $x = $s->{x};
+
+        local *_label = sub {
+            $s->{rendition} = urxvt::SET_COLOR $s->{rendition}, $s->{label_fg}, $s->{label_bg};
+            my $labelObj = cdmn::visuals::overlay->new(
                 term      => $s->{term},
-                x         => $s->{x},
+                x         => $x,
                 y         => $s->{y},
                 width     => $w,
                 height    => $s->{height},
                 rendition => $s->{rendition},
-                caption   => $s->{label}
+                text      => $s->{label}
             );
+            $labelObj->create("show");
+            $s->{label} = $labelObj;
+        };
 
-        $labelObj->create("show");
-        $s->{label} = $labelObj;
-
-        my $pos = 0;
-
-        $s->{rendition} = urxvt::SET_BGCOLOR $s->{rendition}, $s->{gauges_bg};
-        for my $i (@gauges) {
-            my $x = $s->{x} + $w + $pos++;
-            foreach (@{$s->{gauges_colors}}) {
-                $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
-                my $pictorial = cdmn::visuals::overlay->new(
-                    term      => $s->{term},
-                    x         => $x,
-                    y         => $s->{y},
-                    width     => 1,
-                    height    => 1,
-                    rendition => $s->{rendition},
-                    caption   => BLOCKS->[0],
-                );
-                $pictorial->create;
-                $s->{gauges}{"$i"}{"$_"} = $pictorial;
+        local *_gauges = sub {
+            $s->{rendition} = urxvt::SET_BGCOLOR $s->{rendition}, $s->{gauges_bg};
+            for my $i (@gauges) {
+                foreach (@{$s->{gauges_colors}}) {
+                    $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
+                    my $pictorial = cdmn::visuals::overlay->new(
+                        term      => $s->{term},
+                        x         => $x,
+                        y         => $s->{y},
+                        width     => 1,
+                        height    => 1,
+                        rendition => $s->{rendition},
+                        text      => BLOCKS->[0],
+                    );
+                    $pictorial->create;
+                    $s->{gauges}{"$i"}{"$_"} = $pictorial;
+                }
+                $x++;
             }
+        };
+
+        if ($s->{label_pos} eq 'right') {
+            &_gauges;
+            $x++;
+            &_label;
         }
+        else {
+            &_label;
+            $x += $w + 1;
+            &_gauges;
+        }
+
     }
 
     sub show {
@@ -1358,7 +1393,7 @@ package cdmn::visuals::visual {
 }
 
 package cdmn::visuals::overlay {
-    use fields qw( term x y width height rendition caption );
+    use fields qw( term x y width height rendition text );
     use fields qw( overlay );
 
     sub new {
@@ -1371,7 +1406,7 @@ package cdmn::visuals::overlay {
 
     sub create {
         my ( $s, $show ) = ( shift, shift );
-        my ( $x, $y, $w, $h, $r, $c ) = ( $s->{x}, $s->{y}, $s->{width}, $s->{height}, $s->{rendition}, $s->{caption} );
+        my ( $x, $y, $w, $h, $r, $c ) = ( $s->{x}, $s->{y}, $s->{width}, $s->{height}, $s->{rendition}, $s->{text} );
 
         $s->{overlay} = $s->{term}->overlay( $x, $y, $w, $h, $r, 0 );
 
@@ -1381,10 +1416,10 @@ package cdmn::visuals::overlay {
 
     sub set {
         my $s = shift;
-        $s->{caption} = shift;
-        $s->{overlay}->set( 0, 0, $s->{caption} );    #TODO
+        $s->{text} = shift;
+        $s->{overlay}->set( 0, 0, $s->{text} );    #TODO
         for ( 0 .. $s->{height} ) {
-            $s->{overlay}->set( 0, $_, $s->{caption} ) if $s->{height} > 1;    #TODO
+            $s->{overlay}->set( 0, $_, $s->{text} ) if $s->{height} > 1;    #TODO
         }
     }
 
@@ -1495,6 +1530,7 @@ sub create_captions {
                     evenGauges => 0,
                     visible    => XR->{showing},
                     bg_color   => XR->{caption_bg},
+                    label_pos   => XR->{label_position},
                 );
             }
             elsif ($_ eq ALIGN_COL) {
@@ -1508,6 +1544,7 @@ sub create_captions {
                     evenGauges => 1,
                     visible    => XR->{showing},
                     bg_color   => XR->{caption_bg},
+                    label_pos   => XR->{label_position},
                 );
             }
         };
