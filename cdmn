@@ -46,7 +46,6 @@ package cdmn::constants {
     use constant {
         ALIGN_COL         => 'col',
         ALIGN_ROW         => 'row',
-        CAPTION_SOLID_BAR => 'solid-bar', #TODO remove?
     };
 
     use constant {
@@ -66,7 +65,6 @@ use constant {
     ACTION_PREV_PANE        => cdmn::constants::ACTION_PREV_PANE,
     ALIGN_COL               => cdmn::constants::ALIGN_COL,
     ALIGN_ROW               => cdmn::constants::ALIGN_ROW,
-    CAPTION_SOLID_BAR       => cdmn::constants::CAPTION_SOLID_BAR, #TODO
     REND                    => cdmn::constants::REND,
 };
 
@@ -276,8 +274,7 @@ package cdmn::proc {
 
     sub disks {
         opendir( my $dh, SYSFS_BLOCK);
-        state @disks;
-        return \@disks if scalar @disks > 0; #TODO just until cdmn is aware of changes.
+        my @disks;
         while ( readdir $dh ) {
             my $block = $_;
             next if (/^\.\.?$|dm-|^loop|^sr/);
@@ -529,7 +526,7 @@ package cdmn::resources {
     my %notset;
     use fields qw(
         x  y  padding
-        showing  showing_labels  showing_background
+        showing  showing_labels
         visual_alignment caption_bg
         label_network  label_disk  label_cpu  label_memory label_battery  label_battery_AC label_cpu_temp label_bg label_fg
         label_position
@@ -586,11 +583,10 @@ package cdmn::resources {
         $s->{label_bg} = looks_like_number($t->x_resource('%.label.fg')) || 1;
         $s->{label_position} = $t->x_resource('%.label.position') || 'left';
 
-        $s->{showing} = looks_like_number($t->x_resource('%.showing')) || 1; #TODO
+        $s->{showing} = looks_like_number($t->x_resource('%.showing')) || 1;
         $s->{showing_labels} = looks_like_number($t->x_resource('%.showing.labels')) || 1;
-        $s->{showing_background} = looks_like_number($t->x_resource('%.showing.background')) || 1; #TODO
 
-        $s->{visual_alignment} = $t->x_resource('%.visual.alignment') || 'row'; #row | col | solid-bar #TODO
+        $s->{visual_alignment} = $t->x_resource('%.visual.alignment') || 'row'; #row | col
         $s->{caption_bg} = looks_like_number($t->x_resource('%.caption.bg')) || 1; # 0/1 map onto terminal fg/bg color
 
         $s->{padding} = looks_like_number($t->x_resource('%.padding')) || 2; #Padding between visuals
@@ -650,8 +646,8 @@ package cdmn::resources {
         $s->{gauges_order} = [ 'CPU', 'DISK', 'MEM', 'NET', 'BAT' ];
         #$s->{network_rx} = [ 'eth0' ];
         #$s->{network_tx} = [ 'eth0' ];
-        $s->{disks_read} = [ 'sda' ];
-        $s->{disks_write} = [ 'sda' ];
+        #$s->{disks_read} = [ 'sda' ];
+        #$s->{disks_write} = [ 'sda' ];
 
         $s->{sidebar_colors_header_fg} = 250;
         $s->{sidebar_colors_header_bg} = 1;
@@ -661,8 +657,9 @@ package cdmn::resources {
         $s->{sidebar_colors_boarder_bg} = 1;
         #$s->{label_position} = 'right';
 
-        $s->{padding} = 0;
-        $s->{visual_alignment} = 'col';
+        $s->{padding} = 2;
+        #$s->{visual_alignment} = 'col';
+        $s->{disk_mounts} = 0;
         #$s->{y} = -1;
         #$s->{x} = 0;
 
@@ -681,7 +678,7 @@ package cdmn::resources {
         my @order_default = map { $s->{$_} } (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery /);
         my %gauges = map { $_ => 0 } @order_default;
         $gauges{$_} = 1 for $_[0];
-        $s->{gauges} = \%gauges; #TODO necessary?
+        #$s->{gauges} = \%gauges; #TODO necessary?
         return \@order_default if scalar @{$_[0]} eq 0;
         return &cut_set($_[0], \@order_default);
     };
@@ -1429,9 +1426,9 @@ package cdmn::visuals::overlay {
     sub set {
         my $s = shift;
         $s->{text} = shift;
-        $s->{overlay}->set( 0, 0, $s->{text} );    #TODO
+        $s->{overlay}->set( 0, 0, $s->{text} );
         for ( 0 .. $s->{height} ) {
-            $s->{overlay}->set( 0, $_, $s->{text} ) if $s->{height} > 1;    #TODO
+            $s->{overlay}->set( 0, $_, $s->{text} ) if $s->{height} > 1;
         }
     }
 
