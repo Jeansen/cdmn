@@ -629,10 +629,10 @@ package cdmn::resources {
         #   #$s->{gauges_invert} = '';
         #   $s->{cpu_temp} = 'detail';     #simple | detail
         #   $s->{battery} = 'detail';     #simple | detail
-        $s->{cpu} = 'detail';     #simple | detail
-        $s->{visual_style} = 'bar'; #bar | led
+        $s->{cpu} = 'simple';     #simple | detail
+        $s->{visual_style} = 'led'; #bar | led
         $s->{sensitivity} = 0.1;
-        $s->{refresh} = 1;
+        $s->{refresh} = 0.1;
         #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
         #$s->{gauges_colors} = '5,52,88,124,160,196';
         $s->{gauges_bg} = 1;
@@ -644,9 +644,9 @@ package cdmn::resources {
         #   $s->{gauges_bg} = '1';    #simple | full
         #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
         $s->{gauges_order} = [ 'CPU', 'DISK', 'MEM', 'NET', 'BAT' ];
-        #$s->{network_rx} = [ 'eth0' ];
-        #$s->{network_tx} = [ 'eth0' ];
-        #$s->{disks_read} = [ 'sda' ];
+        $s->{network_rx} = [ 'eth0' ];
+        $s->{network_tx} = [ 'eth0' ];
+        $s->{disks_read} = [ 'sda' ];
         #$s->{disks_write} = [ 'sda' ];
 
         $s->{sidebar_colors_header_fg} = 250;
@@ -721,9 +721,6 @@ package cdmn::resources {
         $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{gauges_disks})
                                                : cut_set (cdmn::proc::disks, $s->{gauges_disks});
 
-        $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks
-            if scalar@{$s->{gauges_disks}} eq 0 || $notset{gauges_disks};
-
         my $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_read})
                                    : cut_set (cdmn::proc::disks, $s->{disks_read});
 
@@ -733,6 +730,9 @@ package cdmn::resources {
                                 : cut_set (cdmn::proc::disks, $s->{disks_write});
 
         my @w = map {$_.POSTFIX_WRITE} @$rw;
+
+        $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks
+            if (scalar@{$s->{gauges_disks}} eq 0 || $notset{gauges_disks}) && scalar @r eq 0 && scalar @w eq 0;
 
         push @{$s->{gauges_disks}}, (@r, @w);
 
