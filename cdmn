@@ -22,7 +22,7 @@
 use 5.10.1;
 use strict;
 use warnings FATAL => 'all';
-use diagnostics;
+#use diagnostics;
 use utf8;
 use autodie;
 
@@ -41,7 +41,6 @@ package cdmn::constants {
         ACTION_SHOW_TRANSPARENT => 'cdmn:action-show-transparent',
         ACTION_NEXT_PANE        => 'cdmn:action-next-pane',
         ACTION_PREV_PANE        => 'cdmn:action-prev-pane',
-
     };
 
     use constant {
@@ -661,11 +660,12 @@ package cdmn::resources {
         $s->{sidebar_colors_bg} = 1;
         $s->{sidebar_colors_boarder_fg} = 240;
         $s->{sidebar_colors_boarder_bg} = 1;
+        #$s->{label_position} = 'right';
 
-        #$s->{padding} = 0;
-        #$s->{visual_alignment} = 'col';
-        #$s->{y} = 0;
-        #$s->{x} = -1;
+        $s->{padding} = 0;
+        $s->{visual_alignment} = 'col';
+        #$s->{y} = -1;
+        #$s->{x} = 0;
 
         $s->set_disks;
         $s->set_batteries;
@@ -1108,13 +1108,23 @@ package cdmn::visuals::container {
         );
 
         $s->{simpleGauges}{$arg{name}} = $arg{simple};
-        if (@{$arg{gauges}} > $m && $s->{evenGauges}) {
-            $m = @{$arg{gauges}};
-            foreach (values %{ $s->{gauges} }) {
-                $_->even_gauges($m);
-                $xOff += $visual->{width} if $s->{align} eq ALIGN_ROW;
-            }
+
+
+        local *_pad = sub {
+           foreach (values %{ $s->{gauges} }) {
+               state $m = 0;
+               return if $_[0] <= $m;
+               $m = $_[0];
+               $_->even_gauges($_[0]);
+               $xOff += $visual->{width} if $s->{align} eq ALIGN_ROW;
+           }
+        };
+
+        if ($s->{evenGauges}) {
+            _pad(length $arg{label}) if $s->{label_pos} eq 'right';
+            _pad(scalar @{$arg{gauges}}) if $s->{label_pos} eq 'left';
         }
+
         $visual->even_gauges($m) if $s->{evenGauges};
         $xOff += $visual->{width} + $s->{padding} if $s->{align} eq ALIGN_ROW;
         $yOff += $visual->{height} + $s->{padding} if $s->{align} eq ALIGN_COL;
@@ -1147,6 +1157,7 @@ package cdmn::visuals::container {
         $s->{width} = $s->{align} eq ALIGN_ROW ? $xOff - $s->{padding} : $l;
         $s->{height} = $s->{align} eq ALIGN_ROW ? 1 : $yOff - $s->{padding} + 1;
 
+
         #Background
         $s->{bg} = cdmn::visuals::overlay->new(
             term      => $s->{term},
@@ -1162,9 +1173,7 @@ package cdmn::visuals::container {
         $s->{backgroundVisible} = 1;
 
         my $w = 0;
-        while (my ($k, $v) = each %{$s->{gauges}} ) {
-            $w = $v->{width} if $v->{width} > $w;
-        }
+        foreach (values %{$s->{gauges}} ) { $w = $_->{width} if $_->{width} > $w; }
         $s->{width} = $w * $s->{term}->fwidth;
         $s->{height} = $yOff + ($s->{padding} * ($yOff - 1) * $s->{term}->fheight);
     }
@@ -1243,7 +1252,7 @@ package cdmn::visuals::visual {
     use Params::Validate qw(:all);
 
     use fields qw( term rendition x y label gauges label_bg label_fg gauges_colors gauges_bg visual_style sensitivity label_pos);
-    use fields qw( count width height);
+    use fields qw( count width height width_add);
 
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
     #use constant LED => '⬛';
@@ -1278,13 +1287,20 @@ package cdmn::visuals::visual {
             });
 
         $s->{width} = ( length $s->{label} ) + 1 + @{ $s->{gauges} };
+
         $s->{height} = 1;
+        $s->{width_add} = 0;
         return $s;
     }
 
     sub even_gauges {
-        my ( $self, $max ) = @_;
-        $self->{width} += ( - @{ $self->{gauges} } + $max );
+        my ( $s, $max ) = @_;
+        my $l = length $s->{label};
+
+        $s->{width} -= $s->{width_add};
+        $s->{width_add} = $max - @{ $s->{gauges} } if $s->{label_pos} eq 'left';
+        $s->{width_add} = $l > 0 ? $max - $l : 0 if $s->{label_pos} eq 'right';
+        $s->{width} += $s->{width_add};
     }
 
     sub create {
@@ -1294,7 +1310,6 @@ package cdmn::visuals::visual {
 
         $s->{gauges} = { };
         $s->{x}          = -( $w + $m ) if $s->{x} < 0;
-
         my $x = $s->{x};
 
         local *_label = sub {
