@@ -1109,10 +1109,8 @@ package cdmn::visuals::container {
 
         $s->{simpleGauges}{$arg{name}} = $arg{simple};
 
-
         local *_pad = sub {
            foreach (values %{ $s->{gauges} }) {
-               state $m = 0;
                return if $_[0] <= $m;
                $m = $_[0];
                $_->even_gauges($_[0]);
