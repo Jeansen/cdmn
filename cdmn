@@ -278,7 +278,6 @@ package cdmn::proc {
         opendir( my $dh, SYSFS_BLOCK);
         state @disks;
         return \@disks if scalar @disks > 0; #TODO just until cdmn is aware of changes.
-        my @block;
         while ( readdir $dh ) {
             my $block = $_;
             next if (/^\.\.?$|dm-|^loop|^sr/);
@@ -1796,7 +1795,6 @@ sub on_start {
             local *_set = sub {
                 my $gauge_name = shift;
                 my %inverts = map { $_ => 1 } @{XR->{gauges_invert}};
-                my $is_bat_ac = ($gauge_name eq XR->{label_battery} || $gauge_name eq XR->{label_battery_AC});
 
                 %r = $usage_of{$gauge_name}->();
 
