@@ -514,7 +514,6 @@ package cdmn::proc {
         return 0 if ($ct - $t) < $r;
         $t = $ct;
         1;
-
     }
 }
 
@@ -536,7 +535,6 @@ package cdmn::resources {
         colors_network colors_disk colors_cpu colors_cpu_temp colors_memory colors_battery
         sidebar_colors_header_fg sidebar_colors_header_bg sidebar_colors_fg sidebar_colors_bg sidebar_colors_boarder_fg
         sidebar_colors_boarder_bg
-
     );
 
     use constant {
@@ -1078,8 +1076,6 @@ package cdmn::visuals::container {
                 term => 1, rendition => 1, x => 1, y => 1, padding => 1, align => 1, evenGauges => 1,
                 visible => 1, bg_color => 1, label_pos => 1 } );
 
-        #(%$s) = @_;
-        #$s->{width} = 1;
         ( $xOff, $yOff ) = ( 0, $s->{y} );
         $s;
     }
@@ -1151,7 +1147,6 @@ package cdmn::visuals::container {
         $s->{width} = $s->{align} eq ALIGN_ROW ? $xOff - $s->{padding} : $l;
         $s->{height} = $s->{align} eq ALIGN_ROW ? 1 : $yOff - $s->{padding} + 1;
 
-
         #Background
         $s->{bg} = cdmn::visuals::overlay->new(
             term      => $s->{term},
@@ -1194,9 +1189,7 @@ package cdmn::visuals::container {
     sub show {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
-        foreach (values %{ $s->{gauges} }) {
-            $visible ? $_->show : $_->hide;
-        }
+        $visible ? $_->show : $_->hide foreach values %{ $s->{gauges} };
         $visible ? $s->show_labels : $s->hide_labels;
 
         $visible ? $s->show_background : $s->hide_background;
@@ -1342,17 +1335,8 @@ package cdmn::visuals::visual {
             }
         };
 
-        if ($s->{label_pos} eq 'right') {
-            &_gauges;
-            $x++;
-            &_label;
-        }
-        else {
-            &_label;
-            $x += $w + 1;
-            &_gauges;
-        }
-
+        if ($s->{label_pos} eq 'right') { &_gauges; $x++;&_label; }
+        else {&_label; $x += $w + 1; &_gauges; }
     }
 
     sub show {
