@@ -22,13 +22,13 @@
 use 5.10.1;
 use strict;
 use warnings FATAL => 'all';
+
 #use diagnostics;
 use utf8;
 use autodie;
 
 use Filesys::Df;
 binmode STDOUT, ":encoding(UTF-8)";
-
 
 my $SHOWING;
 my $LABELS_SHOWING;
@@ -44,8 +44,8 @@ package cdmn::constants {
     };
 
     use constant {
-        ALIGN_COL         => 'col',
-        ALIGN_ROW         => 'row',
+        ALIGN_COL => 'col',
+        ALIGN_ROW => 'row',
     };
 
     use constant {
@@ -73,12 +73,12 @@ package cdmn::proc {
     use Params::Validate qw(:all);
 
     use constant {
-        PARTITIONS  => '/proc/partitions',
-        MOUNTS      => '/proc/mounts',
-        STAT        => '/proc/stat',
-        DISKSTATS   => '/proc/diskstats',
-        MEMINFO     => '/proc/meminfo',
-        NET_ROUTE   => '/proc/net/route',
+        PARTITIONS => '/proc/partitions',
+        MOUNTS     => '/proc/mounts',
+        STAT       => '/proc/stat',
+        DISKSTATS  => '/proc/diskstats',
+        MEMINFO    => '/proc/meminfo',
+        NET_ROUTE  => '/proc/net/route',
     };
 
     use constant {
@@ -108,25 +108,25 @@ package cdmn::proc {
     #TODO sometimes no results are given - check
     sub cpu_temp_usages {
         my %results;
-        if (-e HWMON) {
+        if ( -e HWMON ) {
             opendir( my $dh, HWMON );
             my @dir = readdir $dh;
             for (@dir) {
                 next if $_ =~ /^\.\.?$/;
-                my $p = HWMON.$_;
-                open( my $f, '<', $p."/name") || last;
-                chomp(my $state = <$f>);
-                if ($state eq 'coretemp') {
+                my $p = HWMON . $_;
+                open( my $f, '<', $p . "/name" ) || last;
+                chomp( my $state = <$f> );
+                if ( $state eq 'coretemp' ) {
                     opendir( $dh, $p );
                     @dir = readdir $dh;
-                    my %cores = map {/(temp\d)/ ? (($_ =~ /(temp\d)/), "") : ()} @dir;
-                    for (keys %cores) {
-                        open( $f, '<', $p."/".$_."_input");
-                        chomp(my $cv = <$f>);
-                        open( $f, '<', $p."/".$_."_crit");
-                        chomp(my $mv = <$f>);
-                        open( $f, '<', $p."/".$_."_label");
-                        chomp(my $l = <$f>);
+                    my %cores = map { /(temp\d)/ ? ( ( $_ =~ /(temp\d)/ ), "" ) : () } @dir;
+                    for ( keys %cores ) {
+                        open( $f, '<', $p . "/" . $_ . "_input" );
+                        chomp( my $cv = <$f> );
+                        open( $f, '<', $p . "/" . $_ . "_crit" );
+                        chomp( my $mv = <$f> );
+                        open( $f, '<', $p . "/" . $_ . "_label" );
+                        chomp( my $l = <$f> );
                         last if $l !~ /^Core/;
                         $results{$l} = $cv / $mv * 100;
                     }
@@ -144,18 +144,18 @@ package cdmn::proc {
         my @dir = readdir $dh;
         for (@dir) {
             next if $_ =~ /^\.\.?$/;
-            my $p = HWMON.$_;
-            open( my $f, '<', $p."/name");
-            chomp(my $state = <$f>);
-            if ($state eq 'coretemp') {
+            my $p = HWMON . $_;
+            open( my $f, '<', $p . "/name" );
+            chomp( my $state = <$f> );
+            if ( $state eq 'coretemp' ) {
                 opendir( $dh, $p );
                 @dir = readdir $dh;
-                my %cores = map {/(temp\d)/ ? (($_ =~ /(temp\d)/), "") : ()} @dir;
-                for (keys %cores) {
-                    open( $f, '<', $p."/".$_."_label");
-                    chomp(my $l = <$f>);
+                my %cores = map { /(temp\d)/ ? ( ( $_ =~ /(temp\d)/ ), "" ) : () } @dir;
+                for ( keys %cores ) {
+                    open( $f, '<', $p . "/" . $_ . "_label" );
+                    chomp( my $l = <$f> );
                     push @results, $l if $l =~ /^Core/;
-                };
+                }
                 last;
             }
         }
@@ -164,19 +164,19 @@ package cdmn::proc {
     }
 
     sub sysfs_net {
-        my $path = SYSFS_NET."/$_[0]";
-        return $path."/statistics/$_[1]" if $_[1] && ($_[1] eq TX || $_[1] eq RX);
-        return $path."/$_[1]" if $_[1] && ($_[1] eq OPERSTATE || $_[1] eq SPEED);
+        my $path = SYSFS_NET . "/$_[0]";
+        return $path . "/statistics/$_[1]" if $_[1] && ( $_[1] eq TX        || $_[1] eq RX );
+        return $path . "/$_[1]"            if $_[1] && ( $_[1] eq OPERSTATE || $_[1] eq SPEED );
         $path;
     }
 
     sub ac_online {
         opendir( my $dh, SYSFS_BAT );
-        my @dir = readdir $dh; #while ( readdir $dh ) too slow?
+        my @dir = readdir $dh;    #while ( readdir $dh ) too slow?
         for (@dir) {
             if (/AC/) {
-                open( my $f, '<', SYSFS_BAT.$_."/online");
-                chomp(my $state = <$f>);
+                open( my $f, '<', SYSFS_BAT . $_ . "/online" );
+                chomp( my $state = <$f> );
                 closedir $dh;
                 return $state;
             }
@@ -194,8 +194,9 @@ package cdmn::proc {
     }
 
     sub if_down {
-        open( my $f, '<', sysfs_net(shift, OPERSTATE) );
-        chomp(my $state = <$f>);
+        open( my $f, '<', sysfs_net( shift, OPERSTATE ) );
+        chomp( my $state = <$f> );
+
         # RFC2863 operational states: unknown notpresent down up lowerlayerdown testing dormant
         return 1 if $state eq 'down' || $state eq 'unknown';
         0;
@@ -203,14 +204,14 @@ package cdmn::proc {
 
     sub if_list {
         my @ifs;
-        opendir( my $dh, SYSFS_NET);
+        opendir( my $dh, SYSFS_NET );
         my @dir = readdir $dh;
         for (@dir) {
             my $if = $_;
             next if (/^\.\.?$|^veth/);
-            if (!has_wifi($if)) {
-                open( my $f, '<', sysfs_net($if, SPEED) );
-                chomp(my @lines = <$f>);
+            if ( !has_wifi($if) ) {
+                open( my $f, '<', sysfs_net( $if, SPEED ) );
+                chomp( my @lines = <$f> );
                 next if scalar @lines eq 0;
             }
             next if if_down($if);
@@ -225,7 +226,7 @@ package cdmn::proc {
         my @mounts;
         my %mounts;
         while (<$f>) {
-            push @mounts, /(^\/dev\S*)\s+([a-zA-Z0-9-_.\/]+)/;   #TODO this regex is too simple
+            push @mounts, /(^\/dev\S*)\s+([a-zA-Z0-9-_.\/]+)/;    #TODO this regex is too simple
             %mounts = (@mounts);
         }
         return \%mounts;
@@ -233,12 +234,12 @@ package cdmn::proc {
 
     sub battery_usages {
         local *sysfs_bat = sub {
-            my $path = SYSFS_BAT."/$_[0]";
+            my $path = SYSFS_BAT . "/$_[0]";
             opendir( my $dh, $path );
-            if ($_[1]) {
+            if ( $_[1] ) {
                 while ( readdir $dh ) {
-                    $path .= "/".$_ if /^energy_full$|^charge_full$/ && $_[1] eq BAT_FULL;
-                    $path .= "/".$_ if /^energy_now$|^charge_now$/ && $_[1] eq BAT_NOW;
+                    $path .= "/" . $_ if /^energy_full$|^charge_full$/ && $_[1] eq BAT_FULL;
+                    $path .= "/" . $_ if /^energy_now$|^charge_now$/   && $_[1] eq BAT_NOW;
                 }
             }
             closedir $dh;
@@ -249,19 +250,19 @@ package cdmn::proc {
         my @bats = @{&batteries};
         for (@bats) {
             my $bat = $_;
-            open( my $f, '<', sysfs_bat($bat, BAT_FULL) );
-            chomp(my $full = <$f>);
-            open( $f, '<', sysfs_bat($bat, BAT_NOW));
-            chomp(my $now = <$f>);
+            open( my $f, '<', sysfs_bat( $bat, BAT_FULL ) );
+            chomp( my $full = <$f> );
+            open( $f, '<', sysfs_bat( $bat, BAT_NOW ) );
+            chomp( my $now = <$f> );
 
-            $results{ $bat } = $now / $full * 100;
+            $results{$bat} = $now / $full * 100;
         }
         return \%results;
     }
 
     sub batteries {
         my @bats;
-        opendir( my $dh, SYSFS_BAT);
+        opendir( my $dh, SYSFS_BAT );
         while ( readdir $dh ) {
             my $bat = $_;
             next if (/^\.\.?$/);
@@ -273,7 +274,7 @@ package cdmn::proc {
     }
 
     sub disks {
-        opendir( my $dh, SYSFS_BLOCK);
+        opendir( my $dh, SYSFS_BLOCK );
         my @disks;
         while ( readdir $dh ) {
             my $block = $_;
@@ -285,15 +286,15 @@ package cdmn::proc {
     }
 
     sub dm_disks {
-        opendir( my $dh, SYSFS_BLOCK);
+        opendir( my $dh, SYSFS_BLOCK );
         my %block;
         while ( readdir $dh ) {
             my $block = $_;
             next if !(/^dm-/);
-            open( my $f, '<', SYSFS_BLOCK."$block/dm/name" );
-            chomp(my $d = <$f>);
+            open( my $f, '<', SYSFS_BLOCK . "$block/dm/name" );
+            chomp( my $d = <$f> );
 
-            opendir( my $dh2, SYSFS_BLOCK."$block/slaves");
+            opendir( my $dh2, SYSFS_BLOCK . "$block/slaves" );
             $block{$d} = [ map {/(sd[a-z]|nvme\dn|mmcblk)/} readdir $dh2 ];
         }
         closedir $dh;
@@ -302,16 +303,16 @@ package cdmn::proc {
 
     sub disk_mounts {
         my @mounts = keys %{&mounts};
-        my @disks = (map {$_, 0} @{&disks});
-        my %dm = %{&dm_disks};
-        my %disks = @disks;
+        my @disks  = ( map { $_, 0 } @{&disks} );
+        my %dm     = %{&dm_disks};
+        my %disks  = @disks;
 
         foreach my $m (@mounts) {
-            foreach my $k (keys %disks) {
+            foreach my $k ( keys %disks ) {
                 $disks{$k} = 1 if $m =~ /$k/;
             }
             while ( my ( $k, $v ) = each %dm ) {
-                if ($m =~ $k) {
+                if ( $m =~ $k ) {
                     $disks{$_} = 1 foreach @$v;
                 }
             }
@@ -337,7 +338,7 @@ package cdmn::proc {
             my @cpu = split /\s+/;
             my $cpu = shift @cpu;
 
-            if (!defined $cpus{$cpu}) {
+            if ( !defined $cpus{$cpu} ) {
                 $cpus{$cpu}{$_} = 0 for qw/prev_idle prev_total diff_total/;
             }
 
@@ -370,15 +371,15 @@ package cdmn::proc {
 
     sub disk_usages {
         my %diff_usage;
-        state (%results, $n_stat, $o_stat);
+        state( %results, $n_stat, $o_stat );
         state $t = urxvt::NOW- 1;
-        my $ct = urxvt::NOW;
+        my $ct      = urxvt::NOW;
         my $refresh = $ct - $t;
         $t = $ct;
 
         open( my $f, '<', DISKSTATS );
         while (<$f>) {
-            if (!/\bsd(a|b|c)|nvme\dn\d\b|mmcblk\d\b/) {
+            if ( !/\bsd(a|b|c)|nvme\dn\d\b|mmcblk\d\b/ ) {
                 next;
             }
             my @sda = split /\s+/, $_;
@@ -394,9 +395,9 @@ package cdmn::proc {
             $o_stat->{$name} = $n_stat->{$name};
             $n_stat->{$name} = $stats;
 
-            $diff_usage{$_} = $n_stat->{$name}->{$_} - $o_stat->{$name}->{$_} foreach (keys %$stats);
+            $diff_usage{$_} = $n_stat->{$name}->{$_} - $o_stat->{$name}->{$_} foreach ( keys %$stats );
 
-            $diff_usage{io_time} = $diff_usage{io_time} / (1000 * $refresh) * 100;
+            $diff_usage{io_time} = $diff_usage{io_time} / ( 1000 * $refresh ) * 100;
             $diff_usage{io_time} = 100 if $diff_usage{io_time} > 100;
 
             my $w = 0;
@@ -406,9 +407,9 @@ package cdmn::proc {
             $r *= $diff_usage{io_time};
             $w *= $diff_usage{io_time};
 
-            $results{ $name } = $diff_usage{io_time};
-            $results{ $name.POSTFIX_READ } = $r;
-            $results{ $name.POSTFIX_WRITE } = $w;
+            $results{$name}                   = $diff_usage{io_time};
+            $results{ $name . POSTFIX_READ }  = $r;
+            $results{ $name . POSTFIX_WRITE } = $w;
         }
         return \%results;
     }
@@ -440,14 +441,14 @@ package cdmn::proc {
         my $bytes = 0;
         state %nics;
         state $t = urxvt::NOW- 1;
-        my $ct = urxvt::NOW;
+        my $ct      = urxvt::NOW;
         my $refresh = $ct - $t;
         $t = $ct;
 
         local *_set = sub {
-            my $nic = shift;
+            my $nic       = shift;
             my $direction = shift;
-            open( my $f, '<', sysfs_net($nic, $direction) );
+            open( my $f, '<', sysfs_net( $nic, $direction ) );
             {
                 local $/;
                 $bytes = <$f>;
@@ -455,17 +456,17 @@ package cdmn::proc {
 
             my $diff_rx = $bytes - $nics{$nic}{$direction};
             $nics{$nic}{$direction} = $bytes;
-            my $diff_usage = $diff_rx / (&nic_speed_bytes($nic) * $refresh) * 100;
-            $results{ $nic.( $direction eq RX ? POSTFIX_RX : POSTFIX_TX ) } = $diff_usage;
+            my $diff_usage = $diff_rx / ( &nic_speed_bytes($nic) * $refresh ) * 100;
+            $results{ $nic . ( $direction eq RX ? POSTFIX_RX : POSTFIX_TX ) } = $diff_usage;
         };
 
-        for (@{&if_list}) {
+        for ( @{&if_list} ) {
             my $nic = $_;
-            if (!defined $nics{$nic}) {
-                $nics{$nic}{$_} = 0 for (RX, TX);
+            if ( !defined $nics{$nic} ) {
+                $nics{$nic}{$_} = 0 for ( RX, TX );
             }
-            _set($nic, RX);
-            _set($nic, TX);
+            _set( $nic, RX );
+            _set( $nic, TX );
 
         }
         return \%results;
@@ -486,8 +487,8 @@ package cdmn::proc {
         my $speed;
         state $refresh = 4;
         state $wifispeed;
-        if (has_wifi($if)) {
-            if ($refresh >= 4) {
+        if ( has_wifi($if) ) {
+            if ( $refresh >= 4 ) {
                 $refresh = 0;
                 my $c = qx/sudo iwconfig $if/;
                 ($wifispeed) = $c =~ /Bit Rate.(\d*\.{0,1}\d*)/;
@@ -499,7 +500,7 @@ package cdmn::proc {
             }
         }
         else {
-            open( my $fh, '<', sysfs_net($if, SPEED) );
+            open( my $fh, '<', sysfs_net( $if, SPEED ) );
             $speed = <$fh>;
         }
         $speed *= 1000000 / 8;
@@ -511,12 +512,11 @@ package cdmn::proc {
         state $t = 0;
         my $ct = urxvt::NOW;
 
-        return 0 if ($ct - $t) < $r;
+        return 0 if ( $ct - $t ) < $r;
         $t = $ct;
         1;
     }
 }
-
 
 package cdmn::resources {
     use Scalar::Util qw(looks_like_number);
@@ -553,10 +553,10 @@ package cdmn::resources {
 
     sub cut_set {
         my @cut = ();
-        my %n = ();
+        my %n   = ();
 
-        foreach my $e (@{$_[0]}, @{$_[1]}) { $n{$e}++ }
-        foreach my $e (@{$_[0]}) { push @{ \@cut}, $e if $n{$e} > 1 }
+        foreach my $e ( @{ $_[0] }, @{ $_[1] } ) { $n{$e}++ }
+        foreach my $e ( @{ $_[0] } ) { push @{ \@cut }, $e if $n{$e} > 1 }
 
         return \@cut;
     }
@@ -564,100 +564,108 @@ package cdmn::resources {
     sub init {
 
         local *_set = sub {
-            $t->x_resource("%.$_[0]") ? [ split(/[,[:space:]]/, $t->x_resource("%.$_[0]") ) ]
-                                      : $_[1] ? [ split(/[,[:space:]]/, $_[1]) ] : [ () ];
+                  $t->x_resource("%.$_[0]") ? [ split( /[,[:space:]]/, $t->x_resource("%.$_[0]") ) ]
+                : $_[1]                     ? [ split( /[,[:space:]]/, $_[1] ) ]
+                :                             [ () ];
         };
 
         my $s = shift;
         $t = shift;
-        $s->{label_network} = $t->x_resource('%.label.network') || 'NET';
-        $s->{label_disk} = $t->x_resource('%.label.disk') || 'DISK';
-        $s->{label_cpu} = $t->x_resource('%.label.cpu') || 'CPU';
+        $s->{label_network}  = $t->x_resource('%.label.network')  || 'NET';
+        $s->{label_disk}     = $t->x_resource('%.label.disk')     || 'DISK';
+        $s->{label_cpu}      = $t->x_resource('%.label.cpu')      || 'CPU';
         $s->{label_cpu_temp} = $t->x_resource('%.label.cpu.temp') || 'TEMP';
-        $s->{label_memory} = $t->x_resource('%.label.memory') || 'MEM';
-        $s->{label_battery} = $t->x_resource('%.label.battery') || 'BAT';
-        $s->{label_battery_AC} = $s->{label_battery}."(⌁)";
-        $s->{label_fg} = looks_like_number($t->x_resource('%.label.fg')) || 0;
-        $s->{label_bg} = looks_like_number($t->x_resource('%.label.fg')) || 1;
-        $s->{label_position} = $t->x_resource('%.label.position') || 'left';
+        $s->{label_memory}   = $t->x_resource('%.label.memory')   || 'MEM';
+        $s->{label_battery}  = $t->x_resource('%.label.battery')  || 'BAT';
+        $s->{label_battery_AC} = $s->{label_battery} . "(⌁)";
+        $s->{label_fg}         = looks_like_number( $t->x_resource('%.label.fg') ) || 0;
+        $s->{label_bg}         = looks_like_number( $t->x_resource('%.label.fg') ) || 1;
+        $s->{label_position}   = $t->x_resource('%.label.position') || 'left';
 
-        $s->{showing} = looks_like_number($t->x_resource('%.showing')) || 1;
-        $s->{showing_labels} = looks_like_number($t->x_resource('%.showing.labels')) || 1;
+        $s->{showing}        = looks_like_number( $t->x_resource('%.showing') )        || 1;
+        $s->{showing_labels} = looks_like_number( $t->x_resource('%.showing.labels') ) || 1;
 
-        $s->{visual_alignment} = $t->x_resource('%.visual.alignment') || 'row'; #row | col
-        $s->{caption_bg} = looks_like_number($t->x_resource('%.caption.bg')) || 1; # 0/1 map onto terminal fg/bg color
+        $s->{visual_alignment} = $t->x_resource('%.visual.alignment') || 'row';         #row | col
+        $s->{caption_bg} = looks_like_number( $t->x_resource('%.caption.bg') ) || 1;    # 0/1 map onto terminal fg/bg color
 
-        $s->{padding} = looks_like_number($t->x_resource('%.padding')) || 2; #Padding between visuals
-        $s->{x} = looks_like_number($t->x_resource('%.x')) || - 1; #positive from left, negativ from right
-        $s->{y} = looks_like_number($t->x_resource('%.y')) || 0; #positive from top, negativ from bottom
-        $s->{cpu} = $t->x_resource('%.cpu') // 'simple';     #simple | detail
-        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple'; #simple | detail
-        $s->{battery} = $t->x_resource('%.battery') // 'simple'; #simple | detail
-        $s->{disk_mounts} = looks_like_number($t->x_resource('%.disk.mounts')) || 1; #TODO rename
-        $s->{refresh} = looks_like_number($t->x_resource('%.refresh')) || 1;
-        $s->{sensitivity} = looks_like_number($t->x_resource('%.sensitivity')) || 1; #percentage
-        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar'; #bar | led
+        $s->{padding} = looks_like_number( $t->x_resource('%.padding') ) || 2;          #Padding between visuals
+        $s->{x}       = looks_like_number( $t->x_resource('%.x') )       || -1;         #positive from left, negativ from right
+        $s->{y}       = looks_like_number( $t->x_resource('%.y') )       || 0;          #positive from top, negativ from bottom
+        $s->{cpu}      = $t->x_resource('%.cpu')      // 'simple';                      #simple | detail
+        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple';                      #simple | detail
+        $s->{battery}  = $t->x_resource('%.battery')  // 'simple';                      #simple | detail
+        $s->{disk_mounts} = looks_like_number( $t->x_resource('%.disk.mounts') ) || 1;  #TODO rename
+        $s->{refresh}     = looks_like_number( $t->x_resource('%.refresh') )     || 1;
+        $s->{sensitivity} = looks_like_number( $t->x_resource('%.sensitivity') ) || 1;  #percentage
+        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar';                 #bar | led
 
-        $s->{gauges_order} = _set('%.gauges.order');
-        $s->{gauges_disks} = _set('%.gauges.disks');
-        $s->{disks_read} = _set('%.gauges.disks.read');
-        $s->{disks_write} = _set('%.gauges.disks.write');
+        $s->{gauges_order}     = _set('%.gauges.order');
+        $s->{gauges_disks}     = _set('%.gauges.disks');
+        $s->{disks_read}       = _set('%.gauges.disks.read');
+        $s->{disks_write}      = _set('%.gauges.disks.write');
         $s->{gauges_batteries} = _set('%.gauges.batteries');
-        $s->{gauges_cores} = _set('%.gauges.cores');
-        $s->{network_rx} = _set('%.network.rx');
-        $s->{network_tx} = _set('%.network.tx');
-        $s->{gauges_invert} = _set('%.gauges.invert', 'BAT');
+        $s->{gauges_cores}     = _set('%.gauges.cores');
+        $s->{network_rx}       = _set('%.network.rx');
+        $s->{network_tx}       = _set('%.network.tx');
+        $s->{gauges_invert}    = _set( '%.gauges.invert', 'BAT' );
 
-        $s->{gauges_bg} = looks_like_number($t->x_resource('%.gauges.bg')) || '-1';
-        $s->{gauges_colors} = looks_like_number($t->x_resource('%.gauges.colors')) || '-2';
+        $s->{gauges_bg}     = looks_like_number( $t->x_resource('%.gauges.bg') )     || '-1';
+        $s->{gauges_colors} = looks_like_number( $t->x_resource('%.gauges.colors') ) || '-2';
 
-        $s->{sidebar_header_fg} = looks_like_number($t->x_resource('%.sidebar.header.fg')) || '-2';
-        $s->{sidebar_header_bg} = looks_like_number($t->x_resource('%.sidebar.header.bg')) || '-1';
-        $s->{sidebar_fg} = looks_like_number($t->x_resource('%.sidebar.fg')) || '-2';
-        $s->{sidebar_bg} = looks_like_number($t->x_resource('%.sidebar.bg')) || '-1';
-        $s->{sidebar_boarder_fg} = looks_like_number($t->x_resource('%.sidebar.boarder.fg')) || '-2';
-        $s->{sidebar_boarder_bg} = looks_like_number($t->x_resource('%.sidebar.boarder.bg')) || '-1';
+        $s->{sidebar_header_fg}  = looks_like_number( $t->x_resource('%.sidebar.header.fg') )  || '-2';
+        $s->{sidebar_header_bg}  = looks_like_number( $t->x_resource('%.sidebar.header.bg') )  || '-1';
+        $s->{sidebar_fg}         = looks_like_number( $t->x_resource('%.sidebar.fg') )         || '-2';
+        $s->{sidebar_bg}         = looks_like_number( $t->x_resource('%.sidebar.bg') )         || '-1';
+        $s->{sidebar_boarder_fg} = looks_like_number( $t->x_resource('%.sidebar.boarder.fg') ) || '-2';
+        $s->{sidebar_boarder_bg} = looks_like_number( $t->x_resource('%.sidebar.boarder.bg') ) || '-1';
 
         $notset{gauges_disks} = $s->{gauges_disks} ? 0 : 1;
-        $notset{network_rx} = $s->{network_rx} ? 0 : 1;
-        $notset{network_tx} = $s->{network_tx} ? 0 : 1;
+        $notset{network_rx}   = $s->{network_rx}   ? 0 : 1;
+        $notset{network_tx}   = $s->{network_tx}   ? 0 : 1;
         $notset{gauges_cores} = $s->{gauges_cores} ? 0 : 1;
 
         #DEBUG
         #   #$s->{gauges_invert} = '';
         #   $s->{cpu_temp} = 'detail';     #simple | detail
         #   $s->{battery} = 'detail';     #simple | detail
-        $s->{cpu} = 'simple';     #simple | detail
-        $s->{visual_style} = 'led'; #bar | led
-        $s->{sensitivity} = 0.1;
-        $s->{refresh} = 0.1;
+        $s->{cpu}          = 'simple';    #simple | detail
+        $s->{visual_style} = 'led';       #bar | led
+        $s->{sensitivity}  = 0.1;
+        $s->{refresh}      = 0.1;
+
         #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
         #$s->{gauges_colors} = '5,52,88,124,160,196';
-        $s->{gauges_bg} = 1;
+        $s->{gauges_bg}     = 1;
         $s->{gauges_colors} = '246,246,2,4,3,1';
+
         #   #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
         $s->{label_fg} = '5';
+
         #   #$s->{label_bg} = '1';
         #$s->{cpu} = 'detail';     #simple | detail
         #   $s->{gauges_bg} = '1';    #simple | full
         #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
         $s->{gauges_order} = [ 'CPU', 'DISK', 'MEM', 'NET', 'BAT' ];
-        $s->{network_rx} = [ 'eth0' ];
-        $s->{network_tx} = [ 'eth0' ];
-        $s->{disks_read} = [ 'sda' ];
+        $s->{network_rx}   = ['eth0'];
+        $s->{network_tx}   = ['eth0'];
+        $s->{disks_read}   = ['sda'];
+
         #$s->{disks_write} = [ 'sda' ];
 
-        $s->{sidebar_header_fg} = 250;
-        $s->{sidebar_header_bg} = 1;
-        $s->{sidebar_fg} = 250;
-        $s->{sidebar_bg} = 1;
+        $s->{sidebar_header_fg}  = 250;
+        $s->{sidebar_header_bg}  = 1;
+        $s->{sidebar_fg}         = 250;
+        $s->{sidebar_bg}         = 1;
         $s->{sidebar_boarder_fg} = 240;
         $s->{sidebar_boarder_bg} = 1;
+
         #$s->{label_position} = 'right';
 
         $s->{padding} = 2;
+
         #$s->{visual_alignment} = 'col';
         $s->{disk_mounts} = 0;
+
         #$s->{y} = -1;
         #$s->{x} = 0;
 
@@ -670,84 +678,87 @@ package cdmn::resources {
         $s->set_colors;
     }
 
-
     my $validate = sub {
-        my $s = shift;
+        my $s             = shift;
         my @order_default = map { $s->{$_} } (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery /);
-        my %gauges = map { $_ => 0 } @order_default;
+        my %gauges        = map { $_ => 0 } @order_default;
         $gauges{$_} = 1 for $_[0];
+
         #$s->{gauges} = \%gauges; #TODO necessary?
-        return \@order_default if scalar @{$_[0]} eq 0;
-        return &cut_set($_[0], \@order_default);
+        return \@order_default if scalar @{ $_[0] } eq 0;
+        return &cut_set( $_[0], \@order_default );
     };
 
     sub set_order {
         my $s = shift;
-        $s->{gauges_order} = $validate->($s, $s->{gauges_order});
+        $s->{gauges_order} = $validate->( $s, $s->{gauges_order} );
         1;
     }
 
     sub set_invert {
         my $s = shift;
-        $s->{gauges_invert} = $validate->($s, $s->{gauges_invert});
+        $s->{gauges_invert} = $validate->( $s, $s->{gauges_invert} );
         1;
     }
 
     sub set_nics {
-        my $s = shift;
+        my $s           = shift;
         my $nics_active = cdmn::proc->if_list;
-        my $ov = $s->{gauges_nics} ? scalar @{$s->{gauges_nics}} : 0;
+        my $ov          = $s->{gauges_nics} ? scalar @{ $s->{gauges_nics} } : 0;
 
-        my $rx_tx = &cut_set($s->{network_tx}, $nics_active);
-        my @tx = map {$_.POSTFIX_TX} @$rx_tx;
+        my $rx_tx = &cut_set( $s->{network_tx}, $nics_active );
+        my @tx = map { $_ . POSTFIX_TX } @$rx_tx;
 
-        $rx_tx = &cut_set($s->{network_rx}, $nics_active);
-        my @rx = map {$_.POSTFIX_RX} @$rx_tx;
+        $rx_tx = &cut_set( $s->{network_rx}, $nics_active );
+        my @rx = map { $_ . POSTFIX_RX } @$rx_tx;
 
-        if ((scalar @tx eq 0 and scalar @rx eq 0) || ($notset{network_rx} && $notset{network_tx})) {
-            $s->{gauges_nics} = [ map {$_.POSTFIX_RX, $_.POSTFIX_TX} @$nics_active ];
-        } else {
+        if ( ( scalar @tx eq 0 and scalar @rx eq 0 ) || ( $notset{network_rx} && $notset{network_tx} ) ) {
+            $s->{gauges_nics} = [ map { $_ . POSTFIX_RX, $_ . POSTFIX_TX } @$nics_active ];
+        }
+        else {
             $s->{gauges_nics} = [ @rx, @tx ];
         }
-        $ov != scalar @{$s->{gauges_nics}} ? 1 : 0;
+        $ov != scalar @{ $s->{gauges_nics} } ? 1 : 0;
     }
 
     sub set_disks {
         my $s = shift;
-        my $ov = $s->{gauges_disks} ? scalar @{$s->{gauges_disks}} : 0;
+        my $ov = $s->{gauges_disks} ? scalar @{ $s->{gauges_disks} } : 0;
 
-        $s->{gauges_disks} = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{gauges_disks})
-                                               : cut_set (cdmn::proc::disks, $s->{gauges_disks});
+        $s->{gauges_disks}
+            = $s->{disk_mounts}
+            ? cut_set( cdmn::proc::disk_mounts, $s->{gauges_disks} )
+            : cut_set( cdmn::proc::disks,       $s->{gauges_disks} );
 
-        my $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_read})
-                                   : cut_set (cdmn::proc::disks, $s->{disks_read});
+        my $rw
+            = $s->{disk_mounts}
+            ? cut_set( cdmn::proc::disk_mounts, $s->{disks_read} )
+            : cut_set( cdmn::proc::disks,       $s->{disks_read} );
 
-        my @r = map {$_.POSTFIX_READ} @$rw;
+        my @r = map { $_ . POSTFIX_READ } @$rw;
 
-        $rw = $s->{disk_mounts} ? cut_set(cdmn::proc::disk_mounts, $s->{disks_write})
-                                : cut_set (cdmn::proc::disks, $s->{disks_write});
+        $rw
+            = $s->{disk_mounts}
+            ? cut_set( cdmn::proc::disk_mounts, $s->{disks_write} )
+            : cut_set( cdmn::proc::disks,       $s->{disks_write} );
 
-        my @w = map {$_.POSTFIX_WRITE} @$rw;
+        my @w = map { $_ . POSTFIX_WRITE } @$rw;
 
         $s->{gauges_disks} = $s->{disk_mounts} ? cdmn::proc::disk_mounts : cdmn::proc::disks
-            if (scalar@{$s->{gauges_disks}} eq 0 || $notset{gauges_disks}) && scalar @r eq 0 && scalar @w eq 0;
+            if ( scalar @{ $s->{gauges_disks} } eq 0 || $notset{gauges_disks} ) && scalar @r eq 0 && scalar @w eq 0;
 
-        push @{$s->{gauges_disks}}, (@r, @w);
+        push @{ $s->{gauges_disks} }, ( @r, @w );
 
-        $ov != scalar @{$s->{gauges_disks}} ? 1 : 0;
+        $ov != scalar @{ $s->{gauges_disks} } ? 1 : 0;
     }
 
     #TODO min count colors, check invalid values, ...
     sub set_colors {
         my $s = shift;
         for my $h (qw(network disk cpu cpu_temp memory battery)) {
-            $s->{"colors_$h"} = [
-                map {$_ + 2} grep (looks_like_number($_), split( /[,[:space:]]/, $s->{"colors_$h"}))
-            ] if $s->{"colors_$h"};
+            $s->{"colors_$h"} = [ map { $_ + 2 } grep ( looks_like_number($_), split( /[,[:space:]]/, $s->{"colors_$h"} ) ) ] if $s->{"colors_$h"};
         }
-        $s->{gauges_colors} = [
-            map {$_ + 2} grep (looks_like_number($_), split( /[,[:space:]]/, $s->{gauges_colors}))
-        ];
+        $s->{gauges_colors} = [ map { $_ + 2 } grep ( looks_like_number($_), split( /[,[:space:]]/, $s->{gauges_colors} ) ) ];
         1;
     }
 
@@ -762,16 +773,14 @@ package cdmn::resources {
                 \$ov != scalar \@{\$s->{gauges_$h}} ? 1 : 0;
             }
         }
-    };
+    }
 }
 
 package cdmn::sidebar {
     use Params::Validate qw(:all);
     use POSIX qw(ceil floor);
 
-    use constant {
-        REND => cdmn::constants::REND,
-    };
+    use constant { REND => cdmn::constants::REND, };
 
     use fields qw(term width panes data active_pane visible order bg fg bg_header fg_header bg_boarder fg_boarder);
 
@@ -779,8 +788,9 @@ package cdmn::sidebar {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = validate( @_, {
-                term       => 1,
+        (%$s) = validate(
+            @_,
+            {   term       => 1,
                 width      => { default => 32 },
                 visible    => { default => 0 },
                 bg         => 1,
@@ -789,8 +799,9 @@ package cdmn::sidebar {
                 fg_header  => 1,
                 bg_boarder => 1,
                 fg_boarder => 1,
-            } );
-        $s->{data} = ();
+            }
+        );
+        $s->{data}  = ();
         $s->{order} = ();
 
         return $s;
@@ -816,73 +827,73 @@ package cdmn::sidebar {
         my $s = shift;
         $s->{visible} = !$s->{visible};
         $s->{term}->toggle;
-        $s->show_pane($s->{order}[$s->{active_pane}]);
+        $s->show_pane( $s->{order}[ $s->{active_pane} ] );
     }
 
     sub bounds {
-        (shift)->{term}->bounds( @_ );
+        (shift)->{term}->bounds(@_);
     }
 
-    sub show_pane{
-        my ($s, $title) = (@_);
+    sub show_pane {
+        my ( $s, $title ) = (@_);
         return if !$s->{visible};
         my $data = $s->{panes}{$title};
-        for (my $j = 0; $j < @$data; $j++) {
+        for ( my $j = 0; $j < @$data; $j++ ) {
             $$data[$j]->show if $$data[$j]->{y} < $s->{term}->nrow;
         }
     }
 
-    sub hide_pane{
-        my ($s, $title) = (@_);
+    sub hide_pane {
+        my ( $s, $title ) = (@_);
         return if !$s->{visible};
         my $data = $s->{panes}{$title};
-        for (my $j = 0; $j < @$data; $j++) {
+        for ( my $j = 0; $j < @$data; $j++ ) {
             $$data[$j]->hide;
         }
     }
 
     sub set_pane {
-        my ($s, $title, $args) = (@_);
-        $s->{panes}{$title} = $s->create_pane($title, $args);
+        my ( $s, $title, $args ) = (@_);
+        $s->{panes}{$title} = $s->create_pane( $title, $args );
         $s->{data}{$title} = $args;
-        $s->show_pane($title) if $title eq $s->{order}[$s->{active_pane}];
+        $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
         1;
     }
 
     sub next_pane {
         my $s = shift;
         state $i = $s->{active_pane};
-        $s->hide_pane($s->{order}[$i]);
+        $s->hide_pane( $s->{order}[$i] );
         $i++;
-        $i = 0 if $i ge scalar @{$s->{order}};
+        $i = 0 if $i ge scalar @{ $s->{order} };
         $s->{active_pane} = $i;
-        $s->show_pane($s->{order}[$i]);
+        $s->show_pane( $s->{order}[$i] );
     }
 
     sub prev_pane {
         my $s = shift;
         state $i = $s->{active_pane};
-        $s->hide_pane($s->{order}[$i]);
+        $s->hide_pane( $s->{order}[$i] );
         $i--;
-        $i = scalar @{$s->{order}} - 1 if $i lt 0;
+        $i = scalar @{ $s->{order} } - 1 if $i lt 0;
         $s->{active_pane} = $i;
-        $s->show_pane($s->{order}[$i]);
+        $s->show_pane( $s->{order}[$i] );
     }
 
     sub add_pane {
-        my ($s, $title, $args) = (@_);
-        $s->{panes}{$title} = $s->create_pane($title, $args);
+        my ( $s, $title, $args ) = (@_);
+        $s->{panes}{$title} = $s->create_pane( $title, $args );
         $s->{data}{$title} = $args;
-        push @{$s->{order}}, $title;
+        push @{ $s->{order} }, $title;
         1;
     }
 
     sub create_pane {
         my @data;
-        my $s = shift;
+        my $s     = shift;
         my $title = shift;
-        my $args = shift;
-        my $r = urxvt::SET_FGCOLOR REND, $s->{fg_boarder};
+        my $args  = shift;
+        my $r     = urxvt::SET_FGCOLOR REND, $s->{fg_boarder};
 
         #border
         $data[0] = cdmn::visuals::overlay->new(
@@ -892,7 +903,7 @@ package cdmn::sidebar {
             width     => 1,
             height    => $s->{term}->nrow,
             rendition => $r,
-            text   => "│"
+            text      => "│"
         );
 
         $r = urxvt::SET_FGCOLOR REND, $s->{fg_header};
@@ -901,42 +912,44 @@ package cdmn::sidebar {
         my $i = 1;
 
         #title
-        push @data, cdmn::visuals::overlay->new(
+        push @data,
+            cdmn::visuals::overlay->new(
+            term      => $s->{term},
+            x         => -1,
+            y         => $i++,
+            width     => $s->{width},
+            height    => 1,
+            rendition => $r,
+            text      => $title
+            );
+
+        $r = urxvt::SET_FGCOLOR REND, $s->{fg};
+        for ( sort keys %$args ) {
+            $i++;
+            push @data,
+                cdmn::visuals::overlay->new(
                 term      => $s->{term},
-                x         => - 1,
+                x         => -1,
                 y         => $i++,
                 width     => $s->{width},
                 height    => 1,
                 rendition => $r,
-                text   => $title
-            );
-
-        $r = urxvt::SET_FGCOLOR REND, $s->{fg};
-        for (sort keys %$args) {
-            $i++;
-            push @data, cdmn::visuals::overlay->new(
-                    term      => $s->{term},
-                    x         => - 1,
-                    y         => $i++,
-                    width     => $s->{width},
-                    height    => 1,
-                    rendition => $r,
-                    text   => $_
+                text      => $_
                 );
             my $c = ceil( 25 * $args->{$_} / 100 );
             my $f = 25 - $c;
             push @data,
                 cdmn::visuals::overlay->new(
-                    term      => $s->{term},
-                    x         => - 1,
-                    y         => $i++,
-                    width     => $s->{width},
-                    height    => 1,
-                    rendition => $r,
-                    text   => "■" x $c."□" x $f." ".ceil($args->{$_})."%"
+                term      => $s->{term},
+                x         => -1,
+                y         => $i++,
+                width     => $s->{width},
+                height    => 1,
+                rendition => $r,
+                text      => "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%"
                 );
         }
-        for (my $j = 0; $j < @data; $j++) {
+        for ( my $j = 0; $j < @data; $j++ ) {
             $data[$j]->create();
         }
         return \@data;
@@ -964,18 +977,28 @@ package cdmn::term {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = validate( @_, { parent => 1, resource => 1, bg_color => 1, is_root => 1, x => { default => 1 },
-                y                      => { default => 1 }, w => { default => 1 }, h => { default => 1 } } );
+        (%$s) = validate(
+            @_,
+            {   parent   => 1,
+                resource => 1,
+                bg_color => 1,
+                is_root  => 1,
+                x        => { default => 1 },
+                y        => { default => 1 },
+                w        => { default => 1 },
+                h        => { default => 1 }
+            }
+        );
 
         #(%$s) = @_;
         #@$s{qw/x y w h/} // 1;
 
         push @urxvt::TERM_INIT, sub {
-                my ($term) = @_;
-                $term->{termclass} = $s;
-                $term->{parent} = $s->{parent} if $s->{is_root};
-                $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
-            };
+            my ($term) = @_;
+            $term->{termclass} = $s;
+            $term->{parent} = $s->{parent} if $s->{is_root};
+            $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
+        };
 
         push @urxvt::TERM_EXT, __PACKAGE__;
 
@@ -997,17 +1020,17 @@ package cdmn::term {
 
     sub on_init {
         my $s = shift;
-        $s->bind_action( 'M-h', 'perl:'.ACTION_SHOW );
-        $s->bind_action( 'M-p', 'perl:'.ACTION_SHOW_SIDEBAR );
-        $s->bind_action( 'M-o', 'perl:'.ACTION_SHOW_TRANSPARENT );
-        $s->bind_action( 'M-l', 'perl:'.ACTION_SHOW_LABELS );
-        $s->bind_action( 'M-k', 'perl:'.ACTION_NEXT_PANE );
-        $s->bind_action( 'M-j', 'perl:'.ACTION_PREV_PANE );
+        $s->bind_action( 'M-h', 'perl:' . ACTION_SHOW );
+        $s->bind_action( 'M-p', 'perl:' . ACTION_SHOW_SIDEBAR );
+        $s->bind_action( 'M-o', 'perl:' . ACTION_SHOW_TRANSPARENT );
+        $s->bind_action( 'M-l', 'perl:' . ACTION_SHOW_LABELS );
+        $s->bind_action( 'M-k', 'perl:' . ACTION_NEXT_PANE );
+        $s->bind_action( 'M-j', 'perl:' . ACTION_PREV_PANE );
         ();
     }
 
     sub on_tt_write {
-        if (!(shift)->{term}{parent}) {
+        if ( !(shift)->{term}{parent} ) {
             $root->{term}->tt_write(shift);
             1;
         }
@@ -1016,7 +1039,7 @@ package cdmn::term {
 
     sub on_refresh_begin {
         my $s = shift;
-        if (!$s->{term}{parent}) {
+        if ( !$s->{term}{parent} ) {
             my $str = $s->{term}->locale_encode("\e[0;0H\e[K");
             $s->{term}->cmd_parse($str);    #do not show the cursor!
             1;
@@ -1072,17 +1095,28 @@ package cdmn::visuals::container {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = validate( @_, {
-                term => 1, rendition => 1, x => 1, y => 1, padding => 1, align => 1, even_gauges => 1,
-                visible => 1, bg_color => 1, label_pos => 1 } );
+        (%$s) = validate(
+            @_,
+            {   term        => 1,
+                rendition   => 1,
+                x           => 1,
+                y           => 1,
+                padding     => 1,
+                align       => 1,
+                even_gauges => 1,
+                visible     => 1,
+                bg_color    => 1,
+                label_pos   => 1
+            }
+        );
 
         ( $xOff, $yOff ) = ( 0, $s->{y} );
         $s;
     }
 
     sub add {
-        my $s = shift;
-        my %arg = @_;
+        my $s      = shift;
+        my %arg    = @_;
         my $visual = cdmn::visuals::visual->new(
             term          => $s->{term},
             rendition     => $s->{rendition},
@@ -1096,48 +1130,48 @@ package cdmn::visuals::container {
             gauges_bg     => $arg{gauges_bg},
             visual_style  => $arg{visual_style},
             sensitivity   => $arg{sensitivity},
-            label_pos   => $s->{label_pos},
+            label_pos     => $s->{label_pos},
         );
 
-        $s->{simple_gauges}{$arg{name}} = $arg{simple};
+        $s->{simple_gauges}{ $arg{name} } = $arg{simple};
 
         local *_pad = sub {
-           foreach (values %{ $s->{gauges} }) {
-               return if $_[0] <= $m;
-               $m = $_[0];
-               $_->even_gauges($_[0]);
-               $xOff += $visual->{width} if $s->{align} eq ALIGN_ROW;
-           }
+            foreach ( values %{ $s->{gauges} } ) {
+                return if $_[0] <= $m;
+                $m = $_[0];
+                $_->even_gauges( $_[0] );
+                $xOff += $visual->{width} if $s->{align} eq ALIGN_ROW;
+            }
         };
 
-        if ($s->{even_gauges}) {
-            _pad(length $arg{label}) if $s->{label_pos} eq 'right';
-            _pad(scalar @{$arg{gauges}}) if $s->{label_pos} eq 'left';
+        if ( $s->{even_gauges} ) {
+            _pad( length $arg{label} ) if $s->{label_pos} eq 'right';
+            _pad( scalar @{ $arg{gauges} } ) if $s->{label_pos} eq 'left';
         }
 
         $visual->even_gauges($m) if $s->{even_gauges};
-        $xOff += $visual->{width} + $s->{padding} if $s->{align} eq ALIGN_ROW;
+        $xOff += $visual->{width} + $s->{padding}  if $s->{align} eq ALIGN_ROW;
         $yOff += $visual->{height} + $s->{padding} if $s->{align} eq ALIGN_COL;
-        $s->{gauges}{$arg{name}} = $visual;
+        $s->{gauges}{ $arg{name} } = $visual;
     }
 
     sub create {
         my $s = shift;
         my $l = 0;
-        foreach (values %{ $s->{gauges}}) {
+        foreach ( values %{ $s->{gauges} } ) {
             $l = $_->{width} if $l < $_->{width};
         }
 
-        foreach (values %{ $s->{gauges}}) {
-            if ($s->{x} < 0) {
-                $_->{x} = $s->{term}->ncol - $xOff + $_->{x} + $s->{x} + $s->{padding} + 1 if ($s->{align} eq ALIGN_ROW);
+        foreach ( values %{ $s->{gauges} } ) {
+            if ( $s->{x} < 0 ) {
+                $_->{x} = $s->{term}->ncol - $xOff + $_->{x} + $s->{x} + $s->{padding} + 1 if ( $s->{align} eq ALIGN_ROW );
                 $_->{x} = $s->{term}->ncol - $_->{x} - $_->{width} if ( $s->{align} eq ALIGN_COL );
             }
             else {
                 $_->{x} += $s->{x} if $s->{align} eq ALIGN_ROW;
                 $_->{x} = $l - $_->{width} if ( $s->{align} eq ALIGN_COL );
             }
-            if ($s->{y} < 0) {
+            if ( $s->{y} < 0 ) {
                 $_->{y} = $s->{term}->nrow - $yOff + $_->{y} + $s->{y} + $s->{padding} + 1 if ( $s->{align} eq ALIGN_COL );
             }
         }
@@ -1149,36 +1183,38 @@ package cdmn::visuals::container {
 
         #Background
         $s->{bg} = cdmn::visuals::overlay->new(
-            term      => $s->{term},
-            x         => $s->{x},
-            y         => $s->{y},
-            width     => $s->{width},
-            height    => $s->{height},
+            term   => $s->{term},
+            x      => $s->{x},
+            y      => $s->{y},
+            width  => $s->{width},
+            height => $s->{height},
+
             #rendition => urxvt::SET_BGCOLOR REND, 4,
-            rendition => urxvt::SET_BGCOLOR REND, $s->{bg_color},
+            rendition => urxvt::SET_BGCOLOR REND,
+            $s->{bg_color},
         );
 
         $s->{bg}->create("show");
         $s->{bg_visible} = 1;
 
         my $w = 0;
-        foreach (values %{$s->{gauges}} ) { $w = $_->{width} if $_->{width} > $w; }
+        foreach ( values %{ $s->{gauges} } ) { $w = $_->{width} if $_->{width} > $w; }
         $s->{width} = $w * $s->{term}->fwidth;
-        $s->{height} = $yOff + ($s->{padding} * ($yOff - 1) * $s->{term}->fheight);
+        $s->{height} = $yOff + ( $s->{padding} * ( $yOff - 1 ) * $s->{term}->fheight );
     }
 
     sub set {
-        my ( $s, $name, $usage, $invert) = validate_pos( @_, 1, 1, 1, 1 );
+        my ( $s, $name, $usage, $invert ) = validate_pos( @_, 1, 1, 1, 1 );
         my $total = 0;
-        if ($s->{visible} && $s->{gauges}{$name}) {
-            if ($s->{simple_gauges}{$name}) {
+        if ( $s->{visible} && $s->{gauges}{$name} ) {
+            if ( $s->{simple_gauges}{$name} ) {
                 $total += $_ foreach values %$usage;
                 $total /= scalar keys %$usage;
-                $s->{gauges}{$name}->set( 'simple', $total, $invert);
+                $s->{gauges}{$name}->set( 'simple', $total, $invert );
             }
             else {
                 while ( my ( $key, $value ) = each %$usage ) {
-                    $s->{gauges}{$name}->set( $key, $value, $invert);
+                    $s->{gauges}{$name}->set( $key, $value, $invert );
                 }
             }
         }
@@ -1206,7 +1242,7 @@ package cdmn::visuals::container {
     sub show_labels {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
-        foreach (values %{ $s->{gauges} }) {
+        foreach ( values %{ $s->{gauges} } ) {
             $visible ? $_->show_label : $_->hide_label;
         }
 
@@ -1242,6 +1278,7 @@ package cdmn::visuals::visual {
     use fields qw( count width height width_add);
 
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
+
     #use constant LED => '⬛';
     use constant LED => '■';
     use constant { TRUE => 1, FALSE => 0 };
@@ -1257,8 +1294,9 @@ package cdmn::visuals::visual {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = validate(@_, {
-                term          => 1,
+        (%$s) = validate(
+            @_,
+            {   term          => 1,
                 rendition     => 1,
                 x             => 1,
                 y             => 1,
@@ -1271,11 +1309,12 @@ package cdmn::visuals::visual {
                 visual_style  => 1,
                 sensitivity   => 1,
                 label_pos     => 1,
-            });
+            }
+        );
 
         $s->{width} = ( length $s->{label} ) + 1 + @{ $s->{gauges} };
 
-        $s->{height} = 1;
+        $s->{height}    = 1;
         $s->{width_add} = 0;
         return $s;
     }
@@ -1291,12 +1330,12 @@ package cdmn::visuals::visual {
     }
 
     sub create {
-        my $s          = shift;
-        my $w = ( length $s->{label} );
+        my $s      = shift;
+        my $w      = ( length $s->{label} );
         my @gauges = @{ $s->{gauges} };
 
-        $s->{gauges} = { };
-        $s->{x}          = -( $w + $m ) if $s->{x} < 0;
+        $s->{gauges} = {};
+        $s->{x} = -( $w + $m ) if $s->{x} < 0;
         my $x = $s->{x};
 
         local *_label = sub {
@@ -1317,7 +1356,7 @@ package cdmn::visuals::visual {
         local *_gauges = sub {
             $s->{rendition} = urxvt::SET_BGCOLOR $s->{rendition}, $s->{gauges_bg};
             for my $i (@gauges) {
-                foreach (@{$s->{gauges_colors}}) {
+                foreach ( @{ $s->{gauges_colors} } ) {
                     $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
                     my $pictorial = cdmn::visuals::overlay->new(
                         term      => $s->{term},
@@ -1335,14 +1374,14 @@ package cdmn::visuals::visual {
             }
         };
 
-        if ($s->{label_pos} eq 'right') { &_gauges; $x++;&_label; }
-        else {&_label; $x += $w + 1; &_gauges; }
+        if ( $s->{label_pos} eq 'right' ) { &_gauges; $x++; &_label; }
+        else                              { &_label; $x += $w + 1; &_gauges; }
     }
 
     sub show {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
-        for (values %{ $s->{gauges} }) {
+        for ( values %{ $s->{gauges} } ) {
             for ( values %{$_} ) {
                 $visible ? $_->show : $_->hide;
             }
@@ -1364,23 +1403,23 @@ package cdmn::visuals::visual {
     }
 
     sub set {
-        my ( $s, $i, $usage, $invert) = validate_pos( @_, 1, 1, 1, 1 );
+        my ( $s, $i, $usage, $invert ) = validate_pos( @_, 1, 1, 1, 1 );
         return if !$s->{gauges}{"$i"};
 
         my $size = scalar @{&BLOCKS};
-        my $bar_i = ($usage > 100 ? 100 : $usage) / 100 * ($size);
+        my $bar_i = ( $usage > 100 ? 100 : $usage ) / 100 * ($size);
         $usage = 100 - $usage if $invert;
         $bar_i -= 1 if $bar_i >= $size;
-        $size = scalar @{$s->{gauges_colors}};
-        my $clr_i = ($usage > 100 ? 100 : $usage) / 100 * ($size - 1) + 1;
+        $size = scalar @{ $s->{gauges_colors} };
+        my $clr_i = ( $usage > 100 ? 100 : $usage ) / 100 * ( $size - 1 ) + 1;
         $clr_i -= 1 if $clr_i >= $size;
         my $color = $usage < $s->{sensitivity} ? $s->{gauges_colors}[0] : $s->{gauges_colors}[$clr_i];
-        for (values %{ $s->{gauges}{"$i"} }) {
+        for ( values %{ $s->{gauges}{"$i"} } ) {
             $_->hide;
         }
 
         $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq STYLE_BAR;
-        $s->{gauges}{"$i"}{"$color"}->set( LED ) if $s->{visual_style} eq STYLE_LED;
+        $s->{gauges}{"$i"}{"$color"}->set(LED) if $s->{visual_style} eq STYLE_LED;
         $s->{gauges}{"$i"}{"$color"}->show;
     }
 }
@@ -1417,29 +1456,29 @@ package cdmn::visuals::overlay {
     }
 
     for my $h (qw(hide show)) {
-        eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } }; ## no critic
+        eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } };    ## no critic
     }
 }
 
 use constant XR => cdmn::resources->new();
-
 
 #-----------------------------------------------------------------------------------------------------------------------
 #   HELPERS
 #-----------------------------------------------------------------------------------------------------------------------
 
 sub redraw {
-    my ($s, $showLabels) = @_;
-    my @visible = map {$$_->{visible}} @{($s->{caption})};
+    my ( $s, $showLabels ) = @_;
+    my @visible = map { $$_->{visible} } @{ ( $s->{caption} ) };
 
     $s->{visuals_updater}->stop;
-    $s->{caption}[0] = create_captions ($s->{xterms}{main}{term}, $showLabels);
-    $s->{caption}[1] = create_captions ($s, $showLabels);
+    $s->{caption}[0] = create_captions( $s->{xterms}{main}{term}, $showLabels );
+    $s->{caption}[1] = create_captions( $s, $showLabels );
 
-    while ( my ( $key, $item ) = each @{($s->{caption})} ) {
+    while ( my ( $key, $item ) = each @{ ( $s->{caption} ) } ) {
         ${$item}->create;
         $visible[$key] ? ${$item}->show : ${$item}->hide;
     }
+
     #$s->{sidebar}->refresh_pane if $s->{sidebar}{visible};
     $s->{visuals_updater}->start;
 }
@@ -1447,96 +1486,101 @@ sub redraw {
 sub calc_bounds {
     my $s = shift;
     my $t = shift;
-    my ($h, $w, $x, $y) = (0, 0, $s->{x}, $s->{y});
+    my ( $h, $w, $x, $y ) = ( 0, 0, $s->{x}, $s->{y} );
 
-    if ($t eq ALIGN_ROW) {
+    if ( $t eq ALIGN_ROW ) {
         $h = $s->fheight * ( $s->nrow - 1 );
         $w = $s->width;
-        $y = XR->{y} >= 0 ? $s->fheight : - 1;
+        $y = XR->{y} >= 0 ? $s->fheight : -1;
     }
-    if ($t eq ALIGN_COL) {
+    if ( $t eq ALIGN_COL ) {
         $h = $s->fheight * ( $s->nrow );
-        $w = $s->width - ${$s->{caption}[0]}->{width};
+        $w = $s->width - ${ $s->{caption}[0] }->{width};
         $y = 0;
     }
     $x = 0;
-    ($h, $w, $x, $y);
+    ( $h, $w, $x, $y );
 }
 
 #TODO why add 4 to w and h
-sub refresh_bounds{
+sub refresh_bounds {
     my $s = shift;
     my $t = shift;
-    my ($h, $w, $x, $y) = &calc_bounds($s, $t);
+    my ( $h, $w, $x, $y ) = &calc_bounds( $s, $t );
 
-    if ($s->{xterms}{main}{maximized}) {
+    if ( $s->{xterms}{main}{maximized} ) {
         $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
     }
     else {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );
-        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
-            $h + 4 ) if XR->{visual_alignment} eq ALIGN_COL;
+        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4, $h + 4 ) if XR->{visual_alignment} eq ALIGN_COL;
 
     }
     $s->{sidebar}->bounds( $s->width - $s->fwidth * 35 + 4, 0, $s->fwidth * 35, $s->height + 4 );
+
     #$s->{sidebar}->refresh_pane if $s->{sidebar}{visible};
 
 }
 
 sub create_captions {
-    my ($s, $showLabels) = (@_);
+    my ( $s, $showLabels ) = (@_);
     my $caption;
     local *_create = sub {
         my (%arg) = @_;
 
         local *add = sub {
             local $_ = XR->{label_battery_AC} if $_[0] eq 'battery' and &cdmn::proc::ac_online;
-            $caption->add(label                 => $showLabels ? $_ : '', gauges => $arg{$_[0]}, label_bg =>
-                XR->{label_bg}, gauges_bg       =>
-                XR->{gauges_bg}, label_fg       => XR->{label_fg}, gauges_colors => $_[1], visual_style =>
-                XR->{visual_style}, sensitivity => XR->{sensitivity}, name => $_[0], simple => $_[2]);
+            $caption->add(
+                label => $showLabels ? $_ : '',
+                gauges        => $arg{ $_[0] },
+                label_bg      => XR->{label_bg},
+                gauges_bg     => XR->{gauges_bg},
+                label_fg      => XR->{label_fg},
+                gauges_colors => $_[1],
+                visual_style  => XR->{visual_style},
+                sensitivity   => XR->{sensitivity},
+                name          => $_[0],
+                simple        => $_[2]
+            );
         };
 
         for ( @{ XR->{gauges_order} } ) {
-            $_ eq XR->{label_cpu} and add('cpu', XR->{colors_cpu} || XR->{gauges_colors}, XR->{cpu} eq 'simple' );
-            $_ eq XR->{label_disk} and add('disk', XR->{colors_disk} || XR->{gauges_colors}, 0);
-            $_ eq XR->{label_memory} and add('memory', XR->{colors_memory} || XR->{gauges_colors}, 0);
-            $_ eq XR->{label_network} and add('network', XR->{colors_network} || XR->{gauges_colors},
-                0) if $arg{network};
-            $_ eq XR->{label_cpu_temp} and add('cores', XR->{colors_cpu_temp} || XR->{gauges_colors},
-                XR->{cpu_temp} eq 'simple') if $arg{cores};
-            $_ eq XR->{label_battery} and add('battery', XR->{colors_battery} || XR->{gauges_colors},
-                XR->{battery} eq 'simple') if $arg{battery};
+            $_ eq XR->{label_cpu}      and add( 'cpu',     XR->{colors_cpu}      || XR->{gauges_colors}, XR->{cpu} eq 'simple' );
+            $_ eq XR->{label_disk}     and add( 'disk',    XR->{colors_disk}     || XR->{gauges_colors}, 0 );
+            $_ eq XR->{label_memory}   and add( 'memory',  XR->{colors_memory}   || XR->{gauges_colors}, 0 );
+            $_ eq XR->{label_network}  and add( 'network', XR->{colors_network}  || XR->{gauges_colors}, 0 ) if $arg{network};
+            $_ eq XR->{label_cpu_temp} and add( 'cores',   XR->{colors_cpu_temp} || XR->{gauges_colors}, XR->{cpu_temp} eq 'simple' ) if $arg{cores};
+            $_ eq XR->{label_battery}  and add( 'battery', XR->{colors_battery}  || XR->{gauges_colors}, XR->{battery} eq 'simple' ) if $arg{battery};
         }
     };
 
-    for (XR->{visual_alignment}) {
+    for ( XR->{visual_alignment} ) {
         $caption = do {
-            if ($_ eq ALIGN_ROW) {
+            if ( $_ eq ALIGN_ROW ) {
                 cdmn::visuals::container->new(
-                    term       => $s,
-                    rendition  => REND,
-                    x          => XR->{x},
-                    y          => XR->{y},
-                    padding    => XR->{padding},
-                    align      => $_,
+                    term        => $s,
+                    rendition   => REND,
+                    x           => XR->{x},
+                    y           => XR->{y},
+                    padding     => XR->{padding},
+                    align       => $_,
                     even_gauges => 0,
-                    visible    => XR->{showing},
-                    bg_color   => XR->{caption_bg},
+                    visible     => XR->{showing},
+                    bg_color    => XR->{caption_bg},
                     label_pos   => XR->{label_position},
                 );
             }
-            elsif ($_ eq ALIGN_COL) {
+            elsif ( $_ eq ALIGN_COL ) {
                 cdmn::visuals::container->new(
-                    term       => $s,
-                    rendition  => REND,
-                    x          => XR->{x},
-                    y          => XR->{y},
-                    padding    => XR->{padding},
-                    align      => $_,
+                    term        => $s,
+                    rendition   => REND,
+                    x           => XR->{x},
+                    y           => XR->{y},
+                    padding     => XR->{padding},
+                    align       => $_,
                     even_gauges => 1,
-                    visible    => XR->{showing},
-                    bg_color   => XR->{caption_bg},
+                    visible     => XR->{showing},
+                    bg_color    => XR->{caption_bg},
                     label_pos   => XR->{label_position},
                 );
             }
@@ -1546,18 +1590,17 @@ sub create_captions {
     state $cpus = cdmn::proc::cpu_count() - 1;
 
     my %args;
-    $args{cores} = (XR->{cpu_temp} eq 'simple' ? [ "simple" ] : XR->{gauges_cores}) if @{XR->{gauges_cores}} > 0;
-    $args{cpu} = XR->{cpu} eq 'simple' ? [ "simple" ] : [ map "cpu".$_, 0 .. $cpus ];
-    $args{disk} = XR->{gauges_disks} if @{XR->{gauges_disks}} > 0 || @{XR->{disks_write}} > 0 || @{XR->{disks_read}} > 0;
-    $args{memory} = [ "MemAvailable:" ];
-    $args{network} = XR->{gauges_nics} if @{XR->{gauges_nics}} > 0;
-    $args{battery} = (XR->{battery} eq 'simple' ? [ "simple" ] : XR->{gauges_batteries}) if XR->{gauges_batteries} > 0;
+    $args{cores} = ( XR->{cpu_temp} eq 'simple' ? ["simple"] : XR->{gauges_cores} ) if @{ XR->{gauges_cores} } > 0;
+    $args{cpu} = XR->{cpu} eq 'simple' ? ["simple"] : [ map "cpu" . $_, 0 .. $cpus ];
+    $args{disk}    = XR->{gauges_disks} if @{ XR->{gauges_disks} } > 0 || @{ XR->{disks_write} } > 0 || @{ XR->{disks_read} } > 0;
+    $args{memory}  = ["MemAvailable:"];
+    $args{network} = XR->{gauges_nics} if @{ XR->{gauges_nics} } > 0;
+    $args{battery} = ( XR->{battery} eq 'simple' ? ["simple"] : XR->{gauges_batteries} ) if XR->{gauges_batteries} > 0;
 
-    _create((%args));
+    _create( (%args) );
 
     return \$caption;
 }
-
 
 #-----------------------------------------------------------------------------------------------------------------------
 #   ACTIONS
@@ -1568,14 +1611,13 @@ my %user_command;
 #TODO why add 4 to w and h
 $user_command{&ACTION_SHOW} = sub {
     my $s = shift;
-    my ($h, $w, $x, $y) = &calc_bounds($s, XR->{visual_alignment});
+    my ( $h, $w, $x, $y ) = &calc_bounds( $s, XR->{visual_alignment} );
 
-    if ($s->{xterms}{main}{maximized}) {
+    if ( $s->{xterms}{main}{maximized} ) {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{visual_alignment} eq ALIGN_ROW;
-        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4,
-            $h + 4 ) if XR->{visual_alignment} eq ALIGN_COL;
+        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4, $h + 4 ) if XR->{visual_alignment} eq ALIGN_COL;
         $s->{xterms}{main}{maximized} = 0;
-        ${$s->{caption}->[0]}->hide;
+        ${ $s->{caption}->[0] }->hide;
         $SHOWING = 1;
     }
     else {
@@ -1587,17 +1629,17 @@ $user_command{&ACTION_SHOW} = sub {
 
 $user_command{&ACTION_SHOW_TRANSPARENT} = sub {
     my $s = shift;
-    if ($s->{xterms}{main}{maximized}) {
-        my $c = ${$s->{caption}->[0]};
-        if ($c->{visible}) {
+    if ( $s->{xterms}{main}{maximized} ) {
+        my $c = ${ $s->{caption}->[0] };
+        if ( $c->{visible} ) {
             $c->hide;
             $SHOWING = 0;
         }
         else {
             $c->show;
             $SHOWING = 1;
-            redraw($s, $LABELS_SHOWING);
-            refresh_bounds($s, XR->{visual_alignment});
+            redraw( $s, $LABELS_SHOWING );
+            refresh_bounds( $s, XR->{visual_alignment} );
         }
     }
 };
@@ -1618,11 +1660,10 @@ $user_command{&ACTION_SHOW_LABELS} = sub {
     if ($SHOWING) {
         my $s = shift;
         $LABELS_SHOWING = !$LABELS_SHOWING;
-        redraw($s, $LABELS_SHOWING);
-        refresh_bounds($s, XR->{visual_alignment});
+        redraw( $s, $LABELS_SHOWING );
+        refresh_bounds( $s, XR->{visual_alignment} );
     }
 };
-
 
 #-----------------------------------------------------------------------------------------------------------------------
 #   RXVT HANDLERS
@@ -1639,14 +1680,17 @@ sub on_refresh_begin {
     my $nics_active = cdmn::proc->if_list;
     state $onAC = 0;
     state $nics = 0;
-    if ($s->{w_size} != $s->{term}->ncol || $s->{y_size} != $s->{term}->nrow ||
-        &cdmn::proc::ac_online != $onAC || $nics != scalar @$nics_active) {
+    if (   $s->{w_size} != $s->{term}->ncol
+        || $s->{y_size} != $s->{term}->nrow
+        || &cdmn::proc::ac_online != $onAC
+        || $nics != scalar @$nics_active )
+    {
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
 
         XR->set_nics;
-        redraw($s, $LABELS_SHOWING);
-        refresh_bounds($s, XR->{visual_alignment});
+        redraw( $s, $LABELS_SHOWING );
+        refresh_bounds( $s, XR->{visual_alignment} );
         $s->{w_size} = $s->{term}->ncol;
         $s->{y_size} = $s->{term}->nrow;
     }
@@ -1655,7 +1699,7 @@ sub on_refresh_begin {
 }
 
 sub on_refresh_end {
-    my $s = shift;
+    my $s   = shift;
     my $str = $s->{term}->locale_encode("\e[0;0H\e[K");
     $s->{term}->cmd_parse($str);    #do not show the cursor!
     1;
@@ -1664,7 +1708,7 @@ sub on_refresh_end {
 sub on_configure_notify {
     my $s = shift;
     return if $s->{w_size} eq $s->{term}->ncol && $s->{y_size} eq $s->{term}->nrow;
-    refresh_bounds($s, XR->{visual_alignment});
+    refresh_bounds( $s, XR->{visual_alignment} );
     1;
 }
 
@@ -1678,7 +1722,7 @@ for my $h (qw(key_press key_release)) {
 }
 
 for my $h (qw(focus_in focus_out)) {
-    eval qq{ sub on_$h { (shift)->{xterms}{main}{term}->$h; 1; } }; ## no critic
+    eval qq{ sub on_$h { (shift)->{xterms}{main}{term}->$h; 1; } };    ## no critic
 }
 
 sub on_wm_delete_window {
@@ -1691,7 +1735,6 @@ sub on_tt_write {
     1;
 }
 
-
 #-----------------------------------------------------------------------------------------------------------------------
 #   MAIN ENTRYPOINT
 #-----------------------------------------------------------------------------------------------------------------------
@@ -1699,7 +1742,7 @@ sub on_tt_write {
 sub on_init {
     my ($s) = @_;
     XR->init($s);
-    $SHOWING = XR->{showing};
+    $SHOWING        = XR->{showing};
     $LABELS_SHOWING = XR->{showing_labels};
     ();
 }
@@ -1742,56 +1785,55 @@ sub on_start {
 
     #$s->{xterms}{main}->hide if ( XR->{visual_alignment} eq ALIGN_COL );
 
-    $s->{w_size} = $s->{term}->ncol;
-    $s->{y_size} = $s->{term}->nrow;
+    $s->{w_size}     = $s->{term}->ncol;
+    $s->{y_size}     = $s->{term}->nrow;
     $s->{caption}[0] = create_captions $s->{xterms}{main}{term};
     $s->{caption}[1] = create_captions $s;
-    ${$s->{caption}[0]}->create;
-    ${$s->{caption}[1]}->create;
+    ${ $s->{caption}[0] }->create;
+    ${ $s->{caption}[1] }->create;
 
     #$s->cmd_parse("\e[2T\e[2B"); #Scroll down and move cursor down 2 line.
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
 
     #TODO WIP
-    $s->{sidebar}->add_pane($_) foreach keys %{${$s->{caption}[0]}->{gauges}};
+    $s->{sidebar}->add_pane($_) foreach keys %{ ${ $s->{caption}[0] }->{gauges} };
     $s->{sidebar}->add_pane('FS');
     $s->{sidebar}{active_pane} = 0;
 
-    $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval(XR->{refresh})->cb(
+    $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval( XR->{refresh} )->cb(
         sub {
             return if !$SHOWING;
             my %r;
 
-            redraw($s, $LABELS_SHOWING) if XR->set_disks || XR->set_batteries || XR->set_nics;
+            redraw( $s, $LABELS_SHOWING ) if XR->set_disks || XR->set_batteries || XR->set_nics;
 
             my %usage_of;
-            $usage_of{cpu} = sub {%{&cdmn::proc::cpu_usages}};
-            $usage_of{memory} = sub {%{&cdmn::proc::memory_usages}};
-            $usage_of{cores} = sub {%{&cdmn::proc::cpu_temp_usages}};
-            $usage_of{battery} = sub {%{&cdmn::proc::battery_usages}};
-            $usage_of{disk} = sub {%{&cdmn::proc::disk_usages}};
-            $usage_of{network} = sub {%{&cdmn::proc::network_usages}};
-
+            $usage_of{cpu}     = sub { %{&cdmn::proc::cpu_usages} };
+            $usage_of{memory}  = sub { %{&cdmn::proc::memory_usages} };
+            $usage_of{cores}   = sub { %{&cdmn::proc::cpu_temp_usages} };
+            $usage_of{battery} = sub { %{&cdmn::proc::battery_usages} };
+            $usage_of{disk}    = sub { %{&cdmn::proc::disk_usages} };
+            $usage_of{network} = sub { %{&cdmn::proc::network_usages} };
 
             local *_set = sub {
                 my $gauge_name = shift;
-                my %inverts = map { $_ => 1 } @{XR->{gauges_invert}};
+                my %inverts = map { $_ => 1 } @{ XR->{gauges_invert} };
 
                 %r = $usage_of{$gauge_name}->();
 
                 return 1 if scalar keys %r < 1;
-                $s->{sidebar}->set_pane($gauge_name, \%r) if $s->{sidebar}{visible};
-                $$_->set( $gauge_name, \%r, $inverts{$gauge_name}) foreach @{ $s->{caption} };
+                $s->{sidebar}->set_pane( $gauge_name, \%r ) if $s->{sidebar}{visible};
+                $$_->set( $gauge_name, \%r, $inverts{$gauge_name} ) foreach @{ $s->{caption} };
 
                 1;
             };
-            _set($_) foreach keys %{${$s->{caption}[0]}->{gauges}};
+            _set($_) foreach keys %{ ${ $s->{caption}[0] }->{gauges} };
             my $mounts = cdmn::proc::mounts;
-            %r = map { $_ => df($_)->{per} } (sort values %$mounts );
-            $s->{sidebar}->set_pane('FS', \%r) if $s->{sidebar}{visible};
+            %r = map { $_ => df($_)->{per} } ( sort values %$mounts );
+            $s->{sidebar}->set_pane( 'FS', \%r ) if $s->{sidebar}{visible};
         }
     );
-    refresh_bounds($s, XR->{visual_alignment});
+    refresh_bounds( $s, XR->{visual_alignment} );
     ();
 }
 
