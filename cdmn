@@ -533,8 +533,8 @@ package cdmn::resources {
         actions network_tx network_rx disks_read disks_write
         cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
         colors_network colors_disk colors_cpu colors_cpu_temp colors_memory colors_battery
-        sidebar_colors_header_fg sidebar_colors_header_bg sidebar_colors_fg sidebar_colors_bg sidebar_colors_boarder_fg
-        sidebar_colors_boarder_bg
+        sidebar_header_fg sidebar_header_bg sidebar_fg sidebar_bg sidebar_boarder_fg
+        sidebar_boarder_bg
     );
 
     use constant {
@@ -611,12 +611,12 @@ package cdmn::resources {
         $s->{gauges_bg} = looks_like_number($t->x_resource('%.gauges.bg')) || '-1';
         $s->{gauges_colors} = looks_like_number($t->x_resource('%.gauges.colors')) || '-2';
 
-        $s->{sidebar_colors_header_fg} = looks_like_number($t->x_resource('%.sidebar.colors.header.fg')) || '-2';
-        $s->{sidebar_colors_header_bg} = looks_like_number($t->x_resource('%.sidebar.colors.header.bg')) || '-1';
-        $s->{sidebar_colors_fg} = looks_like_number($t->x_resource('%.sidebar.colors.fg')) || '-2';
-        $s->{sidebar_colors_bg} = looks_like_number($t->x_resource('%.sidebar.colors.bg')) || '-1';
-        $s->{sidebar_colors_boarder_fg} = looks_like_number($t->x_resource('%.sidebar.colors.boarder.fg')) || '-2';
-        $s->{sidebar_colors_boarder_bg} = looks_like_number($t->x_resource('%.sidebar.colors.boarder.bg')) || '-1';
+        $s->{sidebar_header_fg} = looks_like_number($t->x_resource('%.sidebar.header.fg')) || '-2';
+        $s->{sidebar_header_bg} = looks_like_number($t->x_resource('%.sidebar.header.bg')) || '-1';
+        $s->{sidebar_fg} = looks_like_number($t->x_resource('%.sidebar.fg')) || '-2';
+        $s->{sidebar_bg} = looks_like_number($t->x_resource('%.sidebar.bg')) || '-1';
+        $s->{sidebar_boarder_fg} = looks_like_number($t->x_resource('%.sidebar.boarder.fg')) || '-2';
+        $s->{sidebar_boarder_bg} = looks_like_number($t->x_resource('%.sidebar.boarder.bg')) || '-1';
 
         $notset{gauges_disks} = $s->{gauges_disks} ? 0 : 1;
         $notset{network_rx} = $s->{network_rx} ? 0 : 1;
@@ -647,12 +647,12 @@ package cdmn::resources {
         $s->{disks_read} = [ 'sda' ];
         #$s->{disks_write} = [ 'sda' ];
 
-        $s->{sidebar_colors_header_fg} = 250;
-        $s->{sidebar_colors_header_bg} = 1;
-        $s->{sidebar_colors_fg} = 250;
-        $s->{sidebar_colors_bg} = 1;
-        $s->{sidebar_colors_boarder_fg} = 240;
-        $s->{sidebar_colors_boarder_bg} = 1;
+        $s->{sidebar_header_fg} = 250;
+        $s->{sidebar_header_bg} = 1;
+        $s->{sidebar_fg} = 250;
+        $s->{sidebar_bg} = 1;
+        $s->{sidebar_boarder_fg} = 240;
+        $s->{sidebar_boarder_bg} = 1;
         #$s->{label_position} = 'right';
 
         $s->{padding} = 2;
@@ -1054,8 +1054,8 @@ package cdmn::term {
 }
 
 package cdmn::visuals::container {
-    use fields qw( term rendition padding align evenGauges x y bg_color label_pos);
-    use fields qw( gauges visible bg backgroundVisible labelVisible simpleGauges width height);
+    use fields qw( term rendition padding align even_gauges x y bg_color label_pos);
+    use fields qw( gauges visible bg bg_visible label_visible simple_gauges width height);
     use Params::Validate qw(:all);
 
     use constant {
@@ -1073,7 +1073,7 @@ package cdmn::visuals::container {
         $s = fields::new($s) unless ref $s;
 
         (%$s) = validate( @_, {
-                term => 1, rendition => 1, x => 1, y => 1, padding => 1, align => 1, evenGauges => 1,
+                term => 1, rendition => 1, x => 1, y => 1, padding => 1, align => 1, even_gauges => 1,
                 visible => 1, bg_color => 1, label_pos => 1 } );
 
         ( $xOff, $yOff ) = ( 0, $s->{y} );
@@ -1099,7 +1099,7 @@ package cdmn::visuals::container {
             label_pos   => $s->{label_pos},
         );
 
-        $s->{simpleGauges}{$arg{name}} = $arg{simple};
+        $s->{simple_gauges}{$arg{name}} = $arg{simple};
 
         local *_pad = sub {
            foreach (values %{ $s->{gauges} }) {
@@ -1110,12 +1110,12 @@ package cdmn::visuals::container {
            }
         };
 
-        if ($s->{evenGauges}) {
+        if ($s->{even_gauges}) {
             _pad(length $arg{label}) if $s->{label_pos} eq 'right';
             _pad(scalar @{$arg{gauges}}) if $s->{label_pos} eq 'left';
         }
 
-        $visual->even_gauges($m) if $s->{evenGauges};
+        $visual->even_gauges($m) if $s->{even_gauges};
         $xOff += $visual->{width} + $s->{padding} if $s->{align} eq ALIGN_ROW;
         $yOff += $visual->{height} + $s->{padding} if $s->{align} eq ALIGN_COL;
         $s->{gauges}{$arg{name}} = $visual;
@@ -1159,7 +1159,7 @@ package cdmn::visuals::container {
         );
 
         $s->{bg}->create("show");
-        $s->{backgroundVisible} = 1;
+        $s->{bg_visible} = 1;
 
         my $w = 0;
         foreach (values %{$s->{gauges}} ) { $w = $_->{width} if $_->{width} > $w; }
@@ -1171,7 +1171,7 @@ package cdmn::visuals::container {
         my ( $s, $name, $usage, $invert) = validate_pos( @_, 1, 1, 1, 1 );
         my $total = 0;
         if ($s->{visible} && $s->{gauges}{$name}) {
-            if ($s->{simpleGauges}{$name}) {
+            if ($s->{simple_gauges}{$name}) {
                 $total += $_ foreach values %$usage;
                 $total /= scalar keys %$usage;
                 $s->{gauges}{$name}->set( 'simple', $total, $invert);
@@ -1183,7 +1183,7 @@ package cdmn::visuals::container {
             }
         }
 
-        $s->refresh_background;
+        $s->refresh_bg;
     }
 
     sub show {
@@ -1192,7 +1192,7 @@ package cdmn::visuals::container {
         $visible ? $_->show : $_->hide foreach values %{ $s->{gauges} };
         $visible ? $s->show_labels : $s->hide_labels;
 
-        $visible ? $s->show_background : $s->hide_background;
+        $visible ? $s->show_bg : $s->hide_bg;
         $s->{visible} = $visible;
     }
 
@@ -1210,28 +1210,28 @@ package cdmn::visuals::container {
             $visible ? $_->show_label : $_->hide_label;
         }
 
-        $s->refresh_background;
-        $s->{labelVisible} = $visible;
+        $s->refresh_bg;
+        $s->{label_visible} = $visible;
     }
 
     sub hide_labels { (shift)->show_labels(FALSE); }
 
-    sub show_background {
+    sub show_bg {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
         $visible ? $s->{bg}->show : $s->{bg}->hide;
-        $s->{backgroundVisible} = $visible;
+        $s->{bg_visible} = $visible;
     }
 
-    sub refresh_background {
+    sub refresh_bg {
         my $s = shift;
-        if ( $s->{backgroundVisible} ) {
-            $s->hide_background;
-            $s->show_background;
+        if ( $s->{bg_visible} ) {
+            $s->hide_bg;
+            $s->show_bg;
         }
     }
 
-    sub hide_background { (shift)->show_background(FALSE); }
+    sub hide_bg { (shift)->show_bg(FALSE); }
 }
 
 package cdmn::visuals::visual {
@@ -1520,7 +1520,7 @@ sub create_captions {
                     y          => XR->{y},
                     padding    => XR->{padding},
                     align      => $_,
-                    evenGauges => 0,
+                    even_gauges => 0,
                     visible    => XR->{showing},
                     bg_color   => XR->{caption_bg},
                     label_pos   => XR->{label_position},
@@ -1534,7 +1534,7 @@ sub create_captions {
                     y          => XR->{y},
                     padding    => XR->{padding},
                     align      => $_,
-                    evenGauges => 1,
+                    even_gauges => 1,
                     visible    => XR->{showing},
                     bg_color   => XR->{caption_bg},
                     label_pos   => XR->{label_position},
@@ -1729,12 +1729,12 @@ sub on_start {
     $st->hide_cursor;
     $s->{sidebar} = cdmn::sidebar->new(
         term       => $st,
-        fg         => XR->{sidebar_colors_fg},
-        bg         => XR->{sidebar_colors_bg},
-        bg_header  => XR->{sidebar_colors_header_bg},
-        fg_header  => XR->{sidebar_colors_header_fg},
-        fg_boarder => XR->{sidebar_colors_boarder_fg},
-        bg_boarder => XR->{sidebar_colors_boarder_bg},
+        fg         => XR->{sidebar_fg},
+        bg         => XR->{sidebar_bg},
+        bg_header  => XR->{sidebar_header_bg},
+        fg_header  => XR->{sidebar_header_fg},
+        fg_boarder => XR->{sidebar_boarder_fg},
+        bg_boarder => XR->{sidebar_boarder_bg},
     );
 
     $s->{sidebar}->hide;
