@@ -619,10 +619,10 @@ package cdmn::resources {
         $s->{sidebar_boarder_fg} = looks_like_number( $t->x_resource('%.sidebar.boarder.fg') ) || '-2';
         $s->{sidebar_boarder_bg} = looks_like_number( $t->x_resource('%.sidebar.boarder.bg') ) || '-1';
 
-        $notset{gauges_disks} = $s->{gauges_disks} ? 0 : 1;
-        $notset{network_rx}   = $s->{network_rx}   ? 0 : 1;
-        $notset{network_tx}   = $s->{network_tx}   ? 0 : 1;
-        $notset{gauges_cores} = $s->{gauges_cores} ? 0 : 1;
+        $notset{gauges_disks} = chomp $s->{gauges_disks} ? 0 : 1;
+        $notset{network_rx}   = chomp $s->{network_rx}   ? 0 : 1;
+        $notset{network_tx}   = chomp $s->{network_tx}   ? 0 : 1;
+        $notset{gauges_cores} = chomp $s->{gauges_cores} ? 0 : 1;
 
         #DEBUG
         #   #$s->{gauges_invert} = '';
