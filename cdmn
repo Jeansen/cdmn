@@ -878,7 +878,7 @@ package cdmn::sidebar {
 
     sub next_pane {
         my $s = shift;
-        state $i = $s->{active_pane};
+        my $i = $s->{active_pane};
         $s->hide_pane( $s->{order}[$i] );
         $i++;
         $i = 0 if $i ge scalar @{ $s->{order} };
@@ -888,7 +888,7 @@ package cdmn::sidebar {
 
     sub prev_pane {
         my $s = shift;
-        state $i = $s->{active_pane};
+        my $i = $s->{active_pane};
         $s->hide_pane( $s->{order}[$i] );
         $i--;
         $i = scalar @{ $s->{order} } - 1 if $i lt 0;
