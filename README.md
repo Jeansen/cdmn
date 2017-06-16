@@ -142,7 +142,6 @@ The only exceptions to this rule are `URxvt.cdmn.disk.read` and `URxvt.cdmn.disk
 Also note, that the additinal gauges are divisions of `URxvt.cdmn.disk.read`. If you were to set all three settings to a value of `sda` and copied a large file from one folder to another on the same disk (sda), you would see three gauges. one with about 100 percent for the the combinded read and write utilization and two others with about 50 percent each because half of the time was spent reading in data and the other half of the time was spent writing data.
 
 
-
 ## Visual styles
 You can further define the visual representation and orientation with the following settings.
 
@@ -150,7 +149,9 @@ You can further define the visual representation and orientation with the follow
 | --- | --- | --- |
 | `URxvt.cdmn.cpu`<br>`URxvt.cdmn.cpu.temp`<br>`URxvt.cdmn.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
 | `URxvt.cdmn.visual.style` | The kind of gauges you prefer. Either a bar that can grow and shrink or simple flashing LED. | bar (led) |
-| `URxvt.cdmn.visual.alignment` | Vertial or horizontal alignment. | row (col) |
+| `URxvt.cdmn.visual.alignment` | Vertical or horizontal alignment. | row (col) |
+| `URxvt.cdmn.graphs` | List of gauges to show time graphs for. This list must contain existing labels. | not set |
+| `URxvt.cdmn.graphs.width` | Width of graph in samplings, for example 5. | not set |
 
 
 ## Visual styles - gauges colors
@@ -170,9 +171,16 @@ You can also set (and overwrite) colors individually for each gauge with the fol
 
 
 ## Visual styles - refresh rate and sensitivity
-Even further tweaking is possible with options such as the refresh rate and sensitivity. The refresh rate is simply 
-the time in seconds when all gauges should be updated. The sensitivity on the other hand defines the threshold when to 
-first indicate any change.
+Even further tweaking is possible with options such as the refresh rate and sensitivity. 
+
+| Resource | Function | Default (Other) |
+| --- | --- | --- |
+| `URxvt.cdmn.refresh` | How often to take samples in seconds. Decimal numbers are possible, for example 0.1 for every 100 milliseconds. | 1 |
+| `URxvt.cdmn.sensitivity` | Threshold at which to show changes | 1 |
+
+The refresh rate is simply the time in seconds when all gauges should be updated. The sensitivity on the other hand defines the threshold when to first indicate any change. 
+
+Note that the sensitivity shrinks the delta for intermediate values. You maybe have set `URxvt.cdmn.gauges.colors` to 5 color values (the first being the initial color) to show a visual cue for every 20 percent increase. If you set the sensitivity to 90 those values would be evaluated in the remaining delta of 10 instead of 100.
  
 Here is an example. Say we have the following resources excerpt:
     
