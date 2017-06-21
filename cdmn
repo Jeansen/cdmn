@@ -1,4 +1,4 @@
-#! perl
+#! perl -T
 
 # cdmn is an extension written for the rxvt terminal emulator that shows
 # utilizations of different system resoureces like cpu, disk i/o, ram,
@@ -258,7 +258,7 @@ package cdmn::proc {
         };
 
         my %results;
-        my @bats = @{&batteries};
+        my @bats = @{batteries()};
         for (@bats) {
             my $bat = $_;
             open( my $f, '<', sysfs_bat( $bat, BAT_FULL ) );
@@ -313,9 +313,9 @@ package cdmn::proc {
     }
 
     sub disk_mounts {
-        my @mounts = keys %{&mounts};
-        my @disks  = ( map { $_, 0 } @{&disks} );
-        my %dm     = %{&dm_disks};
+        my @mounts = keys %{mounts()};
+        my @disks  = ( map { $_, 0 } @{disks()} );
+        my %dm     = %{dm_disks()};
         my %disks  = @disks;
 
         for my $m (@mounts) {
@@ -467,11 +467,11 @@ package cdmn::proc {
 
             my $diff_rx = $bytes - $nics{$nic}{$direction};
             $nics{$nic}{$direction} = $bytes;
-            my $diff_usage = $diff_rx / ( &nic_speed_bytes($nic) * $refresh ) * 100;
+            my $diff_usage = $diff_rx / ( nic_speed_bytes($nic) * $refresh ) * 100;
             $results{ $nic . ( $direction eq RX ? POSTFIX_RX : POSTFIX_TX ) } = $diff_usage;
         };
 
-        for ( @{&if_list} ) {
+        for ( @{if_list()} ) {
             my $nic = $_;
             if ( !defined $nics{$nic} ) {
                 $nics{$nic}{$_} = 0 for ( RX, TX );
@@ -608,8 +608,7 @@ package cdmn::resources {
         $s->{network_tx}       = _set('%.network.tx');
         $s->{gauges_invert}    = _set( '%.gauges.invert', 'BAT' );
 
-        $s->{gauges_bg}     = looks_like_number( $t->x_resource('%.gauges.bg') )     || '-1';
-        $s->{gauges_colors} = looks_like_number( $t->x_resource('%.gauges.colors') ) || '-2';
+        $s->{gauges_colors} = looks_like_number( $t->x_resource('%.gauges.colors') ) || '-1,-2';
 
         $s->{sidebar_header_fg}  = looks_like_number( $t->x_resource('%.sidebar.header.fg') )  || '-2';
         $s->{sidebar_header_bg}  = looks_like_number( $t->x_resource('%.sidebar.header.bg') )  || '-1';
@@ -628,21 +627,25 @@ package cdmn::resources {
         $s->{refresh}      = 1;
 
         $s->{graphs} = ['CPU'];
-        $s->{graphs_length} = 5;
+        $s->{graphs_length} = 15;
 
         #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
         #$s->{gauges_colors} = '5,52,88,124,160,196';
-        $s->{gauges_bg}     = 1;
-        $s->{gauges_colors} = '246,246,2,4,3,1';
+        $s->{gauges_colors} = '0,246,2,4,3,1';
+        $s->{colors_cpu} = '58,226';
+        #$s->{colors_cpu} = '18,27';
+        #$s->{colors_cpu} = '54,200';
+        #$s->{colors_cpu} = '23,87';
+        #$s->{colors_cpu} = '52,196';
+        #$s->{colors_cpu} = '22,46';
 
         #   #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
         $s->{label_fg} = '5';
 
         #   #$s->{label_bg} = '1';
         #$s->{cpu} = 'detail';     #simple | detail
-        #   $s->{gauges_bg} = '1';    #simple | full
         #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
-        $s->{gauges_order} = [ 'CPU', 'MEM', 'BAT' ];
+        $s->{gauges_order} = [ 'CPU', 'DISK', 'BAT' ];
         #$s->{network_rx}   = ['eth0'];
         #$s->{network_tx}   = ['eth0'];
         #$s->{disks_read}   = ['sda'];
@@ -1451,8 +1454,8 @@ package cdmn::visuals::visual {
             }
         };
 
-        if ( $s->{label_pos} eq 'right' ) { &_gauges; $x++; &_label; }
-        else                              { &_label; $x += $w + 1; &_gauges; }
+        if ( $s->{label_pos} eq 'right' ) { _gauges(); $x++; _label(); }
+        else                              { _label(); $x += $w + 1; _gauges(); }
     }
 
     sub show {
@@ -1488,7 +1491,7 @@ package cdmn::visuals::visual {
         $size = scalar @{ $s->{gauges_colors} };
         my $clr_i = ( $usage > 100 ? 100 : $usage ) / 100 * ( $size - 1 ) + 1;
         $clr_i -= 1 if $clr_i >= $size;
-        my $color = $usage < $s->{sensitivity} ? $s->{gauges_colors}[0] : $s->{gauges_colors}[$clr_i];
+        my $color = $usage < $s->{sensitivity} ? $s->{gauges_colors}[1] : $s->{gauges_colors}[$clr_i];
         for ( values %{ $s->{gauges}{"$i"} } ) {
             $_->hide;
         }
@@ -1581,7 +1584,7 @@ sub calc_bounds {
 sub refresh_bounds {
     my $s = shift;
     my $t = shift;
-    my ( $h, $w, $x, $y ) = &calc_bounds( $s, $t );
+    my ( $h, $w, $x, $y ) = calc_bounds( $s, $t );
 
     if ( $s->{xterms}{main}{maximized} ) {
         $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
@@ -1605,11 +1608,12 @@ sub create_captions {
         my (%arg) = @_;
 
         local *_add = sub {
+          my @colors = @{$_[2]};
             $caption->add(
                 label => $showLabels ? $_[1] : '',
                 gauges        => $arg{ $_[0] },
                 label_bg      => XR->{label_bg},
-                gauges_bg     => XR->{gauges_bg},
+                gauges_bg     => scalar @colors > 1 ? shift @colors : XR->{gauges_colors}->[0],
                 label_fg      => XR->{label_fg},
                 gauges_colors => $_[2],
                 visual_style  => XR->{visual_style},
@@ -1647,7 +1651,7 @@ sub create_captions {
             ) if $arg{cores};
 
             $_ eq 'battery' and $arg{$_} and _add(
-                $_, &cdmn::proc::ac_online ? XR->{label_battery_AC} : XR->{label_battery},
+                $_, cdmn::proc::ac_online() ? XR->{label_battery_AC} : XR->{label_battery},
                 XR->{colors_battery} || XR->{gauges_colors}, XR->{battery} eq 'simple',
                 XR->{graphs}{battery} ? XR->{graphs_length} : 0
             ) if $arg{battery};
@@ -1687,8 +1691,6 @@ sub create_captions {
         };
     }
 
-    state $cpus = cdmn::proc::cpu_count() - 1;
-
     my %args;
     $args{cores} = ( XR->{cpu_temp} eq 'simple' ? ["simple"] : XR->{gauges_cores}) if @{ XR->{gauges_cores} } > 0;
     $args{cpu} = XR->{cpu} eq 'simple' ? ["simple"] : XR->{gauges_cpu};
@@ -1711,7 +1713,7 @@ my %user_command;
 #TODO why add 4 to w and h
 $user_command{&ACTION_SHOW} = sub {
     my $s = shift;
-    my ( $h, $w, $x, $y ) = &calc_bounds( $s, XR->{visual_alignment} );
+    my ( $h, $w, $x, $y ) = calc_bounds( $s, XR->{visual_alignment} );
 
     if ( $s->{xterms}{main}{maximized} ) {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{visual_alignment} eq ALIGN_ROW;
@@ -1782,7 +1784,7 @@ sub on_refresh_begin {
     state $nics = 0;
     if (   $s->{w_size} != $s->{term}->ncol
         || $s->{y_size} != $s->{term}->nrow
-        || &cdmn::proc::ac_online != $onAC
+        || cdmn::proc::ac_online() != $onAC
         || $nics != scalar @$nics_active )
     {
         $onAC = !$onAC;
@@ -1914,12 +1916,12 @@ sub on_start {
             redraw( $s, $LABELS_SHOWING ) if XR->set_disks || XR->set_batteries || XR->set_nics;
 
             my %usage_of;
-            $usage_of{cpu}     = sub { _filter(&cdmn::proc::cpu_usages, XR->{gauges_cpu}) };
-            $usage_of{memory}  = sub { %{&cdmn::proc::memory_usages} };
-            $usage_of{cores}   = sub { %{&cdmn::proc::cpu_temp_usages} };
-            $usage_of{battery} = sub { %{&cdmn::proc::battery_usages} };
-            $usage_of{disk}    = sub { _filter(&cdmn::proc::disk_usages, XR->{gauges_disks}) };
-            $usage_of{network} = sub { _filter(&cdmn::proc::network_usages, XR->{gauges_nics}) };
+            $usage_of{cpu}     = sub { _filter(cdmn::proc::cpu_usages(), XR->{gauges_cpu}) };
+            $usage_of{memory}  = sub { %{cdmn::proc::memory_usages()} };
+            $usage_of{cores}   = sub { %{cdmn::proc::cpu_temp_usages()} };
+            $usage_of{battery} = sub { %{cdmn::proc::battery_usages()} };
+            $usage_of{disk}    = sub { _filter(cdmn::proc::disk_usages(), XR->{gauges_disks}) };
+            $usage_of{network} = sub { _filter(cdmn::proc::network_usages(), XR->{gauges_nics}) };
 
             local *_set = sub {
                 my $gauge_name = shift;
