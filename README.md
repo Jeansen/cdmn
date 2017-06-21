@@ -269,12 +269,12 @@ Here are som example colors you can use for `URxvt.cdmn.gauges.colors` or any of
 
 | Colors | Example |
 | --- | --- |
-| '22,46' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_green.png) |
-| '58,226' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_yellow.png) |
-| '18,27' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_blue.png) |
-| '54,200' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_magenta.png) |
-| '23,87' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_cyan.png) |
-| '52,196' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_red.png) |
+| `22,46` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_green.png) |
+| `58,226` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_yellow.png) |
+| `18,27` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_blue.png) |
+| `54,200` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_magenta.png) |
+| `23,87` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_cyan.png) |
+| `52,196` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_red.png) |
 
 
 # Please note
