@@ -69,7 +69,7 @@ The *overlay* mode simply does what the name already implies. It creates an over
 If some text is not visible, just hide *cdmn* for a moment. This is what the `Meta-o` binding is for. 
 
 On the other hand, if you don't want *cdmn* to blank out some of the terminals output or interfere with your current 
-typing, then simply use the *normal* mode. In this mode a complete line or column (depending on your settings) will be 
+typing, then simply use *normal* mode. In this mode a complete line or column (depending on your settings) will be 
 reserved for *cdmn*. You can switch to this mode with `Meta-h`.
 
 Each binding can be used to switch modes or to hide and show *cdmn* in a given mode. For instance, if you are in 
@@ -77,9 +77,9 @@ overlay mode you can use `Meta-h` to go to normal mode and then use `Meta-h` rep
 *cdmn*. Just try it! It should be fairly intuitive.
 
 Additional information can be accessed with the `Meta-p` binding. This will show the sidebar containing multiple 
-panes with more verbose information. Use `Meta-j` and `Meta-k` to navigate between the panes. 
+panes with more verbose information. Use `Meta-j` and `Meta-k` to navigate between these panes. 
 
-The sidebar is in heavy develpment at the moment. Stay tuned but do not expect too much ;-)
+The sidebar is in heavy development at the moment. Stay tuned but do not expect too much ;-)
 
 
 # How to customize cdmn (so far)
@@ -102,15 +102,11 @@ In addition you can set colors for different parts. All colors default to the te
 (-1). Normally you will not need to use these values. After all, they are the defaults. But you might want to 
 use any number between 0 and 255.
 
-
-
-
 | Resource | Function | Default |
 | --- | --- | --- |
 | `URxvt.cdmn.label.fg` | Foreground color for all labels. | -2 |
 | `URxvt.cdmn.label.bg` | Background color for all labels. | -2 |
 | `URxvt.cdmn.caption.bg` | Global background, e.g. padding. | -2 |
-| `URxvt.cdmn.gauges.bg` | Background, for each gauge. | -2 |
 
 Want to know what colors have which number? Try this one-liner in your terminal and see for yourself:
 
@@ -157,8 +153,7 @@ You can further define the visual representation and orientation with the follow
 ## Visual styles - gauges colors
 In addition you can define a list of colors that will serve as a visual cue for different values. This will be most 
 useful when using the LED style. Suppose you would like to simulate a red LED that increases in brightness for every 
-20%. Setting `URxvt.cdmn.gauges.colors` to '0,52,88,124,160,196' would just do that, where the first color is the 
-color of inactivity - in this case 0 which is black.
+20%. Setting `URxvt.cdmn.gauges.colors` to '0,0,52,88,124,160,196' would just do that, where the first color defines the background color and all other are the foreground colors. The second color will be the color of inactivity - in this case 0 which is black.
 
 You can also set (and overwrite) colors individually for each gauge with the following resources:
 
@@ -168,6 +163,8 @@ You can also set (and overwrite) colors individually for each gauge with the fol
     URxvt.cdmn.colors.cpu.temp
     URxvt.cdmn.colors.memory 
     URxvt.cdmn.colors.battery
+
+If you only define one color it will be interpreted as a foreground color. `URxvt.cdmn.gauges.bg` (either your value or the implicit default -2) will be used for the background color.
 
 
 ## Visual styles - refresh rate and sensitivity
@@ -223,6 +220,7 @@ There is an initial .Xresouces file inthde resources folder with some minimal ne
 color overwrites to make it look like the example screenshots. Make sure you adapt the line `URxvt*perl-lib: 
 /home/<USERNAME>/.urxvt/` accordingly.
  
+ 
 # Context awareness
 *cdmn* tries hard to watch for any changes. For instance, if you remove your laptop from any power supply, *cdmn* 
 will be aware of this change and render the label next to your battery gauge(s) differently by removing the 
@@ -264,20 +262,39 @@ place of your liking. Navigate into the just extracted folder and run the follow
     
 After that a package with the name `rxvt-unicode` will be installed and you should be able to call `urxvt`.
 
+
+# Example Colors
+
+Here are som example colors you can use for `URxvt.cdmn.gauges.colors` or any of the [overwrites](#visual-styles---gauges-colors).
+
+| Colors | Example |
+| --- | --- |
+| '22,46' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_green.png) |
+| '58,226' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_yellow.png) |
+| '18,27' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_blue.png) |
+| '54,200' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_magenta.png) |
+| '23,87' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_cyan.png) |
+| '52,196' | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_red.png) |
+
+
 # Please note
 This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). 
 If you followed the installation instructions above it should run on any Debian-based distribution, though.
+
 
 # What's next (without priority)
 [Check the projects backlog](https://github.com/Jeansen/cdmn/projects/1) to see what I am currently working on and 
 what is planned for the future.
 
+
 # Contributing
 Fork it, make a Pull Request, create Issues with suggestions, bugs or questions ... You are always welcome to 
 contribute!
 
+
 # Self-Promotion
 Like cdmn? Follow me and/or the repository on GitHub.
+
 
 # License
 GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
