@@ -662,7 +662,7 @@ package cdmn::resources {
 
         $s->{padding} = 2;
 
-        #$s->{visual_alignment} = 'col';
+        $s->{visual_alignment} = 'col';
         $s->{disk_mounts} = 1;
         #$s->{disks} = ['sdc'];
 
@@ -1190,9 +1190,10 @@ package cdmn::visuals::container {
 
         local *_pad = sub {
             for ( values %{ $s->{gauges} } ) {
-                return if $_[0] <= $m;
-                $m = $_[0];
-                $_->even_gauges( $_[0] );
+                my $c = scalar @{$_->{gauges}};
+                return if $c <= $m;
+                $m = $c;
+                $_->even_gauges( $c );
                 $xOff += $visual->{width} if $s->{align} eq ALIGN_ROW;
             }
         };
