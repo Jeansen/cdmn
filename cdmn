@@ -608,6 +608,9 @@ package cdmn::resources {
         $s->{network_tx}       = _set('%.network.tx');
         $s->{gauges_invert}    = _set( '%.gauges.invert', 'BAT' );
 
+        $s->{graphs}    = _set( '%.graphs' );
+        $s->{graphs_length} = looks_like_number( $t->x_resource('%.graphs.width') ) || '0';
+
         $s->{gauges_colors} = looks_like_number( $t->x_resource('%.gauges.colors') ) || '-1,-2';
 
         $s->{sidebar_header_fg}  = looks_like_number( $t->x_resource('%.sidebar.header.fg') )  || '-2';
@@ -617,65 +620,13 @@ package cdmn::resources {
         $s->{sidebar_boarder_fg} = looks_like_number( $t->x_resource('%.sidebar.boarder.fg') ) || '-2';
         $s->{sidebar_boarder_bg} = looks_like_number( $t->x_resource('%.sidebar.boarder.bg') ) || '-1';
 
-        #DEBUG
-        #   #$s->{gauges_invert} = '';
-        #   $s->{cpu_temp} = 'detail';     #simple | detail
-        #   $s->{battery} = 'detail';     #simple | detail
-        $s->{cpu}          = 'simple';    #simple | detail
-        $s->{visual_style} = 'bar';       #bar | led
-        $s->{sensitivity}  = 0.1;
-        $s->{refresh}      = 1;
-
-        $s->{graphs} = ['CPU'];
-        $s->{graphs_length} = 15;
-
-        #   #$s->{gauges_colors} = '0,52, ,x,16d0,196'; #Test invalid values
-        #$s->{gauges_colors} = '5,52,88,124,160,196';
-        $s->{gauges_colors} = '0,246,2,4,3,1';
-        $s->{colors_cpu} = '58,226';
-        #$s->{colors_cpu} = '18,27';
-        #$s->{colors_cpu} = '54,200';
-        #$s->{colors_cpu} = '23,87';
-        #$s->{colors_cpu} = '52,196';
-        #$s->{colors_cpu} = '22,46';
-
-        #   #$s->{caption_bg} = '3'; # 0/1 map onto terminal fg/bg color
-        $s->{label_fg} = '5';
-
-        #   #$s->{label_bg} = '1';
-        #$s->{cpu} = 'detail';     #simple | detail
-        #   $s->{gauges_order} = 'CPU,TEMP,DISK,MEM,NET,BAT';
-        $s->{gauges_order} = [ 'CPU', 'DISK', 'BAT' ];
-        #$s->{network_rx}   = ['eth0'];
-        #$s->{network_tx}   = ['eth0'];
-        #$s->{disks_read}   = ['sda'];
-        #$s->{disks_write} = [ 'sda' ];
-
-        $s->{sidebar_header_fg}  = 250;
-        $s->{sidebar_header_bg}  = 1;
-        $s->{sidebar_fg}         = 250;
-        $s->{sidebar_bg}         = 1;
-        $s->{sidebar_boarder_fg} = 240;
-        $s->{sidebar_boarder_bg} = 1;
-
-        #$s->{label_position} = 'right';
-
-        $s->{padding} = 2;
-
-        $s->{visual_alignment} = 'col';
-        $s->{disk_mounts} = 1;
-        #$s->{disks} = ['sdc'];
-
-        #$s->{y} = -1;
-        #$s->{x} = 0;
-
         $notset{disks} = scalar @{$s->{disks}} ? 0 : 1;
         $notset{network_rx}   = scalar @{$s->{network_rx}}   ? 0 : 1;
         $notset{network_tx}   = scalar @{$s->{network_tx}}   ? 0 : 1;
         $notset{gauges_cores} = scalar @{$s->{gauges_cores}} ? 0 : 1;
 
         $s->set_disks;
-        $s->set_batteries; #TODO not implemented
+        $s->set_batteries;
         $s->set_cores;
         $s->set_nics;
         $s->set_order;
@@ -690,7 +641,6 @@ package cdmn::resources {
         my %gauges        = map { $_ => 0 } @order_default;
         $gauges{$_} = 1 for $_[0];
 
-        #$s->{gauges} = \%gauges; #TODO necessary?
         return \@order_default if scalar @{ $_[0] } eq 0;
         return cdmn::utils::cut_set( $_[0], \@order_default );
     };
@@ -714,7 +664,6 @@ package cdmn::resources {
         $s->{graphs} = {map {$_ => 1} @{$s->remap($s->{graphs})}};
         1;
     }
-
 
     sub remap {
         my $s = shift;
