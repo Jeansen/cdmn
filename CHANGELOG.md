@@ -1,24 +1,42 @@
 # Change Log
 
+## [alpha-0.7](https://github.com/Jeansen/cdmn/tree/alpha-0.7) (2017-06-22)
+[Full Changelog](https://github.com/Jeansen/cdmn/compare/alpha-0.6...alpha-0.7)
+
+**Implemented enhancements:**
+
+- Add background to gauges color option \(first color value\) [\#73](https://github.com/Jeansen/cdmn/issues/73)
+- Initially set values before starting the visual updater. [\#70](https://github.com/Jeansen/cdmn/issues/70)
+- Do not wrap content longer than panel. [\#69](https://github.com/Jeansen/cdmn/issues/69)
+- Add option to place labels left or right of gauges [\#66](https://github.com/Jeansen/cdmn/issues/66)
+- Add option to show separate disk gauges for read and write [\#54](https://github.com/Jeansen/cdmn/issues/54)
+- Add time graphs [\#7](https://github.com/Jeansen/cdmn/issues/7)
+- Make as much as possible configurable via X Resources. [\#5](https://github.com/Jeansen/cdmn/issues/5)
+
+**Fixed bugs:**
+
+- Fix calculation for even gauges [\#75](https://github.com/Jeansen/cdmn/issues/75)
+- Wrong pane order when going though panes [\#72](https://github.com/Jeansen/cdmn/issues/72)
+
+**Closed issues:**
+
+- Remove magic numbers [\#71](https://github.com/Jeansen/cdmn/issues/71)
+
 ## [alpha-0.6](https://github.com/Jeansen/cdmn/tree/alpha-0.6) (2017-05-26)
 [Full Changelog](https://github.com/Jeansen/cdmn/compare/alpha-0.5...alpha-0.6)
 
 **Implemented enhancements:**
 
 - Add diffrent visual styles [\#8](https://github.com/Jeansen/cdmn/issues/8)
+- Add sidebar cover pages [\#68](https://github.com/Jeansen/cdmn/issues/68)
 - Improve memory usage [\#61](https://github.com/Jeansen/cdmn/issues/61)
 - harden resources of type list [\#60](https://github.com/Jeansen/cdmn/issues/60)
 - Add option to set colors individually [\#59](https://github.com/Jeansen/cdmn/issues/59)
-- Add option to set colors individually [\#59](https://github.com/Jeansen/cdmn/issues/59)
 - Add option to show and hide labels \(interactively\) [\#58](https://github.com/Jeansen/cdmn/issues/58)
-- Add option to show and hide labels \\(interactively\\) [\#58](https://github.com/Jeansen/cdmn/issues/58)
-- Add option for separate refresh rates [\#55](https://github.com/Jeansen/cdmn/issues/55)
-- Allow vertical gauges [\#25](https://github.com/Jeansen/cdmn/issues/25)
 - Allow vertical gauges [\#25](https://github.com/Jeansen/cdmn/issues/25)
 - Add more details to the panel. [\#10](https://github.com/Jeansen/cdmn/issues/10)
 - Add more details to the panel. [\#10](https://github.com/Jeansen/cdmn/issues/10)
 - Make cdmn more aware of hardware changes. [\#6](https://github.com/Jeansen/cdmn/issues/6)
-- Sort details on panel [\#4](https://github.com/Jeansen/cdmn/issues/4)
 - Sort details on panel [\#4](https://github.com/Jeansen/cdmn/issues/4)
 
 **Fixed bugs:**
@@ -41,16 +59,12 @@
 
 - Add option to select which network direction \(tx, rx or both\) should be visible [\#27](https://github.com/Jeansen/cdmn/issues/27)
 - Add option to reverse Colors [\#53](https://github.com/Jeansen/cdmn/issues/53)
-- Add option to reverse Colors [\#53](https://github.com/Jeansen/cdmn/issues/53)
-- Add option to set colors [\#49](https://github.com/Jeansen/cdmn/issues/49)
 - Add option to set colors [\#49](https://github.com/Jeansen/cdmn/issues/49)
 - Add option to set refresh rate [\#48](https://github.com/Jeansen/cdmn/issues/48)
 - Add option to set sensitivity [\#47](https://github.com/Jeansen/cdmn/issues/47)
 - Validate and harden reading resources [\#45](https://github.com/Jeansen/cdmn/issues/45)
 - Add option to set padding background [\#43](https://github.com/Jeansen/cdmn/issues/43)
-- Add option to set padding background [\#43](https://github.com/Jeansen/cdmn/issues/43)
 - Add awareness of disk mappers [\#30](https://github.com/Jeansen/cdmn/issues/30)
-- Add LEDs as an alternative to bars [\#28](https://github.com/Jeansen/cdmn/issues/28)
 - Add LEDs as an alternative to bars [\#28](https://github.com/Jeansen/cdmn/issues/28)
 - Option to  show all disks or only those with at least one mount point [\#22](https://github.com/Jeansen/cdmn/issues/22)
 
