@@ -4,6 +4,31 @@ URxvt*color0:           rgba:0000/0000/0000/f000
 URxvt*depth:            32
 URxvt*perl-lib:         /home/<USERNAME>/.urxvt/
 
+!! Red color variants - best used with: URxvt.cdmn.visual.style = led
+!! URxvt.cdmn.gauges.colors: 5,52,88,124,160,196
+
+!! Default color scheme
+!! URxvt.cdmn.gauges.colors: 0,246,2,4,3,1
+!! URxvt.cdmn.label.fg: 5
+
+!! Color schemes when using URxvt.cdmn.graphs and URxvt.cdmn.graphs.width
+!! yellow   58,226
+!! blue     18,27
+!! magenta  54,200
+!! cyan     23,87
+!! red      52,196
+!! green    22,46
+
+!! Want to know what colors have which number? Try this one-liner in your terminal and see for yourself:
+!! for i in {0..255}; do echo -e "\e[38;05;${i}m${i}"; done | column -c 80 -s ' '; echo -e "\e[m"
+
+!! URxvt.cdmn.colors.network: 18,27
+!! URxvt.cdmn.colors.disk: 54,200
+!! URxvt.cdmn.colors.cpu: 58,226
+!! URxvt.cdmn.colors.cpu.temp: 23,87
+!! URxvt.cdmn.colors.memory: 52,196
+!! URxvt.cdmn.colors.battery: 22,46
+
 #define S_base03        #002b36
 #define S_base02        #073642
 #define S_base01        #586e75
