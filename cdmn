@@ -34,6 +34,7 @@ my $SHOWING;
 my $LABELS_SHOWING;
 
 package cdmn::utils {
+
     sub cut_set {
         my @cut = ();
         my %n   = ();
@@ -260,7 +261,7 @@ package cdmn::proc {
         };
 
         my %results;
-        my @bats = @{batteries()};
+        my @bats = @{ batteries() };
         for (@bats) {
             my $bat = $_;
             open( my $f, '<', sysfs_bat( $bat, BAT_FULL ) );
@@ -318,9 +319,9 @@ package cdmn::proc {
     }
 
     sub disk_mounts {
-        my @mounts = keys %{mounts()};
-        my @disks  = ( map { $_, 0 } @{disks()} );
-        my %dm     = %{dm_disks()};
+        my @mounts = keys %{ mounts() };
+        my @disks  = ( map { $_, 0 } @{ disks() } );
+        my %dm     = %{ dm_disks() };
         my %disks  = @disks;
 
         for my $m (@mounts) {
@@ -476,7 +477,7 @@ package cdmn::proc {
             $results{ $nic . ( $direction eq RX ? POSTFIX_RX : POSTFIX_TX ) } = $diff_usage;
         };
 
-        for ( @{if_list()} ) {
+        for ( @{ if_list() } ) {
             my $nic = $_;
             if ( !exists $nics{$nic} ) {
                 $nics{$nic}{$_} = 0 for ( RX, TX );
@@ -563,77 +564,77 @@ package cdmn::resources {
         return $s;
     }
 
-
     sub init {
         my $s = shift;
         my $t = shift;
 
-        local *_set = sub {
-            my $r =  $t->x_resource("$_[0]");
-            $r ? [ split( /[,[:space:]]/, $r ) ]
-            : $_[1]                     ? [ split( /[,[:space:]]/, $_[1] ) ]
-            :                             [ () ];
+        local *_set_list = sub {
+            my $r = $t->x_resource("$_[0]");
+                  $r    ? [ split( /[,[:space:]]/, $r ) ]
+                : $_[1] ? [ split( /[,[:space:]]/, $_[1] ) ]
+                :         [ () ];
         };
 
         local *_set_number = sub {
-            my $n =  $t->x_resource("$_[0]");
+            my $n = $t->x_resource("$_[0]");
             looks_like_number($n) ? $n : $_[1];
         };
 
-        $s->{label_network}     = $t->x_resource('%.label.network')  // 'NET';
-        $s->{label_disk}        = $t->x_resource('%.label.disk')     // 'DISK';
-        $s->{label_cpu}         = $t->x_resource('%.label.cpu')      // 'CPU';
-        $s->{label_cpu_temp}    = $t->x_resource('%.label.cpu.temp') // 'TEMP';
-        $s->{label_memory}      = $t->x_resource('%.label.memory')   // 'MEM';
-        $s->{label_battery}     = $t->x_resource('%.label.battery')  // 'BAT';
-        $s->{label_battery_AC}  = $s->{label_battery} . "(⌁)";
-        $s->{label_fg}          = _set_number( '%.label.fg', 0 );
-        $s->{label_bg}          = _set_number( '%.label.bg', 1 );
-        $s->{label_position}    = $t->x_resource('%.label.position') || 'left';
+        $s->{label_network}  = $t->x_resource('%.label.network')  // 'NET';
+        $s->{label_disk}     = $t->x_resource('%.label.disk')     // 'DISK';
+        $s->{label_cpu}      = $t->x_resource('%.label.cpu')      // 'CPU';
+        $s->{label_cpu_temp} = $t->x_resource('%.label.cpu.temp') // 'TEMP';
+        $s->{label_memory}   = $t->x_resource('%.label.memory')   // 'MEM';
+        $s->{label_battery}  = $t->x_resource('%.label.battery')  // 'BAT';
+        $s->{label_battery_AC} = $s->{label_battery} . "(⌁)";
+        $s->{label_fg}         = _set_number( '%.label.fg', 0 );
+        $s->{label_bg}         = _set_number( '%.label.bg', 1 );
+        $s->{label_position}   = $t->x_resource('%.label.position') || 'left';
 
-        $s->{showing}        = _set_number( '%.showing' ,1);
+        $s->{showing}        = _set_number( '%.showing',        1 );
         $s->{showing_labels} = _set_number( '%.showing.labels', 1 );
 
-        $s->{visual_alignment} = $t->x_resource('%.visual.alignment') // 'row';         #row | col
-        $s->{caption_bg}       = _set_number('%.caption.bg', 1 );    # 0/1 map onto terminal fg/bg color
+        $s->{visual_alignment} = $t->x_resource('%.visual.alignment') // 'row';    #row | col
+        $s->{caption_bg} = _set_number( '%.caption.bg', 1 );                       # 0/1 map onto terminal fg/bg color
 
-        $s->{padding}       = _set_number( '%.padding', 2 );          #Padding between visuals
-        $s->{x}             = _set_number( '%.x', -1 );         #positive from left, negativ from right
-        $s->{y}             = _set_number( '%.y', 0 );          #positive from top, negativ from bottom
-        $s->{cpu}           = $t->x_resource('%.cpu')      // 'simple';                      #simple | detail
-        $s->{cpu_temp}      = $t->x_resource('%.cpu.temp') // 'simple';                      #simple | detail
-        $s->{battery}       = $t->x_resource('%.battery')  // 'simple';                      #simple | detail
-        $s->{disk_mounts}   = _set_number( '%.disk.mounts', 1 ) ;  #TODO rename
-        $s->{refresh}       = _set_number( '%.refresh', 1 );
-        $s->{sensitivity}   = _set_number( '%.sensitivity', 1 ) ;  #percentage
-        $s->{visual_style}  = $t->x_resource('%.visual.style') // 'bar';                 #bar | led | graph
+        $s->{cpu}      = $t->x_resource('%.cpu')      // 'simple';                 #simple | detail
+        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple';                 #simple | detail
+        $s->{battery}  = $t->x_resource('%.battery')  // 'simple';                 #simple | detail
+        $s->{padding}     = _set_number( '%.padding',     2 );                     #Padding between visuals
+        $s->{x}           = _set_number( '%.x',           -1 );                    #positive from left, negativ from right
+        $s->{y}           = _set_number( '%.y',           0 );                     #positive from top, negativ from bottom
+        $s->{disk_mounts} = _set_number( '%.disk.mounts', 1 );                     #TODO rename
+        $s->{refresh}     = _set_number( '%.refresh',     1 );
+        $s->{sensitivity} = _set_number( '%.sensitivity', 1 );                     #percentage
+        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar';            #bar | led | graph
 
-        $s->{gauges_order}     = _set('%.gauges.order');
-        $s->{disks}            = _set('%.gauges.disks');
-        $s->{disks_read}       = _set('%.gauges.disks.read');
-        $s->{disks_write}      = _set('%.gauges.disks.write');
-        $s->{gauges_batteries} = _set('%.gauges.batteries');
-        $s->{gauges_cores}     = _set('%.gauges.cores');
-        $s->{network_rx}       = _set('%.network.rx');
-        $s->{network_tx}       = _set('%.network.tx');
-        $s->{gauges_invert}    = _set('%.gauges.invert', 'BAT' );
+        $s->{gauges_order}     = _set_list('%.gauges.order');
+        $s->{disks}            = _set_list('%.gauges.disks');
+        $s->{disks_read}       = _set_list('%.gauges.disks.read');
+        $s->{disks_write}      = _set_list('%.gauges.disks.write');
+        $s->{gauges_batteries} = _set_list('%.gauges.batteries');
+        $s->{gauges_cores}     = _set_list('%.gauges.cores');
+        $s->{network_rx}       = _set_list('%.network.rx');
+        $s->{network_tx}       = _set_list('%.network.tx');
+        $s->{gauges_invert}    = _set_list( '%.gauges.invert', 'BAT' );
 
-        $s->{graphs}        = _set( '%.graphs' );
-        $s->{graphs_length} = _set_number( '%.graphs.width', 0);
-        $s->{gauges_colors} = _set('%.gauges.colors', '-1,-2');
-        $s->{"colors_$_"} = _set("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
+        $s->{graphs}        = _set_list('%.graphs');
+        $s->{graphs_length} = _set_number( '%.graphs.width', 0 );
+        $s->{gauges_colors} = _set_list( '%.gauges.colors', '-1,-2' );
 
-        $s->{sidebar_header_fg}  = _set_number( '%.sidebar.header.fg', -2 ) ;
-        $s->{sidebar_header_bg}  = _set_number( '%.sidebar.header.bg', -1 ) ;
-        $s->{sidebar_fg}         = _set_number( '%.sidebar.fg', -2 )        ;
-        $s->{sidebar_bg}         = _set_number( '%.sidebar.bg', -1 )        ;
+        $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
+
+        $s->{sidebar_header_fg}  = _set_number( '%.sidebar.header.fg',  -2 );
+        $s->{sidebar_header_bg}  = _set_number( '%.sidebar.header.bg',  -1 );
+        $s->{sidebar_fg}         = _set_number( '%.sidebar.fg',         -2 );
+        $s->{sidebar_bg}         = _set_number( '%.sidebar.bg',         -1 );
         $s->{sidebar_boarder_fg} = _set_number( '%.sidebar.boarder.fg', -2 );
         $s->{sidebar_boarder_bg} = _set_number( '%.sidebar.boarder.bg', -1 );
 
-        $notset{disks} = scalar @{$s->{disks}} ? 0 : 1;
-        $notset{network_rx}   = scalar @{$s->{network_rx}}   ? 0 : 1;
-        $notset{network_tx}   = scalar @{$s->{network_tx}}   ? 0 : 1;
-        $notset{gauges_cores} = scalar @{$s->{gauges_cores}} ? 0 : 1;
+        $notset{disks}        = scalar @{ $s->{disks} }        ? 0 : 1;
+        $notset{network_rx}   = scalar @{ $s->{network_rx} }   ? 0 : 1;
+        $notset{network_tx}   = scalar @{ $s->{network_tx} }   ? 0 : 1;
+        $notset{gauges_cores} = scalar @{ $s->{gauges_cores} } ? 0 : 1;
 
         $s->set_disks;
         $s->set_batteries;
@@ -656,7 +657,7 @@ package cdmn::resources {
     };
 
     sub set_cores {
-        my $s = shift;
+        my $s    = shift;
         my $cpus = cdmn::proc::cpu_count() - 1;
         $s->{gauges_cpu} = [ map "cpu" . $_, 0 .. $cpus ];
     }
@@ -664,27 +665,27 @@ package cdmn::resources {
     sub set_order {
         my $s = shift;
         $s->{gauges_order} = $validate->( $s, $s->{gauges_order} );
-        $s->{gauges_order} = $s->remap($s->{gauges_order});
+        $s->{gauges_order} = $s->remap( $s->{gauges_order} );
         1;
     }
 
     sub set_graphs {
         my $s = shift;
         $s->{graphs} = $validate->( $s, $s->{graphs} );
-        $s->{graphs} = {map {$_ => 1} @{$s->remap($s->{graphs})}};
+        $s->{graphs} = { map { $_ => 1 } @{ $s->remap( $s->{graphs} ) } };
         1;
     }
 
     sub remap {
         my $s = shift;
-        my @remap ;
+        my @remap;
         my %l = (
-            $s->{label_cpu} => 'cpu',
-            $s->{label_disk} => 'disk',
-            $s->{label_memory} => 'memory',
-            $s->{label_network} => 'network',
+            $s->{label_cpu}      => 'cpu',
+            $s->{label_disk}     => 'disk',
+            $s->{label_memory}   => 'memory',
+            $s->{label_network}  => 'network',
             $s->{label_cpu_temp} => 'cores',
-            $s->{label_battery} => 'battery',
+            $s->{label_battery}  => 'battery',
         );
         push @remap, $l{$_} for ( @{ +shift } );
         return \@remap;
@@ -748,10 +749,10 @@ package cdmn::resources {
     sub set_colors {
         my $s = shift;
         for my $h (qw(network disk cpu cpu_temp memory battery)) {
-            $s->{"colors_$h"} = [ map { $_ + 2 } grep ( looks_like_number($_), @{$s->{"colors_$h"}} ) ];
-            $s->{"colors_$h"} = undef if !@{$s->{"colors_$h"}};
+            $s->{"colors_$h"} = [ map { $_ + 2 } grep ( looks_like_number($_), @{ $s->{"colors_$h"} } ) ];
+            $s->{"colors_$h"} = undef if !@{ $s->{"colors_$h"} };
         }
-        $s->{gauges_colors} = [ map { $_ + 2 } grep ( looks_like_number($_), @{$s->{gauges_colors}} ) ];
+        $s->{gauges_colors} = [ map { $_ + 2 } grep ( looks_like_number($_), @{ $s->{gauges_colors} } ) ];
         1;
     }
 
@@ -1111,11 +1112,10 @@ package cdmn::visuals::container {
     }
 
     sub add {
-        my $s      = shift;
+        my $s = shift;
         my (%arg) = validate(
             @_,
-            {
-                label         => 1,
+            {   label         => 1,
                 gauges        => 1,
                 label_bg      => 1,
                 label_fg      => 1,
@@ -1125,7 +1125,7 @@ package cdmn::visuals::container {
                 sensitivity   => 1,
                 name          => 1,
                 simple        => 1,
-                graph         => {default => 0},
+                graph         => { default => 0 },
             }
         );
 
@@ -1135,7 +1135,7 @@ package cdmn::visuals::container {
             x             => $xOff,
             y             => $yOff,
             label         => $arg{label},
-            gauges        => $arg{graph} ? [0..$arg{graph}*(scalar @{$arg{gauges}})-1] : $arg{gauges},
+            gauges        => $arg{graph} ? [ 0 .. $arg{graph} * ( scalar @{ $arg{gauges} } ) - 1 ] : $arg{gauges},
             label_bg      => $arg{label_bg},
             label_fg      => $arg{label_fg},
             gauges_colors => $arg{gauges_colors},
@@ -1146,14 +1146,14 @@ package cdmn::visuals::container {
         );
 
         $s->{simple_gauges}{ $arg{name} } = $arg{simple};
-        $s->{graph}{ $arg{name} } = $arg{graph};
+        $s->{graph}{ $arg{name} }         = $arg{graph};
 
         local *_pad = sub {
             for ( values %{ $s->{gauges} } ) {
-                my $c = scalar @{$_->{gauges}};
+                my $c = scalar @{ $_->{gauges} };
                 return if $c <= $m;
                 $m = $c;
-                $_->even_gauges( $c );
+                $_->even_gauges($c);
                 $xOff += $visual->{width} if $s->{align} eq ALIGN_ROW;
             }
         };
@@ -1222,33 +1222,33 @@ package cdmn::visuals::container {
         my ( $s, $name, $usage, $invert ) = validate_pos( @_, 1, 1, 1, 1 );
         my $total = 0;
 
-        if ($s->{graph}{$name}) {
-            my $graph_count = $s->{graph}{ $name };
+        if ( $s->{graph}{$name} ) {
+            my $graph_count = $s->{graph}{$name};
 
-            for (keys %$usage) {
-                $s->{graph_data}{$name}{$_} = [(0) x $graph_count] if !$s->{graph_data}{$name}{$_};
-                shift @{$s->{graph_data}{$name}{$_}};
-                push (@{$s->{graph_data}{$name}{$_}}, $usage->{$_});
+            for ( keys %$usage ) {
+                $s->{graph_data}{$name}{$_} = [ (0) x $graph_count ] if !$s->{graph_data}{$name}{$_};
+                shift @{ $s->{graph_data}{$name}{$_} };
+                push( @{ $s->{graph_data}{$name}{$_} }, $usage->{$_} );
                 $total += $usage->{$_};
             }
             $total /= scalar keys %$usage;
 
-            $s->{graph_data}{$name}{'simple'} = [(0) x $graph_count] if !$s->{graph_data}{$name}{'simple'};
-            shift @{$s->{graph_data}{$name}{'simple'}};
-            push @{$s->{graph_data}{$name}{'simple'}}, $total;
+            $s->{graph_data}{$name}{'simple'} = [ (0) x $graph_count ] if !$s->{graph_data}{$name}{'simple'};
+            shift @{ $s->{graph_data}{$name}{'simple'} };
+            push @{ $s->{graph_data}{$name}{'simple'} }, $total;
 
             my %t;
             my $key = 0;
-            for (sort keys %{$s->{graph_data}{$name}}) {
-                for (@{$s->{graph_data}{$name}{$s->{simple_gauges}{$name} ? 'simple' : $_}}) {
-                    $t{$key++} = $_;
+            for ( sort keys %{ $s->{graph_data}{$name} } ) {
+                for ( @{ $s->{graph_data}{$name}{ $s->{simple_gauges}{$name} ? 'simple' : $_ } } ) {
+                    $t{ $key++ } = $_;
                 }
             }
             $usage = \%t;
         }
 
         if ( $s->{visible} && $s->{gauges}{$name} ) {
-            if ( $s->{simple_gauges}{$name} and !$s->{graph}{$name}) {
+            if ( $s->{simple_gauges}{$name} and !$s->{graph}{$name} ) {
                 $total += $_ for values %$usage;
                 $total /= scalar keys %$usage;
                 $s->{gauges}{$name}->set( 'simple', $total, $invert );
@@ -1523,7 +1523,7 @@ sub redraw {
 }
 
 sub calc_bounds {
-    my ($s, $t) = @_;
+    my ( $s, $t ) = @_;
     my ( $h, $w, $x, $y ) = ( 0, 0, $s->{x}, $s->{y} );
 
     if ( $t eq ALIGN_ROW ) {
@@ -1542,7 +1542,7 @@ sub calc_bounds {
 
 #TODO why add 4 to w and h
 sub refresh_bounds {
-    my ($s, $t) = @_;
+    my ( $s, $t ) = @_;
     my ( $h, $w, $x, $y ) = calc_bounds( $s, $t );
 
     if ( $s->{xterms}{main}{maximized} ) {
@@ -1567,7 +1567,7 @@ sub create_captions {
         my (%arg) = @_;
 
         local *_add = sub {
-          my @colors = @{$_[2]};
+            my @colors = @{ $_[2] };
             $caption->add(
                 label => $showLabels ? $_[1] : '',
                 gauges        => $arg{ $_[0] },
@@ -1584,34 +1584,35 @@ sub create_captions {
         };
 
         for ( @{ XR->{gauges_order} } ) {
-            $_ eq 'cpu' and $arg{$_} and _add(
-                $_, XR->{label_cpu}, XR->{colors_cpu} || XR->{gauges_colors}, XR->{cpu} eq 'simple',
-                XR->{graphs}{cpu} ? XR->{graphs_length} : 0
-            );
+            $_ eq 'cpu'
+                and $arg{$_}
+                and _add( $_, XR->{label_cpu}, XR->{colors_cpu} || XR->{gauges_colors}, XR->{cpu} eq 'simple', XR->{graphs}{cpu} ? XR->{graphs_length} : 0 );
 
-            $_ eq 'disk' and $arg{$_} and _add(
-                $_, XR->{label_disk}, XR->{colors_disk} || XR->{gauges_colors}, 0,
-                XR->{graphs}{disk} ? XR->{graphs_length} : 0
-            );
+            $_ eq 'disk'
+                and $arg{$_}
+                and _add( $_, XR->{label_disk}, XR->{colors_disk} || XR->{gauges_colors}, 0, XR->{graphs}{disk} ? XR->{graphs_length} : 0 );
 
-            $_ eq 'memory'  and $arg{$_} and _add(
-                $_, XR->{label_memory}, XR->{colors_memory}   || XR->{gauges_colors}, 0,
-                XR->{graphs}{memory} ? XR->{graphs_length} : 0
-            );
+            $_ eq 'memory'
+                and $arg{$_}
+                and _add( $_, XR->{label_memory}, XR->{colors_memory} || XR->{gauges_colors}, 0, XR->{graphs}{memory} ? XR->{graphs_length} : 0 );
 
-            $_ eq 'network' and $arg{$_} and _add(
-                $_, XR->{label_network}, XR->{colors_network}  || XR->{gauges_colors}, 0,
-                XR->{graphs}{network} ? XR->{graphs_length} : 0
-            ) if $arg{network};
+            $_ eq 'network'
+                and $arg{$_}
+                and _add( $_, XR->{label_network}, XR->{colors_network} || XR->{gauges_colors}, 0, XR->{graphs}{network} ? XR->{graphs_length} : 0 )
+                if $arg{network};
 
-            $_ eq 'cores'   and $arg{$_} and _add(
-                $_, XR->{label_cpu_temp}, XR->{colors_cpu_temp} || XR->{gauges_colors}, XR->{cpu_temp} eq 'simple',
+            $_ eq 'cores' and $arg{$_} and _add(
+                $_, XR->{label_cpu_temp},
+                XR->{colors_cpu_temp} || XR->{gauges_colors},
+                XR->{cpu_temp} eq 'simple',
                 XR->{graphs}{cores} ? XR->{graphs_length} : 0
             ) if $arg{cores};
 
             $_ eq 'battery' and $arg{$_} and _add(
-                $_, cdmn::proc::ac_online() ? XR->{label_battery_AC} : XR->{label_battery},
-                XR->{colors_battery} || XR->{gauges_colors}, XR->{battery} eq 'simple',
+                $_,
+                cdmn::proc::ac_online() ? XR->{label_battery_AC} : XR->{label_battery},
+                XR->{colors_battery} || XR->{gauges_colors},
+                XR->{battery} eq 'simple',
                 XR->{graphs}{battery} ? XR->{graphs_length} : 0
             ) if $arg{battery};
         }
@@ -1651,7 +1652,7 @@ sub create_captions {
     }
 
     my %args;
-    $args{cores} = ( XR->{cpu_temp} eq 'simple' ? ["simple"] : XR->{gauges_cores}) if @{ XR->{gauges_cores} } > 0;
+    $args{cores} = ( XR->{cpu_temp} eq 'simple' ? ["simple"] : XR->{gauges_cores} ) if @{ XR->{gauges_cores} } > 0;
     $args{cpu} = XR->{cpu} eq 'simple' ? ["simple"] : XR->{gauges_cpu};
     $args{disk}    = XR->{gauges_disks} if @{ XR->{gauges_disks} } > 0 || @{ XR->{disks_write} } > 0 || @{ XR->{disks_read} } > 0;
     $args{memory}  = ["MemAvailable:"];
@@ -1867,20 +1868,20 @@ sub on_start {
 
             local *_filter = sub {
                 my %r;
-                my %d = %{$_[0]};
-                $r{$_} = $d{$_} for @{$_[1]};
+                my %d = %{ $_[0] };
+                $r{$_} = $d{$_} for @{ $_[1] };
                 %r;
             };
 
             redraw( $s, $LABELS_SHOWING ) if XR->set_disks || XR->set_batteries || XR->set_nics;
 
             my %usage_of;
-            $usage_of{cpu}     = sub { _filter(cdmn::proc::cpu_usages(), XR->{gauges_cpu}) };
-            $usage_of{memory}  = sub { %{cdmn::proc::memory_usages()} };
-            $usage_of{cores}   = sub { %{cdmn::proc::cpu_temp_usages()} };
-            $usage_of{battery} = sub { %{cdmn::proc::battery_usages()} };
-            $usage_of{disk}    = sub { _filter(cdmn::proc::disk_usages(), XR->{gauges_disks}) };
-            $usage_of{network} = sub { _filter(cdmn::proc::network_usages(), XR->{gauges_nics}) };
+            $usage_of{cpu}     = sub { _filter( cdmn::proc::cpu_usages(), XR->{gauges_cpu} ) };
+            $usage_of{memory}  = sub { %{ cdmn::proc::memory_usages() } };
+            $usage_of{cores}   = sub { %{ cdmn::proc::cpu_temp_usages() } };
+            $usage_of{battery} = sub { %{ cdmn::proc::battery_usages() } };
+            $usage_of{disk}    = sub { _filter( cdmn::proc::disk_usages(), XR->{gauges_disks} ) };
+            $usage_of{network} = sub { _filter( cdmn::proc::network_usages(), XR->{gauges_nics} ) };
 
             local *_set = sub {
                 my $gauge_name = shift;
