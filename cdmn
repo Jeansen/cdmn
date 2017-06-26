@@ -22,6 +22,7 @@
 use 5.10.1;
 use strict;
 use warnings FATAL => 'all';
+use autodie;
 
 use utf8;
 use autodie;
@@ -123,7 +124,7 @@ package cdmn::proc {
             opendir( my $dh, HWMON );
             my @dir = readdir $dh;
             for (@dir) {
-                next if $_ =~ /^\.\.?$/;
+                next if $_ =~ /\A\.\.?\z/;
                 my $p = HWMON . $_;
                 open( my $f, '<', $p . "/name" ) || last;
                 chomp( my $state = <$f> );
@@ -138,7 +139,7 @@ package cdmn::proc {
                         chomp( my $mv = <$f> );
                         open( $f, '<', $p . "/" . $_ . "_label" );
                         chomp( my $l = <$f> );
-                        last if $l !~ /^Core/;
+                        last if $l !~ /\ACore/;
                         $results{$l} = $cv / $mv * 100;
                     }
                     last;
@@ -154,7 +155,7 @@ package cdmn::proc {
         opendir( my $dh, HWMON );
         my @dir = readdir $dh;
         for (@dir) {
-            next if $_ =~ /^\.\.?$/;
+            next if $_ =~ /\A\.\.?\z/;
             my $p = HWMON . $_;
             open( my $f, '<', $p . "/name" );
             chomp( my $state = <$f> );
@@ -165,7 +166,7 @@ package cdmn::proc {
                 for ( keys %cores ) {
                     open( $f, '<', $p . "/" . $_ . "_label" );
                     chomp( my $l = <$f> );
-                    push @results, $l if $l =~ /^Core/;
+                    push @results, $l if $l =~ /\ACore/;
                 }
                 last;
             }
@@ -183,7 +184,7 @@ package cdmn::proc {
 
     sub ac_online {
         opendir( my $dh, SYSFS_BAT );
-        my @dir = readdir $dh;    #while ( readdir $dh ) too slow?
+        my @dir = readdir $dh;
         for (@dir) {
             if (/AC/) {
                 open( my $f, '<', SYSFS_BAT . $_ . "/online" );
@@ -209,7 +210,7 @@ package cdmn::proc {
         chomp( my $state = <$f> );
 
         # RFC2863 operational states: unknown notpresent down up lowerlayerdown testing dormant
-        return 1 if $state eq 'down' || $state eq 'unknown';
+        return 1 if $state =~ 'down|unknown';
         0;
     }
 
@@ -219,7 +220,7 @@ package cdmn::proc {
         my @dir = readdir $dh;
         for (@dir) {
             my $if = $_;
-            next if (/^\.\.?$|^veth/);
+            next if (/\A\.\.?$|\Aveth/);
             if ( !has_wifi($if) ) {
                 open( my $f, '<', sysfs_net( $if, SPEED ) );
                 chomp( my @lines = <$f> );
@@ -236,8 +237,8 @@ package cdmn::proc {
         open( my $f, '<', MOUNTS );
         my @mounts;
         my %mounts;
-        while (<$f>) {
-            push @mounts, /(^\/dev\S*)\s+([a-zA-Z0-9-_.\/]+)/;    #TODO this regex is too simple
+        for (<$f>) {
+            push @mounts, /(\A\/dev\S*)\s+([a-zA-Z0-9-_.\/]+)/;    #TODO this regex is too simple
             %mounts = (@mounts);
         }
         return \%mounts;
@@ -248,9 +249,10 @@ package cdmn::proc {
             my $path = SYSFS_BAT . "/$_[0]";
             opendir( my $dh, $path );
             if ( $_[1] ) {
-                while ( readdir $dh ) {
-                    $path .= "/" . $_ if /^energy_full$|^charge_full$/ && $_[1] eq BAT_FULL;
-                    $path .= "/" . $_ if /^energy_now$|^charge_now$/   && $_[1] eq BAT_NOW;
+                my @dir = readdir $dh;
+                for (@dir) {
+                    $path .= "/" . $_ if /\Aenergy_full$|\Acharge_full$/ && $_[1] eq BAT_FULL;
+                    $path .= "/" . $_ if /\Aenergy_now$|\Acharge_now$/   && $_[1] eq BAT_NOW;
                 }
             }
             closedir $dh;
@@ -274,10 +276,11 @@ package cdmn::proc {
     sub batteries {
         my @bats;
         opendir( my $dh, SYSFS_BAT );
-        while ( readdir $dh ) {
+        my @dir = readdir $dh;
+        for (@dir) {
             my $bat = $_;
-            next if (/^\.\.?$/);
-            next if (/^AC/);
+            next if (/\A\.\.?\z/);
+            next if (/\AAC/);
             push @bats, $bat;
         }
         closedir $dh;
@@ -287,9 +290,10 @@ package cdmn::proc {
     sub disks {
         opendir( my $dh, SYSFS_BLOCK );
         my @disks;
-        while ( readdir $dh ) {
+        my @dir = readdir $dh;
+        for (@dir) {
             my $block = $_;
-            next if (/^\.\.?$|dm-|^loop|^sr/);
+            next if (/\A\.\.?$|dm-|\Aloop|\Asr/);
             push @disks, $block;
         }
         closedir $dh;
@@ -299,9 +303,10 @@ package cdmn::proc {
     sub dm_disks {
         opendir( my $dh, SYSFS_BLOCK );
         my %block;
-        while ( readdir $dh ) {
+        my @dir = readdir $dh;
+        for (@dir) {
             my $block = $_;
-            next if !(/^dm-/);
+            next if !(/\Adm-/);
             open( my $f, '<', SYSFS_BLOCK . "$block/dm/name" );
             chomp( my $d = <$f> );
 
@@ -343,13 +348,13 @@ package cdmn::proc {
         my %results;
 
         open( my $f, '<', STAT );
-        while (<$f>) {
-            next if ( !/^cpu[0-9]*\s+[0-9]+/ );
+        for (<$f>) {
+            next if ( !/\Acpu[0-9]*\s+[0-9]+/ );
 
             my @cpu = split /\s+/;
             my $cpu = shift @cpu;
 
-            if ( !defined $cpus{$cpu} ) {
+            if ( !exists $cpus{$cpu} ) {
                 $cpus{$cpu}{$_} = 0 for qw/prev_idle prev_total diff_total/;
             }
 
@@ -389,7 +394,7 @@ package cdmn::proc {
         $t = $ct;
 
         open( my $f, '<', DISKSTATS );
-        while (<$f>) {
+        for (<$f>) {
             if ( !/\bsd(a|b|c)|nvme\dn\d\b|mmcblk\d\b/ ) {
                 next;
             }
@@ -400,8 +405,8 @@ package cdmn::proc {
             my $stats;
 
             @$stats{qw/r_ios r_merged r_sectors r_time w_ios w_merged w_sectors w_time in_progress io_time weighted/} = (@sda);
-            $o_stat->{$name} = $stats if !defined $o_stat->{$name};
-            $n_stat->{$name} = $stats if !defined $n_stat->{$name};
+            $o_stat->{$name} //= $stats;
+            $n_stat->{$name} //= $stats;
 
             $o_stat->{$name} = $n_stat->{$name};
             $n_stat->{$name} = $stats;
@@ -432,12 +437,12 @@ package cdmn::proc {
         my %results;
 
         open( my $f, '<', MEMINFO );
-        while (<$f>) {
-            if (/^MemTotal:\s+[0-9]+/) {
+        for (<$f>) {
+            if (/\AMemTotal:\s+[0-9]+/) {
                 @sda = split /\s+/, $_;
                 $total = $sda[1];
             }
-            if (/^MemAvailable:\s+[0-9]+/) {
+            if (/\AMemAvailable:\s+[0-9]+/) {
                 @sda = split /\s+/, $_;
                 $available = $sda[1];
             }
@@ -473,7 +478,7 @@ package cdmn::proc {
 
         for ( @{if_list()} ) {
             my $nic = $_;
-            if ( !defined $nics{$nic} ) {
+            if ( !exists $nics{$nic} ) {
                 $nics{$nic}{$_} = 0 for ( RX, TX );
             }
             _set( $nic, RX );
@@ -532,7 +537,6 @@ package cdmn::proc {
 package cdmn::resources {
     use Scalar::Util qw(looks_like_number);
 
-    my $t;
     my %notset;
     use fields qw(
         x y padding showing showing_labels visual_alignment caption_bg actions
@@ -561,64 +565,70 @@ package cdmn::resources {
 
 
     sub init {
+        my $s = shift;
+        my $t = shift;
 
         local *_set = sub {
-                  $t->x_resource("%.$_[0]") ? [ split( /[,[:space:]]/, $t->x_resource("%.$_[0]") ) ]
-                : $_[1]                     ? [ split( /[,[:space:]]/, $_[1] ) ]
-                :                             [ () ];
+            my $r =  $t->x_resource("$_[0]");
+            $r ? [ split( /[,[:space:]]/, $r ) ]
+            : $_[1]                     ? [ split( /[,[:space:]]/, $_[1] ) ]
+            :                             [ () ];
         };
 
-        my $s = shift;
-        $t = shift;
-        $s->{label_network}  = $t->x_resource('%.label.network')  || 'NET';
-        $s->{label_disk}     = $t->x_resource('%.label.disk')     || 'DISK';
-        $s->{label_cpu}      = $t->x_resource('%.label.cpu')      || 'CPU';
-        $s->{label_cpu_temp} = $t->x_resource('%.label.cpu.temp') || 'TEMP';
-        $s->{label_memory}   = $t->x_resource('%.label.memory')   || 'MEM';
-        $s->{label_battery}  = $t->x_resource('%.label.battery')  || 'BAT';
-        $s->{label_battery_AC} = $s->{label_battery} . "(⌁)";
-        $s->{label_fg}         = looks_like_number( $t->x_resource('%.label.fg') ) || 0;
-        $s->{label_bg}         = looks_like_number( $t->x_resource('%.label.fg') ) || 1;
-        $s->{label_position}   = $t->x_resource('%.label.position') || 'left';
+        local *_set_number = sub {
+            my $n =  $t->x_resource("$_[0]");
+            looks_like_number($n) ? $n : $_[1];
+        };
 
-        $s->{showing}        = looks_like_number( $t->x_resource('%.showing') )        || 1;
-        $s->{showing_labels} = looks_like_number( $t->x_resource('%.showing.labels') ) || 1;
+        $s->{label_network}     = $t->x_resource('%.label.network')  // 'NET';
+        $s->{label_disk}        = $t->x_resource('%.label.disk')     // 'DISK';
+        $s->{label_cpu}         = $t->x_resource('%.label.cpu')      // 'CPU';
+        $s->{label_cpu_temp}    = $t->x_resource('%.label.cpu.temp') // 'TEMP';
+        $s->{label_memory}      = $t->x_resource('%.label.memory')   // 'MEM';
+        $s->{label_battery}     = $t->x_resource('%.label.battery')  // 'BAT';
+        $s->{label_battery_AC}  = $s->{label_battery} . "(⌁)";
+        $s->{label_fg}          = _set_number( '%.label.fg', 0 );
+        $s->{label_bg}          = _set_number( '%.label.bg', 1 );
+        $s->{label_position}    = $t->x_resource('%.label.position') || 'left';
 
-        $s->{visual_alignment} = $t->x_resource('%.visual.alignment') || 'row';         #row | col
-        $s->{caption_bg} = looks_like_number( $t->x_resource('%.caption.bg') ) || 1;    # 0/1 map onto terminal fg/bg color
+        $s->{showing}        = _set_number( '%.showing' ,1);
+        $s->{showing_labels} = _set_number( '%.showing.labels', 1 );
 
-        $s->{padding} = looks_like_number( $t->x_resource('%.padding') ) || 2;          #Padding between visuals
-        $s->{x}       = looks_like_number( $t->x_resource('%.x') )       || -1;         #positive from left, negativ from right
-        $s->{y}       = looks_like_number( $t->x_resource('%.y') )       || 0;          #positive from top, negativ from bottom
-        $s->{cpu}      = $t->x_resource('%.cpu')      // 'simple';                      #simple | detail
-        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple';                      #simple | detail
-        $s->{battery}  = $t->x_resource('%.battery')  // 'simple';                      #simple | detail
-        $s->{disk_mounts} = looks_like_number( $t->x_resource('%.disk.mounts') ) || 1;  #TODO rename
-        $s->{refresh}     = looks_like_number( $t->x_resource('%.refresh') )     || 1;
-        $s->{sensitivity} = looks_like_number( $t->x_resource('%.sensitivity') ) || 1;  #percentage
-        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar';                 #bar | led | graph
+        $s->{visual_alignment} = $t->x_resource('%.visual.alignment') // 'row';         #row | col
+        $s->{caption_bg}       = _set_number('%.caption.bg', 1 );    # 0/1 map onto terminal fg/bg color
+
+        $s->{padding}       = _set_number( '%.padding', 2 );          #Padding between visuals
+        $s->{x}             = _set_number( '%.x', -1 );         #positive from left, negativ from right
+        $s->{y}             = _set_number( '%.y', 0 );          #positive from top, negativ from bottom
+        $s->{cpu}           = $t->x_resource('%.cpu')      // 'simple';                      #simple | detail
+        $s->{cpu_temp}      = $t->x_resource('%.cpu.temp') // 'simple';                      #simple | detail
+        $s->{battery}       = $t->x_resource('%.battery')  // 'simple';                      #simple | detail
+        $s->{disk_mounts}   = _set_number( '%.disk.mounts', 1 ) ;  #TODO rename
+        $s->{refresh}       = _set_number( '%.refresh', 1 );
+        $s->{sensitivity}   = _set_number( '%.sensitivity', 1 ) ;  #percentage
+        $s->{visual_style}  = $t->x_resource('%.visual.style') // 'bar';                 #bar | led | graph
 
         $s->{gauges_order}     = _set('%.gauges.order');
-        $s->{disks}     = _set('%.gauges.disks');
+        $s->{disks}            = _set('%.gauges.disks');
         $s->{disks_read}       = _set('%.gauges.disks.read');
         $s->{disks_write}      = _set('%.gauges.disks.write');
         $s->{gauges_batteries} = _set('%.gauges.batteries');
         $s->{gauges_cores}     = _set('%.gauges.cores');
         $s->{network_rx}       = _set('%.network.rx');
         $s->{network_tx}       = _set('%.network.tx');
-        $s->{gauges_invert}    = _set( '%.gauges.invert', 'BAT' );
+        $s->{gauges_invert}    = _set('%.gauges.invert', 'BAT' );
 
-        $s->{graphs}    = _set( '%.graphs' );
-        $s->{graphs_length} = looks_like_number( $t->x_resource('%.graphs.width') ) || '0';
+        $s->{graphs}        = _set( '%.graphs' );
+        $s->{graphs_length} = _set_number( '%.graphs.width', 0);
+        $s->{gauges_colors} = _set('%.gauges.colors', '-1,-2');
+        $s->{"colors_$_"} = _set("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
 
-        $s->{gauges_colors} = looks_like_number( $t->x_resource('%.gauges.colors') ) || '-1,-2';
-
-        $s->{sidebar_header_fg}  = looks_like_number( $t->x_resource('%.sidebar.header.fg') )  || '-2';
-        $s->{sidebar_header_bg}  = looks_like_number( $t->x_resource('%.sidebar.header.bg') )  || '-1';
-        $s->{sidebar_fg}         = looks_like_number( $t->x_resource('%.sidebar.fg') )         || '-2';
-        $s->{sidebar_bg}         = looks_like_number( $t->x_resource('%.sidebar.bg') )         || '-1';
-        $s->{sidebar_boarder_fg} = looks_like_number( $t->x_resource('%.sidebar.boarder.fg') ) || '-2';
-        $s->{sidebar_boarder_bg} = looks_like_number( $t->x_resource('%.sidebar.boarder.bg') ) || '-1';
+        $s->{sidebar_header_fg}  = _set_number( '%.sidebar.header.fg', -2 ) ;
+        $s->{sidebar_header_bg}  = _set_number( '%.sidebar.header.bg', -1 ) ;
+        $s->{sidebar_fg}         = _set_number( '%.sidebar.fg', -2 )        ;
+        $s->{sidebar_bg}         = _set_number( '%.sidebar.bg', -1 )        ;
+        $s->{sidebar_boarder_fg} = _set_number( '%.sidebar.boarder.fg', -2 );
+        $s->{sidebar_boarder_bg} = _set_number( '%.sidebar.boarder.bg', -1 );
 
         $notset{disks} = scalar @{$s->{disks}} ? 0 : 1;
         $notset{network_rx}   = scalar @{$s->{network_rx}}   ? 0 : 1;
@@ -668,14 +678,15 @@ package cdmn::resources {
     sub remap {
         my $s = shift;
         my @remap ;
-        for ( @{ (shift) } ) {
-            $_ eq $s->{label_cpu}      and push @remap, 'cpu';
-            $_ eq $s->{label_disk}     and push @remap, 'disk';
-            $_ eq $s->{label_memory}   and push @remap, 'memory';
-            $_ eq $s->{label_network}  and push @remap, 'network';
-            $_ eq $s->{label_cpu_temp} and push @remap, 'cores';
-            $_ eq $s->{label_battery}  and push @remap, 'battery';
-        }
+        my %l = (
+            $s->{label_cpu} => 'cpu',
+            $s->{label_disk} => 'disk',
+            $s->{label_memory} => 'memory',
+            $s->{label_network} => 'network',
+            $s->{label_cpu_temp} => 'cores',
+            $s->{label_battery} => 'battery',
+        );
+        push @remap, $l{$_} for ( @{ +shift } );
         return \@remap;
     }
 
@@ -734,13 +745,13 @@ package cdmn::resources {
         $ov != scalar @{ $s->{gauges_disks} } ? 1 : 0;
     }
 
-    #TODO min count colors, check invalid values, ...
     sub set_colors {
         my $s = shift;
         for my $h (qw(network disk cpu cpu_temp memory battery)) {
-            $s->{"colors_$h"} = [ map { $_ + 2 } grep ( looks_like_number($_), split( /[,[:space:]]/, $s->{"colors_$h"} ) ) ] if $s->{"colors_$h"};
+            $s->{"colors_$h"} = [ map { $_ + 2 } grep ( looks_like_number($_), @{$s->{"colors_$h"}} ) ];
+            $s->{"colors_$h"} = undef if !@{$s->{"colors_$h"}};
         }
-        $s->{gauges_colors} = [ map { $_ + 2 } grep ( looks_like_number($_), split( /[,[:space:]]/, $s->{gauges_colors} ) ) ];
+        $s->{gauges_colors} = [ map { $_ + 2 } grep ( looks_like_number($_), @{$s->{gauges_colors}} ) ];
         1;
     }
 
@@ -1512,8 +1523,7 @@ sub redraw {
 }
 
 sub calc_bounds {
-    my $s = shift;
-    my $t = shift;
+    my ($s, $t) = @_;
     my ( $h, $w, $x, $y ) = ( 0, 0, $s->{x}, $s->{y} );
 
     if ( $t eq ALIGN_ROW ) {
@@ -1532,8 +1542,7 @@ sub calc_bounds {
 
 #TODO why add 4 to w and h
 sub refresh_bounds {
-    my $s = shift;
-    my $t = shift;
+    my ($s, $t) = @_;
     my ( $h, $w, $x, $y ) = calc_bounds( $s, $t );
 
     if ( $s->{xterms}{main}{maximized} ) {
