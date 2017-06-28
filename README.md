@@ -118,7 +118,8 @@ Starting with the layout, you can define the position, order, initial visibility
 
 | Resource | Function | Default |
 | --- | --- | --- |
-| `URxvt.cdmn.padding` | How much space (in characters) you would like to have between each caption. | 2 |
+| `URxvt.cdmn.padding` | How much space (in characters) you would like to have between each caption (label + gauges). | 2 |
+| `URxvt.label.padding` | How much space (in characters) you would like to have between a label and its gauges. | 1 |
 | `URxvt.cdmn.x` | Horizontal position (by character) where values >= 0 will result in a left alignment and negative numbers in a right alignment. | -1 |
 | `URxvt.cdmn.y` | Vertical position (by row) where 0 will be the first line and -1 the last. | 0 |
 | `URxvt.cdmn.gauges.order` | List of gauges to show and their order. This list must contain existing labels. | DISK,CPU,MEM,NETWORK |
