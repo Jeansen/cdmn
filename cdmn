@@ -576,7 +576,7 @@ package cdmn::resources {
         cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
         colors_network colors_disk colors_cpu colors_cpu_temp colors_memory colors_battery
         sidebar_header_fg sidebar_header_bg sidebar_fg sidebar_bg sidebar_boarder_fg sidebar_boarder_bg
-    );
+        );
 
     use constant {
         POSTFIX_TX    => '_tx',
@@ -598,9 +598,9 @@ package cdmn::resources {
 
         local *_set_list = sub {
             my $r = $t->x_resource("$_[0]");
-                  $r    ? [ split( /[,[:space:]]/, $r ) ]
-                : $_[1] ? [ split( /[,[:space:]]/, $_[1] ) ]
-                :         [ () ];
+            $r    ? [ split( /[,[:space:]]/, $r ) ]
+                  : $_[1] ? [ split( /[,[:space:]]/, $_[1] ) ]
+                          :         [ () ];
         };
 
         local *_set_number = sub {
@@ -965,13 +965,13 @@ package cdmn::sidebar {
         #title
         push @data,
             cdmn::visuals::overlay->new(
-            term      => $s->{term},
-            x         => -1,
-            y         => $i++,
-            width     => $s->{width},
-            height    => 1,
-            rendition => $r,
-            text      => $title
+                term      => $s->{term},
+                x         => -1,
+                y         => $i++,
+                width     => $s->{width},
+                height    => 1,
+                rendition => $r,
+                text      => $title
             );
 
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
@@ -979,25 +979,25 @@ package cdmn::sidebar {
             $i++;
             push @data,
                 cdmn::visuals::overlay->new(
-                term      => $s->{term},
-                x         => -1,
-                y         => $i++,
-                width     => $s->{width},
-                height    => 1,
-                rendition => $r,
-                text      => $_
+                    term      => $s->{term},
+                    x         => -1,
+                    y         => $i++,
+                    width     => $s->{width},
+                    height    => 1,
+                    rendition => $r,
+                    text      => $_
                 );
             my $c = ceil( 25 * $args->{$_} / 100 );
             my $f = $c <= 25 ? 25 - $c : 0;    #should only be necessary on startup
             push @data,
                 cdmn::visuals::overlay->new(
-                term      => $s->{term},
-                x         => -1,
-                y         => $i++,
-                width     => $s->{width},
-                height    => 1,
-                rendition => $r,
-                text      => "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%"
+                    term      => $s->{term},
+                    x         => -1,
+                    y         => $i++,
+                    width     => $s->{width},
+                    height    => 1,
+                    rendition => $r,
+                    text      => "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%"
                 );
         }
         for ( my $j = 0; $j < @data; $j++ ) {
@@ -1045,11 +1045,11 @@ package cdmn::term {
         #@$s{qw/x y w h/} // 1;
 
         push @urxvt::TERM_INIT, sub {
-            my ($term) = @_;
-            $term->{termclass} = $s;
-            $term->{parent} = $s->{parent} if $s->{is_root};
-            $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
-        };
+                my ($term) = @_;
+                $term->{termclass} = $s;
+                $term->{parent} = $s->{parent} if $s->{is_root};
+                $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
+            };
 
         push @urxvt::TERM_EXT, __PACKAGE__;
 
@@ -1264,7 +1264,7 @@ package cdmn::visuals::container {
 
             #rendition => urxvt::SET_BGCOLOR REND, 4,
             rendition => urxvt::SET_BGCOLOR REND,
-            $s->{bg_color},
+                $s->{bg_color},
         );
 
         $s->{bg}->create("show");
@@ -1634,13 +1634,13 @@ sub create_captions {
                 gauges        => $arg{ $c->{name} },
                 label_bg      => XR->{label_bg},
                 gauges_bg     => scalar @colors > 1 ? shift @colors : XR->{gauges_colors}->[0],
-                label_fg      => XR->{label_fg},
-                gauges_colors => $c->{colors},
-                visual_style  => XR->{visual_style},
-                sensitivity   => XR->{sensitivity},
-                name          => $c->{name},
-                simple        => $c->{simple},
-                graph         => $c->{length},
+                    label_fg      => XR->{label_fg},
+                    gauges_colors => $c->{colors},
+                    visual_style  => XR->{visual_style},
+                    sensitivity   => XR->{sensitivity},
+                    name          => $c->{name},
+                    simple        => $c->{simple},
+                    graph         => $c->{length},
             );
         };
 
