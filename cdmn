@@ -30,9 +30,6 @@ use autodie;
 use Filesys::Df;
 binmode STDOUT, ":encoding(UTF-8)";
 
-my $SHOWING;
-my $LABELS_SHOWING;
-
 package cdmn::utils {
 
     sub cut_set {
@@ -68,18 +65,6 @@ package cdmn::constants {
 
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
 }
-
-use constant {
-    ACTION_SHOW             => cdmn::constants::ACTION_SHOW,
-    ACTION_SHOW_LABELS      => cdmn::constants::ACTION_SHOW_LABELS,
-    ACTION_SHOW_SIDEBAR     => cdmn::constants::ACTION_SHOW_SIDEBAR,
-    ACTION_SHOW_TRANSPARENT => cdmn::constants::ACTION_SHOW_TRANSPARENT,
-    ACTION_NEXT_PANE        => cdmn::constants::ACTION_NEXT_PANE,
-    ACTION_PREV_PANE        => cdmn::constants::ACTION_PREV_PANE,
-    ALIGN_COL               => cdmn::constants::ALIGN_COL,
-    ALIGN_ROW               => cdmn::constants::ALIGN_ROW,
-    REND                    => cdmn::constants::REND,
-};
 
 package cdmn::proc {
     use List::Util qw(sum max min);
@@ -544,17 +529,16 @@ package cdmn::resources::single {
 
         (%$s) = validate(
             @_,
-            {
-                name        => 1,
-                padding     => 1,
-                fg          => 1,
-                bg          => 1,
-                colors      => 1,
-                label       => 1,
-                length      => 1,
-                gauges      => 1,
-                simple       => 1,
-                visual      => 1,
+            {   name    => 1,
+                padding => 1,
+                fg      => 1,
+                bg      => 1,
+                colors  => 1,
+                label   => 1,
+                length  => 1,
+                gauges  => 1,
+                simple  => 1,
+                visual  => 1,
             }
         );
 
@@ -576,7 +560,7 @@ package cdmn::resources {
         cpu cpu_temp battery disk_mounts refresh sensitivity visual_style
         colors_network colors_disk colors_cpu colors_cpu_temp colors_memory colors_battery
         sidebar_header_fg sidebar_header_bg sidebar_fg sidebar_bg sidebar_boarder_fg sidebar_boarder_bg
-        );
+    );
 
     use constant {
         POSTFIX_TX    => '_tx',
@@ -598,9 +582,9 @@ package cdmn::resources {
 
         local *_set_list = sub {
             my $r = $t->x_resource("$_[0]");
-            $r    ? [ split( /[,[:space:]]/, $r ) ]
-                  : $_[1] ? [ split( /[,[:space:]]/, $_[1] ) ]
-                          :         [ () ];
+                  $r    ? [ split( /[,[:space:]]/, $r ) ]
+                : $_[1] ? [ split( /[,[:space:]]/, $_[1] ) ]
+                :         [ () ];
         };
 
         local *_set_number = sub {
@@ -618,7 +602,7 @@ package cdmn::resources {
         $s->{label_fg}         = _set_number( '%.label.fg', 0 );
         $s->{label_bg}         = _set_number( '%.label.bg', 1 );
         $s->{label_position}   = $t->x_resource('%.label.position') || 'left';
-        $s->{label_padding}   = _set_number('%.label.padding', 0);
+        $s->{label_padding}    = _set_number( '%.label.padding', 0 );
 
         $s->{showing}        = _set_number( '%.showing',        1 );
         $s->{showing_labels} = _set_number( '%.showing.labels', 1 );
@@ -642,13 +626,13 @@ package cdmn::resources {
         $s->{disks_read}       = _set_list('%.gauges.disks.read');
         $s->{disks_write}      = _set_list('%.gauges.disks.write');
         $s->{gauges_batteries} = _set_list('%.gauges.batteries');
-        $s->{gauges_cpu_temps}     = _set_list('%.gauges.cores');
+        $s->{gauges_cpu_temps} = _set_list('%.gauges.cores');
         $s->{network_rx}       = _set_list('%.network.rx');
         $s->{network_tx}       = _set_list('%.network.tx');
         $s->{gauges_invert}    = _set_list( '%.gauges.invert', 'BAT' );
-        $s->{gauges_memory}     = ["MemAvailable:"];
+        $s->{gauges_memory}    = ["MemAvailable:"];
 
-        $s->{graphs}        = _set_list('%.graphs');
+        $s->{graphs} = _set_list('%.graphs');
         $s->{graphs_length} = _set_number( '%.graphs.width', 0 );
 
         $s->{gauges_colors} = _set_list( '%.gauges.colors', '-1,-2' );
@@ -661,9 +645,9 @@ package cdmn::resources {
         $s->{sidebar_boarder_fg} = _set_number( '%.sidebar.boarder.fg', -2 );
         $s->{sidebar_boarder_bg} = _set_number( '%.sidebar.boarder.bg', -1 );
 
-        $notset{disks}        = scalar @{ $s->{disks} }        ? 0 : 1;
-        $notset{network_rx}   = scalar @{ $s->{network_rx} }   ? 0 : 1;
-        $notset{network_tx}   = scalar @{ $s->{network_tx} }   ? 0 : 1;
+        $notset{disks}            = scalar @{ $s->{disks} }            ? 0 : 1;
+        $notset{network_rx}       = scalar @{ $s->{network_rx} }       ? 0 : 1;
+        $notset{network_tx}       = scalar @{ $s->{network_tx} }       ? 0 : 1;
         $notset{gauges_cpu_temps} = scalar @{ $s->{gauges_cpu_temps} } ? 0 : 1;
 
         $s->set_disks;
@@ -675,33 +659,32 @@ package cdmn::resources {
         $s->set_colors;
         $s->set_graphs;
 
-
         for (qw/network disk cpu cpu_temp memory battery/) {
-            (my $t = $_) =~ s/y$/ie/;
+            ( my $t = $_ ) =~ s/y$/ie/;
             $s->{configs}{$_} = cdmn::resources::single->new(
-                name     => $_,
-                padding     => 1,
-                fg          => $s->{label_fg},
-                bg          => $s->{label_bg},
-                colors      => $s->{"colors_$_"},
-                label       => $s->{"label_$_"},
-                length      => $s->{graphs}{$_} ? $s->{graphs_length} : 0,
-                gauges      => $_ eq 'memory' ? $s->{"gauges_${_}"} : $s->{"gauges_${t}s"},
-                simple       => exists $s->{$_} ? $s->{$_} eq 'simple' : 0,
-                visual      => $s->{visual_style},
+                name    => $_,
+                padding => 1,
+                fg      => $s->{label_fg},
+                bg      => $s->{label_bg},
+                colors  => $s->{"colors_$_"},
+                label   => $s->{"label_$_"},
+                length  => $s->{graphs}{$_} ? $s->{graphs_length} : 0,
+                gauges  => $_ eq 'memory' ? $s->{"gauges_${_}"} : $s->{"gauges_${t}s"},
+                simple  => exists $s->{$_} ? $s->{$_} eq 'simple' : 0,
+                visual  => $s->{visual_style},
             );
         }
     }
 
     sub configs {
-        my ($s, $t) = @_;
+        my ( $s, $t ) = @_;
         $s->{configs}{$t}{label} = cdmn::proc::ac_online() ? $s->{label_battery_AC} : $s->{label_battery}, $s->colors($_) if $t eq 'battery';
         return $s->{configs}{$t};
     }
 
     sub colors {
-        my $s= shift;
-        return $s->{"colors_".(shift)};
+        my $s = shift;
+        return $s->{ "colors_" . (shift) };
     }
 
     my $validate = sub {
@@ -807,7 +790,8 @@ package cdmn::resources {
     sub set_colors {
         my $s = shift;
         for my $h (qw(network disk cpu cpu_temp memory battery)) {
-            $s->{"colors_$h"} = [ map { $_ + 2 } grep ( looks_like_number($_), (@{$s->{"colors_$h"}} ? @{$s->{"colors_$h"}} : @{ $s->{gauges_colors}}) ) ];
+            $s->{"colors_$h"}
+                = [ map { $_ + 2 } grep ( looks_like_number($_), ( @{ $s->{"colors_$h"} } ? @{ $s->{"colors_$h"} } : @{ $s->{gauges_colors} } ) ) ];
         }
         1;
     }
@@ -965,13 +949,13 @@ package cdmn::sidebar {
         #title
         push @data,
             cdmn::visuals::overlay->new(
-                term      => $s->{term},
-                x         => -1,
-                y         => $i++,
-                width     => $s->{width},
-                height    => 1,
-                rendition => $r,
-                text      => $title
+            term      => $s->{term},
+            x         => -1,
+            y         => $i++,
+            width     => $s->{width},
+            height    => 1,
+            rendition => $r,
+            text      => $title
             );
 
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
@@ -979,25 +963,25 @@ package cdmn::sidebar {
             $i++;
             push @data,
                 cdmn::visuals::overlay->new(
-                    term      => $s->{term},
-                    x         => -1,
-                    y         => $i++,
-                    width     => $s->{width},
-                    height    => 1,
-                    rendition => $r,
-                    text      => $_
+                term      => $s->{term},
+                x         => -1,
+                y         => $i++,
+                width     => $s->{width},
+                height    => 1,
+                rendition => $r,
+                text      => $_
                 );
             my $c = ceil( 25 * $args->{$_} / 100 );
             my $f = $c <= 25 ? 25 - $c : 0;    #should only be necessary on startup
             push @data,
                 cdmn::visuals::overlay->new(
-                    term      => $s->{term},
-                    x         => -1,
-                    y         => $i++,
-                    width     => $s->{width},
-                    height    => 1,
-                    rendition => $r,
-                    text      => "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%"
+                term      => $s->{term},
+                x         => -1,
+                y         => $i++,
+                width     => $s->{width},
+                height    => 1,
+                rendition => $r,
+                text      => "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%"
                 );
         }
         for ( my $j = 0; $j < @data; $j++ ) {
@@ -1011,6 +995,7 @@ package cdmn::term {
     use Params::Validate qw(:all);
 
     use fields qw(x y w h term parent bg_color content is_root resource maximized);
+
     use constant {
         REND                    => cdmn::constants::REND,
         ACTION_SHOW             => cdmn::constants::ACTION_SHOW,
@@ -1045,11 +1030,11 @@ package cdmn::term {
         #@$s{qw/x y w h/} // 1;
 
         push @urxvt::TERM_INIT, sub {
-                my ($term) = @_;
-                $term->{termclass} = $s;
-                $term->{parent} = $s->{parent} if $s->{is_root};
-                $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
-            };
+            my ($term) = @_;
+            $term->{termclass} = $s;
+            $term->{parent} = $s->{parent} if $s->{is_root};
+            $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
+        };
 
         push @urxvt::TERM_EXT, __PACKAGE__;
 
@@ -1264,7 +1249,7 @@ package cdmn::visuals::container {
 
             #rendition => urxvt::SET_BGCOLOR REND, 4,
             rendition => urxvt::SET_BGCOLOR REND,
-                $s->{bg_color},
+            $s->{bg_color},
         );
 
         $s->{bg}->create("show");
@@ -1560,6 +1545,21 @@ package cdmn::visuals::overlay {
 
 use constant XR => cdmn::resources->new();
 
+my $SHOWING;
+my $LABELS_SHOWING;
+
+use constant {
+    ACTION_SHOW             => cdmn::constants::ACTION_SHOW,
+    ACTION_SHOW_LABELS      => cdmn::constants::ACTION_SHOW_LABELS,
+    ACTION_SHOW_SIDEBAR     => cdmn::constants::ACTION_SHOW_SIDEBAR,
+    ACTION_SHOW_TRANSPARENT => cdmn::constants::ACTION_SHOW_TRANSPARENT,
+    ACTION_NEXT_PANE        => cdmn::constants::ACTION_NEXT_PANE,
+    ACTION_PREV_PANE        => cdmn::constants::ACTION_PREV_PANE,
+    ALIGN_COL               => cdmn::constants::ALIGN_COL,
+    ALIGN_ROW               => cdmn::constants::ALIGN_ROW,
+    REND                    => cdmn::constants::REND,
+};
+
 #-----------------------------------------------------------------------------------------------------------------------
 #   HELPERS
 #-----------------------------------------------------------------------------------------------------------------------
@@ -1626,7 +1626,7 @@ sub create_captions {
         my (%arg) = @_;
 
         local *_add = sub {
-            my $c = shift;
+            my $c      = shift;
             my @colors = @{ $c->{colors} };
             $caption->add(
                 label => $showLabels ? $c->{label} : '',
@@ -1634,18 +1634,18 @@ sub create_captions {
                 gauges        => $arg{ $c->{name} },
                 label_bg      => XR->{label_bg},
                 gauges_bg     => scalar @colors > 1 ? shift @colors : XR->{gauges_colors}->[0],
-                    label_fg      => XR->{label_fg},
-                    gauges_colors => $c->{colors},
-                    visual_style  => XR->{visual_style},
-                    sensitivity   => XR->{sensitivity},
-                    name          => $c->{name},
-                    simple        => $c->{simple},
-                    graph         => $c->{length},
+                label_fg      => XR->{label_fg},
+                gauges_colors => $c->{colors},
+                visual_style  => XR->{visual_style},
+                sensitivity   => XR->{sensitivity},
+                name          => $c->{name},
+                simple        => $c->{simple},
+                graph         => $c->{length},
             );
         };
 
         for ( @{ XR->{gauges_order} } ) {
-            _add( XR->configs($_)) if $arg{$_};
+            _add( XR->configs($_) ) if $arg{$_};
         }
     };
 
@@ -1829,7 +1829,7 @@ sub on_tt_write {
 }
 
 #-----------------------------------------------------------------------------------------------------------------------
-#   MAIN ENTRYPOINT
+#   MAIN
 #-----------------------------------------------------------------------------------------------------------------------
 
 sub on_init {
@@ -1907,12 +1907,12 @@ sub on_start {
             redraw( $s, $LABELS_SHOWING ) if XR->set_disks | XR->set_batteries | XR->set_nics;
 
             my %usage_of;
-            $usage_of{cpu}     = sub { _filter( cdmn::proc::cpu_usages(), XR->{gauges_cpus} ) };
-            $usage_of{memory}  = sub { %{ cdmn::proc::memory_usages() } };
-            $usage_of{cpu_temp}   = sub { %{ cdmn::proc::cpu_temp_usages() } };
-            $usage_of{battery} = sub { %{ cdmn::proc::battery_usages() } };
-            $usage_of{disk}    = sub { _filter( cdmn::proc::disk_usages(), XR->{gauges_disks} ) };
-            $usage_of{network} = sub { _filter( cdmn::proc::network_usages(), XR->{gauges_networks} ) };
+            $usage_of{cpu}      = sub { _filter( cdmn::proc::cpu_usages(), XR->{gauges_cpus} ) };
+            $usage_of{memory}   = sub { %{ cdmn::proc::memory_usages() } };
+            $usage_of{cpu_temp} = sub { %{ cdmn::proc::cpu_temp_usages() } };
+            $usage_of{battery}  = sub { %{ cdmn::proc::battery_usages() } };
+            $usage_of{disk}     = sub { _filter( cdmn::proc::disk_usages(), XR->{gauges_disks} ) };
+            $usage_of{network}  = sub { _filter( cdmn::proc::network_usages(), XR->{gauges_networks} ) };
 
             local *_set = sub {
                 my $gauge_name = shift;
