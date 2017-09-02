@@ -3,4 +3,5 @@
 .idea/
 _Deparsed_XSubs.pm
 .travis.yml
+Session*.vim
 tags
