@@ -1541,9 +1541,6 @@ package cdmn::visuals::overlay {
 
 use constant XR => cdmn::resources->new();
 
-my $SHOWING;
-my $LABELS_SHOWING;
-
 use constant CDMN => 'cdmn::constants';
 
 #-----------------------------------------------------------
@@ -1702,12 +1699,12 @@ $user_command{ CDMN->ACTION_TOGGLE } = sub {
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4, $h + 4 ) if XR->{visual_alignment} eq CDMN->ALIGN_COL;
         $s->{xterms}{main}{maximized} = 0;
         ${ $s->{captions}->[0] }->hide;
-        $SHOWING = 1;
+        XR->{showing} = 1;
     }
     else {
         $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
         $s->{xterms}{main}{maximized} = 1;
-        $SHOWING = 0;
+        XR->{showing} = 0;
     }
 };
 
@@ -1717,12 +1714,12 @@ $user_command{CDMN->ACTION_TOGGLE_OVERLAY} = sub {
         my $c = ${ $s->{captions}->[0] };
         if ( $c->{visible} ) {
             $c->hide;
-            $SHOWING = 0;
+            XR->{showing} = 0;
         }
         else {
             $c->show;
-            $SHOWING = 1;
-            redraw( $s, $LABELS_SHOWING );
+            XR->{showing} = 1;
+            redraw( $s, XR->{showing_labels} );
             refresh_bounds( $s, XR->{visual_alignment} );
         }
     }
@@ -1741,10 +1738,10 @@ $user_command{CDMN->ACTION_PREV_PANE} = sub {
 };
 
 $user_command{CDMN->ACTION_TOGGLE_LABELS} = sub {
-    if ($SHOWING) {
+    if (XR->{showing}) {
         my $s = shift;
-        $LABELS_SHOWING = !$LABELS_SHOWING;
-        redraw( $s, $LABELS_SHOWING );
+        XR->{showing_labels} = !XR->{showing_labels};
+        redraw( $s, XR->{showing_labels} );
         refresh_bounds( $s, XR->{visual_alignment} );
     }
 };
@@ -1778,7 +1775,7 @@ sub on_refresh_begin {
         $nics = scalar @$nics_active;
 
         XR->set_nics;
-        redraw( $s, $LABELS_SHOWING );
+        redraw( $s, XR->{showing_labels} );
         refresh_bounds( $s, XR->{visual_alignment} );
         $s->{w_size} = $s->{term}->ncol;
         $s->{y_size} = $s->{term}->nrow;
@@ -1836,8 +1833,6 @@ sub on_tt_write {
 sub on_init {
     my ($s) = @_;
     XR->init($s);
-    $SHOWING        = XR->{showing};
-    $LABELS_SHOWING = XR->{showing_labels};
     ();
 }
 
@@ -1905,7 +1900,7 @@ sub on_start {
                 %r;
             };
 
-            redraw( $s, $LABELS_SHOWING ) if XR->set_disks | XR->set_batteries | XR->set_nics;
+            redraw( $s, XR->{showing_labels} ) if XR->set_disks | XR->set_batteries | XR->set_nics;
 
             #say %{cdmn::proc::cpu_usages()};
             #say @{XR->{gauges_cpus}};
