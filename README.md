@@ -55,7 +55,7 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 | --------- | --------- |
 | Meta-l    | Show left panel |
 | Meta-o    | Show/Hide cpations in overlay mode |
-| Meta-h    | Show/Hide cpations in bar mode <br> Toggle between overlay to bar mode |
+| Meta-h    | Show/Hide cpations in normal mode <br> Toggle between overlay to normal mode |
 | Meta-p    | Show/Hide sidebar |
 | Meta-k    | Show next pane |
 | Meta-j    | Show previous pane |
@@ -205,7 +205,7 @@ Finally there are even more settings ...
 
 | Resource | Function | Default (Other) |
 | --- | --- | --- |
-| `URxvt.cdmn.disk.mounts` | Only show disk gauges for disks with at least one mount point. | 0 (1) |
+| `URxvt.cdmn.disk.mountsonly` | Only show disk gauges for disks with at least one mount point. | 0 (1) |
 
 
 ## Resource Settings for rxvt
@@ -256,7 +256,7 @@ It might happen that your distribution does not offer version 9.22 of rxvt, even
 - Get the source from [http://dist.schmorp.de/rxvt-unicode/](http://dist.schmorp.de/rxvt-unicode/) and extract it to a 
 place of your liking. Navigate into the just extracted folder and run the following commands:
 
-        patch src/rxvtperl.xs /path/to/cdmn/resources/rxvtperl.xs.path 
+        patch src/rxvtperl.xs /path/to/cdmn/resources/rxvtperl.xs.patch 
         ./configure --enable-everything --enable-256-color
         make
         sudo checkinstall
