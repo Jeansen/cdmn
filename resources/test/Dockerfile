@@ -7,7 +7,7 @@ RUN echo "deb http://http.us.debian.org/debian/ stretch main contrib non-free" >
   echo "deb http://http.us.debian.org/debian/ stretch-updates main contrib non-free" >> /etc/apt/sources.list && \
 
   apt-get update && apt-get install -y \
-  curl \ 
+  curl \
   wget \
   unzip \
   apt-transport-https \
