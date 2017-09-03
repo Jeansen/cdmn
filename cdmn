@@ -33,8 +33,9 @@ binmode STDOUT, ":encoding(UTF-8)";
 package cdmn::math {
 
     sub cut_set {
-      #TODO named parameters
-        shift if scalar @_ > 2; #drop first parameter if called as object
+
+        #TODO named parameters
+        shift if scalar @_ > 2;    #drop first parameter if called as object
         my @cut = ();
         my %n   = ();
 
@@ -53,14 +54,10 @@ package cdmn::constants {
         ACTION_TOGGLE_OVERLAY => 'cdmn:action-show-transparent',
         ACTION_NEXT_PANE      => 'cdmn:action-next-pane',
         ACTION_PREV_PANE      => 'cdmn:action-prev-pane',
-    };
 
-    use constant {
         VISUAL_ALIGN_COL => 'col',
         VISUAL_ALIGN_ROW => 'row',
-    };
 
-    use constant {
         STYLE_LED => 'led',
         STYLE_BAR => 'bar',
     };
@@ -79,26 +76,20 @@ package cdmn::proc {
         PROC_DISKSTATS  => '/proc/diskstats',
         PROC_MEMINFO    => '/proc/meminfo',
         PROC_NET_ROUTE  => '/proc/net/route',
-    };
 
-    use constant {
         SPEED     => 'speed',
         OPERSTATE => 'operstate',
         TX        => 'tx_bytes',
         RX        => 'rx_bytes',
         BAT_FULL  => 'full',
         BAT_NOW   => 'now',
-    };
 
-    use constant {
         SYS_CPU_PRESENT => '/sys/devices/system/cpu/present',
         SYS_HWMON       => '/sys/class/hwmon/',
         SYSFS_NET       => '/sys/class/net/',
         SYSFS_BAT       => '/sys/class/power_supply/',
         SYSFS_BLOCK     => '/sys/block/',
-    };
 
-    use constant {
         POSTFIX_TX    => '_tx',
         POSTFIX_RX    => '_rx',
         POSTFIX_READ  => '_read',
@@ -530,8 +521,7 @@ package cdmn::resources::single {
 
         (%$s) = validate(
             @_,
-            {   
-                name    => 1,
+            {   name    => 1,
                 padding => 1,
                 fg      => 1,
                 bg      => 1,
@@ -625,10 +615,10 @@ package cdmn::resources {
         POSTFIX_WRITE => '_write',
     };
 
-    use constant { 
-      CDMN => 'cdmn::constants',
-      MATH => 'cdmn::math',
-      PROC => 'cdmn::proc',
+    use constant {
+        CDMN => 'cdmn::constants',
+        MATH => 'cdmn::math',
+        PROC => 'cdmn::proc',
     };
 
     sub new {
@@ -670,18 +660,18 @@ package cdmn::resources {
         $s->{showing_labels} = _set_number( '%.showing.labels', 1 );
 
         $s->{visual_align} = $t->x_resource('%.visual.alignment') // 'row';    #row | col
-        $s->{caption_bg} = _set_number( '%.caption.bg', 1 );                       # 0/1 map onto terminal fg/bg color
+        $s->{caption_bg} = _set_number( '%.caption.bg', 1 );                   # 0/1 map onto terminal fg/bg color
 
-        $s->{cpu}      = $t->x_resource('%.cpu')      // 'simple';                 #simple | detail
-        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple';                 #simple | detail
-        $s->{battery}  = $t->x_resource('%.battery')  // 'simple';                 #simple | detail
-        $s->{padding}     = _set_number( '%.padding',     2 );                     #Padding between visuals
-        $s->{x}           = _set_number( '%.x',           -1 );                    #positive from left, negativ from right
-        $s->{y}           = _set_number( '%.y',           0 );                     #positive from top, negativ from bottom
-        $s->{disk_mounts_only} = _set_number( '%.disk.mountsonly', 1 );                     #TODO rename
-        $s->{refresh}     = _set_number( '%.refresh',     1 );
-        $s->{sensitivity} = _set_number( '%.sensitivity', 1 );                     #percentage
-        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar';            #bar | led | graph
+        $s->{cpu}      = $t->x_resource('%.cpu')      // 'simple';             #simple | detail
+        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple';             #simple | detail
+        $s->{battery}  = $t->x_resource('%.battery')  // 'simple';             #simple | detail
+        $s->{padding}          = _set_number( '%.padding',         2 );        #Padding between visuals
+        $s->{x}                = _set_number( '%.x',               -1 );       #positive from left, negativ from right
+        $s->{y}                = _set_number( '%.y',               0 );        #positive from top, negativ from bottom
+        $s->{disk_mounts_only} = _set_number( '%.disk.mountsonly', 1 );        #TODO rename
+        $s->{refresh}          = _set_number( '%.refresh',         1 );
+        $s->{sensitivity}      = _set_number( '%.sensitivity',     1 );        #percentage
+        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar';        #bar | led | graph
 
         $s->{gauges_order}     = _set_list('%.gauges.order');
         $s->{disks}            = _set_list('%.gauges.disks');
@@ -852,6 +842,7 @@ package cdmn::resources {
     sub set_colors {
         my $s = shift;
         for my $h (qw(network disk cpu cpu_temp memory battery)) {
+
             # If a specific list of colors is defined, thake it, otherwise use default colors.
             # Make sure values are numbers and add 2.
             # We have to add 2 because urxvt uses 0 and 1 for references to the terminals fg and bg colors.
@@ -1178,8 +1169,8 @@ package cdmn::visuals::container {
 
     use constant CDMN => 'cdmn::constants';
     use constant {
-        TRUE      => 1,
-        FALSE     => 0,
+        TRUE  => 1,
+        FALSE => 0,
     };
 
     my ( $xOff, $yOff, $m ) = ( 0, 0, 0 );
@@ -1659,7 +1650,7 @@ sub refresh_bounds {
 
 }
 
-# P: urxvt::term, 0|1  
+# P: urxvt::term, 0|1
 # R: ref to new cdmn::visuals::container
 sub create_caption {
     my ( $s, $showLabels ) = (@_);
@@ -1763,7 +1754,7 @@ $user_command{ CDMN->ACTION_TOGGLE } = sub {
     }
 };
 
-$user_command{CDMN->ACTION_TOGGLE_OVERLAY} = sub {
+$user_command{ CDMN->ACTION_TOGGLE_OVERLAY } = sub {
     my $s = shift;
     if ( $s->{xterms}{main}{maximized} ) {
         my $c = ${ $s->{captions}->[0] };
@@ -1780,20 +1771,20 @@ $user_command{CDMN->ACTION_TOGGLE_OVERLAY} = sub {
     }
 };
 
-$user_command{CDMN->ACTION_TOGGLE_SIDEBAR} = sub {
+$user_command{ CDMN->ACTION_TOGGLE_SIDEBAR } = sub {
     (shift)->{xterms}{sidebar}->toggle;
 };
 
-$user_command{CDMN->ACTION_NEXT_PANE} = sub {
+$user_command{ CDMN->ACTION_NEXT_PANE } = sub {
     (shift)->{xterms}{sidebar}->next_pane;
 };
 
-$user_command{CDMN->ACTION_PREV_PANE} = sub {
+$user_command{ CDMN->ACTION_PREV_PANE } = sub {
     (shift)->{xterms}{sidebar}->prev_pane;
 };
 
-$user_command{CDMN->ACTION_TOGGLE_LABELS} = sub {
-    if (XR->{showing}) {
+$user_command{ CDMN->ACTION_TOGGLE_LABELS } = sub {
+    if ( XR->{showing} ) {
         my $s = shift;
         XR->{showing_labels} = !XR->{showing_labels};
         redraw( $s, XR->{showing_labels} );
@@ -1804,7 +1795,6 @@ $user_command{CDMN->ACTION_TOGGLE_LABELS} = sub {
 #-----------------------------------------------------------------------------------------------------------------------
 #   RXVT HANDLERS
 #-----------------------------------------------------------------------------------------------------------------------
-
 
 sub user_command {
     my ( $s, $action ) = (@_);
@@ -1870,12 +1860,15 @@ for my $h (qw(focus_in focus_out)) {
 }
 
 sub on_wm_delete_window {
-    # This is the root terminal. 
+
+    # This is the root terminal.
     # Do not forward to prevent deletion of alread deleted child terminals.
-    exit; 1; 
+    exit;
+    1;
 }
 
 sub on_tt_write {
+
     # Forward all terminal output to main terminal
     (shift)->{xterms}{main}{term}->tt_write(shift);
     1;
