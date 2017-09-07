@@ -513,7 +513,7 @@ package cdmn::proc {
 
 package cdmn::resources::single {
     use Params::Validate qw(:all);
-    use fields qw( name padding bg fg colors label length gauges style visual simple );
+    use fields qw( name padding bg fg colors label length gauges style visual detail );
 
     sub new {
         my $s = shift;
@@ -529,7 +529,7 @@ package cdmn::resources::single {
                 label   => 1,
                 length  => 1,
                 gauges  => 1,
-                simple  => 1,
+                detail  => 1,
                 visual  => 1,
             }
         );
@@ -583,12 +583,13 @@ package cdmn::resources {
         disks_read
         disks_write
 
-        cpu
-        cpu_temp
-        battery
         disk_mounts_only
         refresh
         sensitivity
+
+        visual_detail_cpu
+        visual_detail_cpu_temp
+        visual_detail_battery
 
         visual_style
         visual_align
@@ -613,9 +614,7 @@ package cdmn::resources {
         POSTFIX_RX    => '_rx',
         POSTFIX_READ  => '_read',
         POSTFIX_WRITE => '_write',
-    };
 
-    use constant {
         CDMN => 'cdmn::constants',
         MATH => 'cdmn::math',
         PROC => 'cdmn::proc',
@@ -634,9 +633,9 @@ package cdmn::resources {
 
         local *_set_list = sub {
             my $r = $t->x_resource("$_[0]");
-                  $r    ? [ split( /[,[:space:]]/, $r ) ]
-                : $_[1] ? [ split( /[,[:space:]]/, $_[1] ) ]
-                :         [ () ];
+                return [ split( /[,[:space:]]/, $r ) ] if $r;
+                return [ split( /[,[:space:]]/, $_[1] ) ] if $_[1];
+                [ () ];
         };
 
         local *_set_number = sub {
@@ -662,9 +661,9 @@ package cdmn::resources {
         $s->{visual_align} = $t->x_resource('%.visual.alignment') // 'row';    #row | col
         $s->{caption_bg} = _set_number( '%.caption.bg', 1 );                   # 0/1 map onto terminal fg/bg color
 
-        $s->{cpu}      = $t->x_resource('%.cpu')      // 'simple';             #simple | detail
-        $s->{cpu_temp} = $t->x_resource('%.cpu.temp') // 'simple';             #simple | detail
-        $s->{battery}  = $t->x_resource('%.battery')  // 'simple';             #simple | detail
+        $s->{visual_detail_cpu}      = _set_number('%.visual.detail.cpu', 0);      #0/1 less or more detail
+        $s->{visual_detail_cpu_temp} = _set_number('%.visual.detail.cpu.temp', 0); #0/1 less or more detail
+        $s->{visual_detail_battery}  = _set_number('%.visual.detail.battery', 0);  #0/1 less or more detail
         $s->{padding}          = _set_number( '%.padding',         2 );        #Padding between visuals
         $s->{x}                = _set_number( '%.x',               -1 );       #positive from left, negativ from right
         $s->{y}                = _set_number( '%.y',               0 );        #positive from top, negativ from bottom
@@ -721,8 +720,8 @@ package cdmn::resources {
                 colors  => $s->{"colors_$_"},
                 label   => $s->{"label_$_"},
                 length  => $s->{graphs}{$_} ? $s->{graphs_length} : 0,
-                gauges  => $_ eq 'memory' ? $s->{"gauges_${_}"} : $s->{"gauges_${t}s"},
-                simple  => exists $s->{$_} ? $s->{$_} eq 'simple' : 0,
+                gauges  => $_ eq 'memory' ? $s->{"gauges_$_"} : $s->{"gauges_${t}s"},
+                detail  => exists $s->{"visual_detail_$_"} ? $s->{"visual_detail_$_"} : 0,
                 visual  => $s->{visual_style},
             );
         }
@@ -1212,7 +1211,7 @@ package cdmn::visuals::container {
                 visual_style  => 1,
                 sensitivity   => 1,
                 name          => 1,
-                simple        => 1,
+                detail        => 1,
                 graph         => { default => 0 },
             }
         );
@@ -1234,7 +1233,7 @@ package cdmn::visuals::container {
             padding       => $arg{padding},
         );
 
-        $s->{simple_gauges}{ $arg{name} } = $arg{simple};
+        $s->{simple_gauges}{ $arg{name} } = $arg{detail};
         $s->{graph}{ $arg{name} }         = $arg{graph};
 
         local *_pad = sub {
@@ -1673,7 +1672,7 @@ sub create_caption {
                 visual_style  => XR->{visual_style},
                 sensitivity   => XR->{sensitivity},
                 name          => $c->{name},
-                simple        => $c->{simple},
+                detail        => $c->{detail},
                 graph         => $c->{length},
             );
         };
@@ -1715,15 +1714,14 @@ sub create_caption {
             }
         };
     }
-
     my %args;
-    $args{cpu_temp} = ( XR->{cpu_temp} eq 'simple' ? ["simple"] : XR->{gauges_cpu_temps} ) if @{ XR->{gauges_cpu_temps} } > 0;
-    $args{cpu} = XR->{cpu} eq 'simple' ? ["simple"] : XR->{gauges_cpus};
+    $args{cpu_temp} = ( XR->{visual_detail_cpu_temp} ? XR->{gauges_cpu_temps} :["simple"] ) if @{ XR->{gauges_cpu_temps} } > 0;
+    $args{cpu} = XR->{visual_detail_cpu} ? XR->{gauges_cpus} : ["simple"];
     $args{disk}    = XR->{gauges_disks} if @{ XR->{gauges_disks} } > 0 || @{ XR->{disks_write} } > 0 || @{ XR->{disks_read} } > 0;
     $args{memory}  = XR->{gauges_memory};
     $args{network} = XR->{gauges_networks} if @{ XR->{gauges_networks} } > 0;
-    $args{battery} = ( XR->{battery} eq 'simple' ? ["simple"] : XR->{gauges_batteries} ) if XR->{gauges_batteries} > 0;
-
+    $args{battery} = ( XR->{visual_detail_battery} ? XR->{gauges_batteries} : ["simple"] ) if XR->{gauges_batteries} > 0;
+say @{$args{battery}};
     _create( (%args) );
 
     return \$caption;

@@ -1,10 +1,7 @@
-[![](https://rawgit.com/Jeansen/assets/master/license.svg)](LICENSE)
-![](https://rawgit.com/Jeansen/assets/master/project-status.svg)
-![](https://rawgit.com/Jeansen/assets/master/rxvt.svg)
-![](https://rawgit.com/Jeansen/assets/master/version.svg)
 <!--[![Build Status](https://travis-ci.org/Jeansen/trc.svg?branch=master)](https://travis-ci.org/Jeansen/trc)-->
 
 # cdmn
+
 *cdmn* (**c**pu, **d**isk, **m**emory, **n**etwork) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources.
 
 Originally I planned to have some LED-like indicators but soon decided to make this extension more verbose and 
@@ -13,14 +10,10 @@ continued to optimize the UX and added additional features.
 
 Here's a screenshot of what it looks like:
 
-![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_1.png)
-
 And here is another example of the additional panel with very simple filesystem information:
 
-![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
-
-
 # Installation
+
 Before using the package provided by your distribution, I strongly recommend that you [compile rxvt-unicode yourself](#how-to-compile-rxvt-unicode). While developing this extension I came across a bug that results in constant memory consumption over time.
 
 Anyway, if you first want to check what this extension can do for you, there is still the option of installing rxvt with `sudo apt-get install rxvt-unicode-256color`. 
@@ -34,23 +27,23 @@ Then clone this repository to a place of your liking and set the resource `URxvt
 For instance, put  this in your .Xresources file: `URxvt*perl-lib: /home/<YOUR_USERNAME_HERE>/.urxvt/` and 
 load the changes with `xrdb -load ~/.Xresources`.
 
-Then create the folder `mkdir ~/.urxvt` and put a symlink in it `ln -s /path/to/git-project/cdmn ~/.urxvt/cdmn`. 
- 
-Now, you can call rxvt with `urxvt -pe cdmn`. Make sure you pull updates on a regular basis to enjoy new features and
- improved stability.
- 
+Then create the folder `mkdir ~/.urxvt` and put a symlink in it `ln -s /path/to/git-project/cdmn ~/.urxvt/cdmn`.
+
+Now, you can call rxvt with `urxvt -pe cdmn`. Make sure you pull updates on a regular basis to enjoy new features and improved stability.
+
 Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: cdmn` 
 to your .Xresources file. But I would not recommend it at the moment.
 
 ## Using cdmn with wireless NICs
+
 Wireless is a bit of a speciality because there is no constant maximal rx/tx speed. The value is constantly evaluated 
 and not available via *sysfs* or *procfs*. Therefore cdmn uses `iwconfig` as part of its calculation. 
 Unfortunately this requires root privileges. To make thinks work, put the following in `/et/sudoers`:
 
     <your username here> ALL = NOPASSWD: /sbin/iwconfig
-    
 
 # Default keysyms
+
 | Keysym    | Function  |
 | --------- | --------- |
 | Meta-l    | Show left panel |
@@ -63,6 +56,7 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 Normally the Meta key maps to the ALT key. If the bindings do not work, please check your system mappings.
 
 # How to use cdmn
+
 *cdmn* offers two visual modes: overlay and normal.
 
 The *overlay* mode simply does what the name already implies. It creates an overlay on top of the current terminal. 
@@ -81,12 +75,12 @@ panes with more verbose information. Use `Meta-j` and `Meta-k` to navigate betwe
 
 The sidebar is in heavy development at the moment. Stay tuned but do not expect too much ;-)
 
-
 # How to customize cdmn (so far)
+
 Here are some settings, that already work with more to come:
 
-
 ## Labels
+
 Labels can be defined with the following resources. Each label defines the text you would like to see next to the corresponding gauges:
 
 | Resource | Default |
@@ -112,8 +106,8 @@ Want to know what colors have which number? Try this one-liner in your terminal 
 
     for i in {0..255}; do echo -e "\e[38;05;${i}m${i}"; done | column -c 80 -s ' '; echo -e "\e[m"
 
-
 ## Layout
+
 Starting with the layout, you can define the position, order, initial visibility and more with the following resources.
 
 | Resource | Function | Default |
@@ -133,18 +127,18 @@ More fine-grained settings are possible with the following resources:
 | `URxvt.cdmn.gauges.disks`<br>`URxvt.cdmn.disk.read`<br>`URxvt.cdmn.disk.write`<br>`URxvt.cdmn.gauges.batteries`<br>`URxvt.cdmn.gauges.cores`<br>`URxvt.cdmn.network.rx`<br>`URxvt.cdmn.network.tx`<br> | List of device names to show gauges for. | not set |
 
 By default if you do not specify anything *cdmn* will assume you would like to see everything. That is, if you do specify valid values for `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx` then you will only see what you specified.
-  
+
 The only exceptions to this rule are `URxvt.cdmn.disk.read` and `URxvt.cdmn.disk.write`. These act as an addition to `URxvt.cdmn.gauges.disks` and allow you to define for which disks you would like to see additional read and/or write utilization. Of course you could leave out `URxvt.cdmn.gauges.disks` and only provide values for disks you would like to monitor in detail.
-  
+
 Also note, that the additinal gauges are divisions of `URxvt.cdmn.disk.read`. If you were to set all three settings to a value of `sda` and copied a large file from one folder to another on the same disk (sda), you would see three gauges. one with about 100 percent for the the combinded read and write utilization and two others with about 50 percent each because half of the time was spent reading in data and the other half of the time was spent writing data.
 
-
 ## Visual styles
+
 You can further define the visual representation and orientation with the following settings.
 
 | Resource | Function | Default (Other) |
 | --- | --- | --- |
-| `URxvt.cdmn.cpu`<br>`URxvt.cdmn.cpu.temp`<br>`URxvt.cdmn.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | simple (detail ) |
+| `URxvt.cdmn.visual.detail.cpu`<br>`URxvt.cdmn.visual.detail.cpu.temp`<br>`URxvt.cdmn.visual.detail.battery` | How much detail, e.g. a gauge for every logical core or just one gauge. | 0 (1) |
 | `URxvt.cdmn.visual.style` | The kind of gauges you prefer. Either a bar that can grow and shrink or simple flashing LED. | bar (led) |
 | `URxvt.cdmn.visual.alignment` | Vertical or horizontal alignment. | row (col) |
 | `URxvt.cdmn.graphs` | List of gauges to show time graphs for. This list must contain existing labels. | not set |
@@ -152,6 +146,7 @@ You can further define the visual representation and orientation with the follow
 
 
 ## Visual styles - gauges colors
+
 In addition you can define a list of colors that will serve as a visual cue for different values. This will be most 
 useful when using the LED style. Suppose you would like to simulate a red LED that increases in brightness for every 
 20%. Setting `URxvt.cdmn.gauges.colors` to '0,0,52,88,124,160,196' would just do that, where the first color defines the background color and all other are the foreground colors. The second color will be the color of inactivity - in this case 0 which is black.
@@ -167,8 +162,8 @@ You can also set (and overwrite) colors individually for each gauge with the fol
 
 If you only define one color it will be interpreted as a foreground color. `URxvt.cdmn.gauges.bg` (either your value or the implicit default -2) will be used for the background color.
 
-
 ## Visual styles - refresh rate and sensitivity
+
 Even further tweaking is possible with options such as the refresh rate and sensitivity. 
 
 | Resource | Function | Default (Other) |
@@ -193,22 +188,22 @@ increase), which flashes (updates) every second but only if there is at least 1%
  to 50 would result in the LED-like gauge to flash first at 50% load with the color of 124. It is also possible 
  to use fractions of seconds, e.g. 0.1, 1.1 and so on.
 
-
 ## Visual styles - invert
+
 It might be of interest to revert some colors, e.g. when you are interested in how much energy is left when running on 
 battery power. But of course this is open for debate ;-) Anyway, you cant set `URxvt.cdmn.gauges.invert` to a list 
 of labels for which gauges should use inverted colors. BAT ist inverted be default.
 
-
 ## Miscellaneous settings
+
 Finally there are even more settings ...
 
 | Resource | Function | Default (Other) |
 | --- | --- | --- |
 | `URxvt.cdmn.disk.mountsonly` | Only show disk gauges for disks with at least one mount point. | 0 (1) |
 
-
 ## Resource Settings for rxvt
+
 For this extension to work properly, you will have to set scrollbars to be invisible, activate 32bit colors and make the background black. Here is 
 an suggestion of the minimal settings necessary. 
 
@@ -216,13 +211,13 @@ an suggestion of the minimal settings necessary.
     URxvt*background:       rgba:0000/0000/0000/f000
     URxvt*depth:            32
     URxvt*perl-lib:         /home/<USERNAME>/.urxvt/
-    
+
 There is an initial .Xresouces file inthde resources folder with some minimal necessary settings, including some 
 color overwrites to make it look like the example screenshots. Make sure you adapt the line `URxvt*perl-lib: 
 /home/<USERNAME>/.urxvt/` accordingly.
- 
- 
+
 # Context awareness
+
 *cdmn* tries hard to watch for any changes. For instance, if you remove your laptop from any power supply, *cdmn* 
 will be aware of this change and render the label next to your battery gauge(s) differently by removing the 
 flash symbol.
@@ -231,8 +226,8 @@ If you do not overwrite the default settings, *cdmn* will show you everything av
 aware of. On the other hand, if you do define some overwrites *cdmn* will show you only those. If a specified device 
 is not available, it will be simply ignored until it is available. 
 
-
 # Some words about robustness
+
 With reference to the [robustness principle](https://en.wikipedia.org/wiki/Robustness_principle) cdmn will silently 
 ignore incompatible or invalid values or configurations and apply defaults where applicable.
  
@@ -245,8 +240,8 @@ On the other hand, *cdmn* will not show anything where nothing is to be shown. F
 network gauges but your network cable is not plugged in, gauges for this interface will not be shown. If all 
 interfaces are down the network caption will not show up, at all.
 
-
 # How to compile rxvt-unicode
+
 It might happen that your distribution does not offer version 9.22 of rxvt, even not via backports or other repositories. In this case you can still compile rxvt yourself. I recommend to first install the available version of your distribution anyway to pull in all its dependencies. Then uninstall it directly afterwards (but keep the dependencies). Now you can build rxvt yourself. This should take less than 5 minutes. Here is what you need to do on Debian:
 
 - First you will need to install some development packages to compile rxvt with all the necessary features.
@@ -263,7 +258,6 @@ place of your liking. Navigate into the just extracted folder and run the follow
     
 After that a package with the name `rxvt-unicode` will be installed and you should be able to call `urxvt`.
 
-
 # Example Colors
 
 Here are som example colors you can use for `URxvt.cdmn.gauges.colors` or any of the [overwrites](#visual-styles---gauges-colors).
@@ -277,25 +271,25 @@ Here are som example colors you can use for `URxvt.cdmn.gauges.colors` or any of
 | `23,87` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_cyan.png) |
 | `52,196` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_red.png) |
 
-
 # Please note
+
 This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). 
 If you followed the installation instructions above it should run on any Debian-based distribution, though.
 
-
 # What's next (without priority)
+
 [Check the projects backlog](https://github.com/Jeansen/cdmn/projects/1) to see what I am currently working on and 
 what is planned for the future.
 
-
 # Contributing
+
 Fork it, make a Pull Request, create Issues with suggestions, bugs or questions ... You are always welcome to 
 contribute!
 
-
 # Self-Promotion
+
 Like cdmn? Follow me and/or the repository on GitHub.
 
-
 # License
+
 GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
