@@ -1342,7 +1342,6 @@ package cdmn::visuals::container {
         my ( $s, $name, $usage, $invert ) = validate_pos( @_, 1, 1, 1, 1 );
         my $total = 0;
 
-say        $s->{gauges}{'cpu'};
         if ( $s->{graph}{$name} ) {
             my $graph_count = $s->{graph}{$name};
 
