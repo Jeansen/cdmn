@@ -32,8 +32,8 @@ binmode STDOUT, ":encoding(UTF-8)";
 
 package cdmn::math {
 
+    #return a ref. to anew set containing only the elements that exist in both given sets.
     sub cut_set {
-
         #TODO named parameters
         shift if scalar @_ > 2;    #drop first parameter if called as object
         my @cut = ();
@@ -60,6 +60,9 @@ package cdmn::constants {
 
         STYLE_LED => 'led',
         STYLE_BAR => 'bar',
+
+        LEFT => 'left',
+        RIGHT => 'right',
     };
 
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
@@ -513,7 +516,19 @@ package cdmn::proc {
 
 package cdmn::resources::single {
     use Params::Validate qw(:all);
-    use fields qw( name padding bg fg colors label length gauges style visual detail );
+    use fields qw(
+        name
+        padding
+        bg
+        fg
+        colors
+        label
+        length
+        gauges
+        style
+        visual
+        detail
+    );
 
     sub new {
         my $s = shift;
@@ -533,8 +548,7 @@ package cdmn::resources::single {
                 visual  => 1,
             }
         );
-
-        return $s;
+        $s;
     }
 }
 
@@ -730,7 +744,7 @@ package cdmn::resources {
     sub configs {
         my ( $s, $t ) = @_;
         $s->{configs}{$t}{label} = PROC->ac_online() ? $s->{label_battery_AC} : $s->{label_battery}, $s->colors($_) if $t eq 'battery';
-        return $s->{configs}{$t};
+        $s->{configs}{$t};
     }
 
     sub colors {
@@ -752,6 +766,7 @@ package cdmn::resources {
         my $s    = shift;
         my $cpus = cdmn::proc::cpu_count() - 1;
         $s->{gauges_cpus} = [ map "cpu" . $_, 0 .. $cpus ];
+        1;
     }
 
     sub set_order {
@@ -780,7 +795,7 @@ package cdmn::resources {
             $s->{label_battery}  => 'battery',
         );
         push @remap, $l{$_} for ( @{ +shift } );
-        return \@remap;
+        \@remap;
     }
 
     sub set_invert {
@@ -893,23 +908,27 @@ package cdmn::sidebar {
         $s->{data}  = ();
         $s->{order} = ();
 
-        return $s;
+        $s;
     }
 
     sub hide {
         my $s = shift;
         ($s)->{term}->hide;
         $s->{visible} = 0;
+        $s;
     }
 
     sub show {
         my $s = shift;
         $s->{term}->show;
         $s->{visible} = 1;
+        $s;
     }
 
     sub hide_cursor {
-        (shift)->{term}->hide_cursor;
+      my $s = shift;
+      $s->{term}->hide_cursor;
+      $s;
     }
 
     sub toggle {
@@ -917,10 +936,13 @@ package cdmn::sidebar {
         $s->{visible} = !$s->{visible};
         $s->{term}->toggle;
         $s->show_pane( $s->{order}[ $s->{active_pane} ] );
+        $s;
     }
 
     sub bounds {
-        (shift)->{term}->bounds(@_);
+      my $s = shift;
+      $s->{term}->bounds(@_);
+      $s;
     }
 
     sub show_pane {
@@ -930,6 +952,7 @@ package cdmn::sidebar {
         for ( my $j = 0; $j < @$data; $j++ ) {
             $$data[$j]->show if $$data[$j]->{y} < $s->{term}->nrow;
         }
+        $s;
     }
 
     sub hide_pane {
@@ -940,6 +963,7 @@ package cdmn::sidebar {
         for ( my $j = 0; $j < @$data; $j++ ) {
             $$data[$j]->hide;
         }
+        $s;
     }
 
     sub set_pane {
@@ -947,7 +971,7 @@ package cdmn::sidebar {
         $s->{panes}{$title} = $s->create_pane( $title, $args );
         $s->{data}{$title} = $args;
         $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
-        1;
+        $s;
     }
 
     sub next_pane {
@@ -958,6 +982,7 @@ package cdmn::sidebar {
         $i = 0 if $i ge scalar @{ $s->{order} };
         $s->{active_pane} = $i;
         $s->show_pane( $s->{order}[$i] );
+        $s;
     }
 
     sub prev_pane {
@@ -968,6 +993,7 @@ package cdmn::sidebar {
         $i = scalar @{ $s->{order} } - 1 if $i lt 0;
         $s->{active_pane} = $i;
         $s->show_pane( $s->{order}[$i] );
+        $s;
     }
 
     sub add_pane {
@@ -975,9 +1001,10 @@ package cdmn::sidebar {
         $s->{panes}{$title} = $s->create_pane( $title, $args );
         $s->{data}{$title} = $args;
         push @{ $s->{order} }, $title;
-        1;
+        $s;
     }
-
+    
+    #TODO method name and return value
     sub create_pane {
         my @data;
         my $s     = shift;
@@ -1134,6 +1161,7 @@ package cdmn::term {
         my $s = shift;
         @$s{qw/x y w h/} = validate_pos( @_, 1, 1, 1, 1 );
         $s->{term}->XMoveResizeWindow( $s->{term}->parent, @_ );
+        $s;
     }
 
     sub on_destroy {
@@ -1142,22 +1170,27 @@ package cdmn::term {
     }
 
     sub hide_cursor {
-        (shift)->{term}->cmd_parse("\033[?25l");
+      my $s = shift;
+      $s->{term}->cmd_parse("\033[?25l");
+      $s;
     }
 
     sub hide {
         my $s = shift;
         $s->{term}->XUnmapWindow( $s->{term}->parent );
+        $s;
     }
 
     sub show {
         my $s = shift;
         $s->{term}->XMapWindow( $s->{term}->parent );
+        $s;
     }
 
     sub toggle {
         my $s = shift;
         $s->{term}->mapped ? $s->hide : $s->show;
+        $s;
     }
 }
 
@@ -1167,10 +1200,7 @@ package cdmn::visuals::container {
     use Params::Validate qw(:all);
 
     use constant CDMN => 'cdmn::constants';
-    use constant {
-        TRUE  => 1,
-        FALSE => 0,
-    };
+    use constant { TRUE => 1, FALSE => 0 };
 
     my ( $xOff, $yOff, $m ) = ( 0, 0, 0 );
 
@@ -1247,14 +1277,15 @@ package cdmn::visuals::container {
         };
 
         if ( $s->{even_gauges} ) {
-            _pad( length $arg{label} ) if $s->{label_pos} eq 'right';
-            _pad( scalar @{ $arg{gauges} } ) if $s->{label_pos} eq 'left';
+            _pad( length $arg{label} ) if $s->{label_pos} eq CDMN->RIGHT;
+            _pad( scalar @{ $arg{gauges} } ) if $s->{label_pos} eq CDMN->LEFT;
         }
 
         $visual->even_gauges($m) if $s->{even_gauges};
         $xOff += $visual->{width} + $s->{padding}  if $s->{align} eq CDMN->VISUAL_ALIGN_ROW;
         $yOff += $visual->{height} + $s->{padding} if $s->{align} eq CDMN->VISUAL_ALIGN_COL;
         $s->{gauges}{ $arg{name} } = $visual;
+        $s;
     }
 
     sub create {
@@ -1297,19 +1328,21 @@ package cdmn::visuals::container {
             $s->{bg_color},
         );
 
-        $s->{bg}->create("show");
+        $s->{bg}->create();
         $s->{bg_visible} = 1;
 
         my $w = 0;
         for ( values %{ $s->{gauges} } ) { $w = $_->{width} if $_->{width} > $w; }
         $s->{width} = $w * $s->{term}->fwidth;
         $s->{height} = $yOff + ( $s->{padding} * ( $yOff - 1 ) * $s->{term}->fheight );
+        $s;
     }
 
     sub set {
         my ( $s, $name, $usage, $invert ) = validate_pos( @_, 1, 1, 1, 1 );
         my $total = 0;
 
+say        $s->{gauges}{'cpu'};
         if ( $s->{graph}{$name} ) {
             my $graph_count = $s->{graph}{$name};
 
@@ -1349,6 +1382,7 @@ package cdmn::visuals::container {
         }
 
         $s->refresh_bg;
+        $s;
     }
 
     sub show {
@@ -1359,13 +1393,19 @@ package cdmn::visuals::container {
 
         $visible ? $s->show_bg : $s->hide_bg;
         $s->{visible} = $visible;
+        $s;
     }
 
-    sub hide { (shift)->show(FALSE); }
+    sub hide { 
+      my $s = shift;
+      $s->show(FALSE); 
+      $s;
+    }
 
     sub toggle {
         my $s = shift;
         $s->{visible} ? $s->hide : $s->show;
+        $s;
     }
 
     sub show_labels {
@@ -1377,15 +1417,21 @@ package cdmn::visuals::container {
 
         $s->refresh_bg;
         $s->{label_visible} = $visible;
+        $s;
     }
 
-    sub hide_labels { (shift)->show_labels(FALSE); }
+    sub hide_labels { 
+      my $s = shift;
+      $s->show_labels(FALSE); 
+      $s;
+    }
 
     sub show_bg {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
         $visible ? $s->{bg}->show : $s->{bg}->hide;
         $s->{bg_visible} = $visible;
+        $s;
     }
 
     sub refresh_bg {
@@ -1394,17 +1440,44 @@ package cdmn::visuals::container {
             $s->hide_bg;
             $s->show_bg;
         }
+        $s;
     }
 
-    sub hide_bg { (shift)->show_bg(FALSE); }
+    sub hide_bg { 
+      my $s = shift;
+      $s->show_bg(FALSE); 
+      $s;
+    }
 }
 
 package cdmn::visuals::visual {
     use List::Util qw(max);
     use Params::Validate qw(:all);
 
-    use fields qw( term rendition x y label gauges label_bg label_fg gauges_colors gauges_bg visual_style sensitivity label_pos padding);
-    use fields qw( count width height width_add);
+    use fields qw( 
+        term
+
+        x y
+        width
+        height
+        width_add
+        padding
+
+        rendition
+        visual_style
+        sensitivity
+        count
+
+        label
+        label_bg
+        label_fg
+        label_pos
+
+        gauges
+        gauges_colors
+        gauges_bg
+
+    );
 
     use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
 
@@ -1442,7 +1515,7 @@ package cdmn::visuals::visual {
 
         $s->{height}    = 1;
         $s->{width_add} = 0;
-        return $s;
+        $s;
     }
 
     sub even_gauges {
@@ -1450,9 +1523,10 @@ package cdmn::visuals::visual {
         my $l = length $s->{label};
 
         $s->{width} -= $s->{width_add};
-        $s->{width_add} = $max - @{ $s->{gauges} } if $s->{label_pos} eq 'left';
-        $s->{width_add} = $l > 0 ? $max - $l : 0 if $s->{label_pos} eq 'right';
+        $s->{width_add} = $max - @{ $s->{gauges} } if $s->{label_pos} eq CDMN->LEFT;
+        $s->{width_add} = $l > 0 ? $max - $l : 0 if $s->{label_pos} eq CDMN->RIGHT;
         $s->{width} += $s->{width_add};
+        $s;
     }
 
     sub create {
@@ -1475,8 +1549,7 @@ package cdmn::visuals::visual {
                 rendition => $s->{rendition},
                 text      => $s->{label}
             );
-            $labelObj->create("show");
-            $s->{label} = $labelObj;
+            $s->{label} = $labelObj->create();
         };
 
         local *_gauges = sub {
@@ -1493,15 +1566,15 @@ package cdmn::visuals::visual {
                         rendition => $s->{rendition},
                         text      => BLOCKS->[0],
                     );
-                    $pictorial->create;
-                    $s->{gauges}{"$i"}{"$_"} = $pictorial;
+                    $s->{gauges}{"$i"}{"$_"} = $pictorial->create();
                 }
                 $x++;
             }
         };
 
-        if ( $s->{label_pos} eq 'right' ) { _gauges(); $x++; _label(); }
-        else                              { _label(); $x += $w + $s->{padding}; _gauges(); }
+        if ( $s->{label_pos} eq CDMN->RIGHT ) { _gauges(); $x++; _label(); }
+        else { _label(); $x += $w + $s->{padding}; _gauges(); }
+        $s;
     }
 
     sub show {
@@ -1512,18 +1585,26 @@ package cdmn::visuals::visual {
                 $visible ? $_->show : $_->hide;
             }
         }
+        $s;
     }
 
-    sub hide { (shift)->show(FALSE); }
+    sub hide { 
+      my $s = shift;
+      $s->show(FALSE);
+      $s;
+    }
 
     sub show_label {
         my ( $s, $visible ) = @_;
         $visible = $visible // 1;
         $visible ? $s->{label}->show : $s->{label}->hide;
+        $s;
     }
 
     sub hide_label {
-        (shift)->show_label(FALSE);
+      my $s = shift;
+        $s->show_label(FALSE);
+        $s;
     }
 
     sub set {
@@ -1545,47 +1626,69 @@ package cdmn::visuals::visual {
         $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq CDMN->STYLE_BAR;
         $s->{gauges}{"$i"}{"$color"}->set(LED) if $s->{visual_style} eq CDMN->STYLE_LED;
         $s->{gauges}{"$i"}{"$color"}->show;
+        $s;
     }
 }
 
 package cdmn::visuals::overlay {
-    use fields qw( term x y width height rendition text );
-    use fields qw( overlay );
+    use Params::Validate qw(:all);
+    use fields qw(
+        term
+        x
+        y
+        width
+        height
+        rendition
+        text
+        overlay
+    );
 
     sub new {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
 
-        (%$s) = @_;
+        (%$s) = validate(
+            @_,
+            {   term          => 1,
+                rendition     => 1,
+                x             => 1,
+                y             => 1,
+                width         => 1,
+                height        => 1,
+                text      => 0,
+            }
+        );
         $s;
     }
 
     sub create {
-        my ( $s, $show ) = ( shift, shift );
+        my $s = shift;
         my ( $x, $y, $w, $h, $r, $c ) = ( $s->{x}, $s->{y}, $s->{width}, $s->{height}, $s->{rendition}, $s->{text} );
 
         $s->{overlay} = $s->{term}->overlay( $x, $y, $w, $h, $r, 0 );
 
         $s->set($c) if defined $c;
-        $s->hide if !$show;
+        $s;
     }
 
+    #set text for overlay. If overlay hight > 1 repeat text for each row.
     sub set {
-        my $s = shift;
-        $s->{text} = shift;
-        $s->{overlay}->set( 0, 0, $s->{text} );
-        for ( 0 .. $s->{height} ) {
-            $s->{overlay}->set( 0, $_, $s->{text} ) if $s->{height} > 1;
-        }
-    }
+      my $s = shift;
+      $s->{text} = shift;
+      $s->{overlay}->set( 0, 0, $s->{text} );
 
-    for my $h (qw(hide show)) {
-        eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } };    ## no critic
+      if ($s->{height} > 1) {
+        $s->{overlay}->set( 0, $_, $s->{text} ) for ( 0 .. $s->{height} );
+      }
+
+      for my $h (qw(hide show)) {
+          eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } };    ## no critic
+      }
+      $s;
     }
 }
 
 use constant XR => cdmn::resources->new();
-
 use constant CDMN => 'cdmn::constants';
 
 #-----------------------------------------------------------
@@ -1602,7 +1705,7 @@ sub redraw {
     $s->{captions}[1] = create_caption( $s, $showLabels );
 
     while ( my ( $key, $item ) = each @{ ( $s->{captions} ) } ) {
-        ${$item}->create;
+        ${$item}->create();
         $visible[$key] ? ${$item}->show : ${$item}->hide;
     }
 
@@ -1721,7 +1824,6 @@ sub create_caption {
     $args{memory}  = XR->{gauges_memory};
     $args{network} = XR->{gauges_networks} if @{ XR->{gauges_networks} } > 0;
     $args{battery} = ( XR->{visual_detail_battery} ? XR->{gauges_batteries} : ["simple"] ) if XR->{gauges_batteries} > 0;
-say @{$args{battery}};
     _create( (%args) );
 
     return \$caption;
@@ -1924,8 +2026,8 @@ sub on_start {
     $s->{y_size}      = $s->{term}->nrow;
     $s->{captions}[0] = create_caption $s->{xterms}{main}{term};
     $s->{captions}[1] = create_caption $s;
-    ${ $s->{captions}[0] }->create;
-    ${ $s->{captions}[1] }->create;
+    ${ $s->{captions}[0] }->create();
+    ${ $s->{captions}[1] }->create();
 
     #$s->cmd_parse("\e[2T\e[2B"); #Scroll down and move cursor down 2 line.
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
