@@ -735,7 +735,7 @@ package cdmn::resources {
                 label   => $s->{"label_$_"},
                 length  => $s->{graphs}{$_} ? $s->{graphs_length} : 0,
                 gauges  => $_ eq 'memory' ? $s->{"gauges_$_"} : $s->{"gauges_${t}s"},
-                detail  => exists $s->{"visual_detail_$_"} ? $s->{"visual_detail_$_"} : 0,
+                detail  => exists $s->{"visual_detail_$_"} ? $s->{"visual_detail_$_"} : 1,
                 visual  => $s->{visual_style},
             );
         }
@@ -743,13 +743,8 @@ package cdmn::resources {
 
     sub configs {
         my ( $s, $t ) = @_;
-        $s->{configs}{$t}{label} = PROC->ac_online() ? $s->{label_battery_AC} : $s->{label_battery}, $s->colors($_) if $t eq 'battery';
+        $s->{configs}{$t}{label} = PROC->ac_online() ? $s->{label_battery_AC} : $s->{label_battery} if $t eq 'battery';
         $s->{configs}{$t};
-    }
-
-    sub colors {
-        my $s = shift;
-        return $s->{ "colors_" . (shift) };
     }
 
     my $validate = sub {
@@ -1196,7 +1191,7 @@ package cdmn::term {
 
 package cdmn::visuals::container {
     use fields qw( term rendition padding align even_gauges x y bg_color label_pos graph_data graph  );
-    use fields qw( gauges visible bg bg_visible label_visible simple_gauges width height );
+    use fields qw( gauges visible bg bg_visible label_visible detail width height );
     use Params::Validate qw(:all);
 
     use constant CDMN => 'cdmn::constants';
@@ -1263,7 +1258,7 @@ package cdmn::visuals::container {
             padding       => $arg{padding},
         );
 
-        $s->{simple_gauges}{ $arg{name} } = $arg{detail};
+        $s->{detail}{ $arg{name} } = $arg{detail};
         $s->{graph}{ $arg{name} }         = $arg{graph};
 
         local *_pad = sub {
@@ -1360,7 +1355,7 @@ package cdmn::visuals::container {
             my %t;
             my $key = 0;
             for ( sort keys %{ $s->{graph_data}{$name} } ) {
-                for ( @{ $s->{graph_data}{$name}{ $s->{simple_gauges}{$name} ? 'simple' : $_ } } ) {
+                for ( @{ $s->{graph_data}{$name}{ $s->{detail}{$name} ? $_ : 'simple' } } ) {
                     $t{ $key++ } = $_;
                 }
             }
@@ -1368,7 +1363,7 @@ package cdmn::visuals::container {
         }
 
         if ( $s->{visible} && $s->{gauges}{$name} ) {
-            if ( $s->{simple_gauges}{$name} and !$s->{graph}{$name} ) {
+            if ( !$s->{detail}{$name} and !$s->{graph}{$name} ) {
                 $total += $_ for values %$usage;
                 $total /= scalar keys %$usage;
                 $s->{gauges}{$name}->set( 'simple', $total, $invert );
@@ -1817,14 +1812,13 @@ sub create_caption {
         };
     }
     my %args;
-    $args{cpu_temp} = ( XR->{visual_detail_cpu_temp} ? XR->{gauges_cpu_temps} :["simple"] ) if @{ XR->{gauges_cpu_temps} } > 0;
-    $args{cpu} = XR->{visual_detail_cpu} ? XR->{gauges_cpus} : ["simple"];
+    $args{cpu_temp} = (XR->configs('cpu_temp')->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if @{ XR->{gauges_cpu_temps} } > 0;
+    $args{cpu} = XR->configs('cpu')->{detail} ? XR->{gauges_cpus} : ["simple"];
     $args{disk}    = XR->{gauges_disks} if @{ XR->{gauges_disks} } > 0 || @{ XR->{disks_write} } > 0 || @{ XR->{disks_read} } > 0;
     $args{memory}  = XR->{gauges_memory};
     $args{network} = XR->{gauges_networks} if @{ XR->{gauges_networks} } > 0;
-    $args{battery} = ( XR->{visual_detail_battery} ? XR->{gauges_batteries} : ["simple"] ) if XR->{gauges_batteries} > 0;
+    $args{battery} = ( XR->configs('battery')->{detail} ? XR->{gauges_batteries} : ["simple"] ) if XR->{gauges_batteries} > 0;
     _create( (%args) );
-
     return \$caption;
 }
 
