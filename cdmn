@@ -29,6 +29,11 @@ use autodie;
 
 use Filesys::Df;
 binmode STDOUT, ":encoding(UTF-8)";
+package Null {
+    my $null = bless {}, __PACKAGE__;
+    sub AUTOLOAD { $null }
+    sub ok {0};
+}
 
 package cdmn::math {
 
@@ -557,6 +562,7 @@ package cdmn::resources {
 
     my %notset;
     use fields qw(
+        ok
         x y
         padding
         showing
@@ -761,21 +767,21 @@ package cdmn::resources {
         my $s    = shift;
         my $cpus = cdmn::proc::cpu_count() - 1;
         $s->{gauges_cpus} = [ map "cpu" . $_, 0 .. $cpus ];
-        1;
+        $s;
     }
 
     sub set_order {
         my $s = shift;
         $s->{gauges_order} = $validate->( $s, $s->{gauges_order} );
         $s->{gauges_order} = $s->remap( $s->{gauges_order} );
-        1;
+        $s;
     }
 
     sub set_graphs {
         my $s = shift;
         $s->{graphs} = $validate->( $s, $s->{graphs} );
         $s->{graphs} = { map { $_ => 1 } @{ $s->remap( $s->{graphs} ) } };
-        1;
+        $s;
     }
 
     sub remap {
@@ -814,8 +820,8 @@ package cdmn::resources {
             $s->{gauges_networks} = [ map { $_ . POSTFIX_RX, $_ . POSTFIX_TX } @$nics_active ];
         }
         else { $s->{gauges_networks} = [ @rx, @tx ]; }
-        $ov != scalar @{ $s->{gauges_networks} } ? 1 : 0;
-    }
+        $ov != scalar @{ $s->{gauges_networks} } ? $s->{ok} = 1 && return $s : Null->new ;
+      }
 
     sub set_disks {
         my $s = shift;
@@ -845,8 +851,10 @@ package cdmn::resources {
 
         push @{ $s->{gauges_disks} }, ( @r, @w );
 
-        $ov != @{ $s->{gauges_disks} } ? 1 : 0;
+        $ov != @{ $s->{gauges_disks} } ? $s->{ok} = 1 && return $s : Null->new ;
     }
+
+    sub ok { (shift)->{'ok'} }
 
     sub set_colors {
         my $s = shift;
@@ -869,7 +877,7 @@ package cdmn::resources {
                 my \$ov = \$s->{gauges_$h} ? scalar \@{\$s->{gauges_$h}} : 0;
                 \$s->{gauges_$h} = MATH->cut_set(cdmn::proc::$h, \$s->{gauges_$h});
                 \$s->{gauges_$h} = cdmn::proc::$h if scalar \@{\$s->{gauges_$h}} eq 0 || \$notset{gauges_$h};
-                \$ov != scalar \@{\$s->{gauges_$h}} ? 1 : 0;
+                \$ov != scalar \@{\$s->{gauges_$h}} ? \$s->{ok} = 1 && return \$s : Null->new;
             }
         }
     }
@@ -2041,7 +2049,7 @@ sub on_start {
                 %r;
             };
 
-            redraw( $s, XR->{showing_labels} ) if XR->set_disks | XR->set_batteries | XR->set_nics;
+            redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok | XR->set_batteries->ok | XR->set_nics->ok;
 
             #say %{cdmn::proc::cpu_usages()};
             #say @{XR->{gauges_cpus}};
