@@ -57,6 +57,7 @@ package cdmn::constants {
         ACTION_TOGGLE_LABELS  => 'cdmn:show-labels',
         ACTION_TOGGLE_SIDEBAR => 'cdmn:show-sidebar',
         ACTION_TOGGLE_OVERLAY => 'cdmn:action-show-transparent',
+
         ACTION_NEXT_PANE      => 'cdmn:action-next-pane',
         ACTION_PREV_PANE      => 'cdmn:action-prev-pane',
 
@@ -92,8 +93,8 @@ package cdmn::proc {
         BAT_FULL  => 'full',
         BAT_NOW   => 'now',
 
-        SYS_CPU_PRESENT => '/sys/devices/system/cpu/present',
-        SYS_HWMON       => '/sys/class/hwmon/',
+        SYSFS_CPU_PRESENT => '/sys/devices/system/cpu/present',
+        SYSFS_HWMON       => '/sys/class/hwmon/',
         SYSFS_NET       => '/sys/class/net/',
         SYSFS_BAT       => '/sys/class/power_supply/',
         SYSFS_BLOCK     => '/sys/block/',
@@ -106,12 +107,12 @@ package cdmn::proc {
 
     sub cpu_temp_usages {
         my %results;
-        if ( -e SYS_HWMON ) {
-            opendir( my $dh, SYS_HWMON );
+        if ( -e SYSFS_HWMON ) {
+            opendir( my $dh, SYSFS_HWMON );
             my @dir = readdir $dh;
             for (@dir) {
                 next if $_ =~ /\A\.\.?\z/;
-                my $p = SYS_HWMON . $_;
+                my $p = SYSFS_HWMON . $_;
                 open( my $f, '<', $p . "/name" ) || last;
                 chomp( my $state = <$f> );
                 if ( $state eq 'coretemp' ) {
@@ -138,11 +139,11 @@ package cdmn::proc {
 
     sub cores {
         my @results;
-        opendir( my $dh, SYS_HWMON );
+        opendir( my $dh, SYSFS_HWMON );
         my @dir = readdir $dh;
         for (@dir) {
             next if $_ =~ /\A\.\.?\z/;
-            my $p = SYS_HWMON . $_;
+            my $p = SYSFS_HWMON . $_;
             open( my $f, '<', $p . "/name" );
             chomp( my $state = <$f> );
             if ( $state eq 'coretemp' ) {
@@ -361,7 +362,7 @@ package cdmn::proc {
     }
 
     sub cpu_count {
-        open( my $f, '<', SYS_CPU_PRESENT );
+        open( my $f, '<', SYSFS_CPU_PRESENT );
         {
             local $/;
             my $cpus = <$f>;
