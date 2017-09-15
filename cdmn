@@ -29,16 +29,18 @@ use autodie;
 
 use Filesys::Df;
 binmode STDOUT, ":encoding(UTF-8)";
+
 package Null {
     my $null = bless {}, __PACKAGE__;
-    sub AUTOLOAD { $null }
-    sub ok {0};
+    sub AUTOLOAD {$null}
+    sub ok       {0}
 }
 
 package cdmn::math {
 
     #return a ref. to anew set containing only the elements that exist in both given sets.
     sub cut_set {
+
         #TODO named parameters
         shift if scalar @_ > 2;    #drop first parameter if called as object
         my @cut = ();
@@ -58,8 +60,8 @@ package cdmn::constants {
         ACTION_TOGGLE_SIDEBAR => 'cdmn:show-sidebar',
         ACTION_TOGGLE_OVERLAY => 'cdmn:action-show-transparent',
 
-        ACTION_NEXT_PANE      => 'cdmn:action-next-pane',
-        ACTION_PREV_PANE      => 'cdmn:action-prev-pane',
+        ACTION_NEXT_PANE => 'cdmn:action-next-pane',
+        ACTION_PREV_PANE => 'cdmn:action-prev-pane',
 
         VISUAL_ALIGN_COL => 'col',
         VISUAL_ALIGN_ROW => 'row',
@@ -67,7 +69,7 @@ package cdmn::constants {
         STYLE_LED => 'led',
         STYLE_BAR => 'bar',
 
-        LEFT => 'left',
+        LEFT  => 'left',
         RIGHT => 'right',
     };
 
@@ -95,9 +97,9 @@ package cdmn::proc {
 
         SYSFS_CPU_PRESENT => '/sys/devices/system/cpu/present',
         SYSFS_HWMON       => '/sys/class/hwmon/',
-        SYSFS_NET       => '/sys/class/net/',
-        SYSFS_BAT       => '/sys/class/power_supply/',
-        SYSFS_BLOCK     => '/sys/block/',
+        SYSFS_NET         => '/sys/class/net/',
+        SYSFS_BAT         => '/sys/class/power_supply/',
+        SYSFS_BLOCK       => '/sys/block/',
 
         POSTFIX_TX    => '_tx',
         POSTFIX_RX    => '_rx',
@@ -561,7 +563,6 @@ package cdmn::resources::single {
 package cdmn::resources {
     use Scalar::Util qw(looks_like_number);
 
-    my %notset;
     use fields qw(
         ok
         x y
@@ -654,9 +655,9 @@ package cdmn::resources {
 
         local *_set_list = sub {
             my $r = $t->x_resource("$_[0]");
-                return [ split( /[,[:space:]]/, $r ) ] if $r;
-                return [ split( /[,[:space:]]/, $_[1] ) ] if $_[1];
-                [ () ];
+            return [ split( /[,[:space:]]/, $r ) ]    if $r;
+            return [ split( /[,[:space:]]/, $_[1] ) ] if $_[1];
+            [ () ];
         };
 
         local *_set_number = sub {
@@ -682,16 +683,16 @@ package cdmn::resources {
         $s->{visual_align} = $t->x_resource('%.visual.alignment') // 'row';    #row | col
         $s->{caption_bg} = _set_number( '%.caption.bg', 1 );                   # 0/1 map onto terminal fg/bg color
 
-        $s->{visual_detail_cpu}      = _set_number('%.visual.detail.cpu', 0);      #0/1 less or more detail
-        $s->{visual_detail_cpu_temp} = _set_number('%.visual.detail.cpu.temp', 0); #0/1 less or more detail
-        $s->{visual_detail_battery}  = _set_number('%.visual.detail.battery', 0);  #0/1 less or more detail
-        $s->{padding}          = _set_number( '%.padding',         2 );        #Padding between visuals
-        $s->{x}                = _set_number( '%.x',               -1 );       #positive from left, negativ from right
-        $s->{y}                = _set_number( '%.y',               0 );        #positive from top, negativ from bottom
-        $s->{disk_mounts_only} = _set_number( '%.disk.mountsonly', 1 );        #TODO rename
-        $s->{refresh}          = _set_number( '%.refresh',         1 );
-        $s->{sensitivity}      = _set_number( '%.sensitivity',     1 );        #percentage
-        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar';        #bar | led | graph
+        $s->{visual_detail_cpu}      = _set_number( '%.visual.detail.cpu',      0 );     #0/1 less or more detail
+        $s->{visual_detail_cpu_temp} = _set_number( '%.visual.detail.cpu.temp', 0 );     #0/1 less or more detail
+        $s->{visual_detail_battery}  = _set_number( '%.visual.detail.battery',  0 );     #0/1 less or more detail
+        $s->{padding}                = _set_number( '%.padding',                2 );     #Padding between visuals
+        $s->{x}                      = _set_number( '%.x',                      -1 );    #positive from left, negativ from right
+        $s->{y}                      = _set_number( '%.y',                      0 );     #positive from top, negativ from bottom
+        $s->{disk_mounts_only}       = _set_number( '%.disk.mountsonly',        1 );     #TODO rename
+        $s->{refresh}                = _set_number( '%.refresh',                1 );
+        $s->{sensitivity}            = _set_number( '%.sensitivity',            1 );     #percentage
+        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar';                  #bar | led | graph
 
         $s->{gauges_order}     = _set_list('%.gauges.order');
         $s->{disks}            = _set_list('%.gauges.disks');
@@ -716,11 +717,6 @@ package cdmn::resources {
         $s->{sidebar_bg}         = _set_number( '%.sidebar.bg',         -1 );
         $s->{sidebar_boarder_fg} = _set_number( '%.sidebar.boarder.fg', -2 );
         $s->{sidebar_boarder_bg} = _set_number( '%.sidebar.boarder.bg', -1 );
-
-        $notset{disks}            = scalar @{ $s->{disks} }            ? 0 : 1;
-        $notset{network_rx}       = scalar @{ $s->{network_rx} }       ? 0 : 1;
-        $notset{network_tx}       = scalar @{ $s->{network_tx} }       ? 0 : 1;
-        $notset{gauges_cpu_temps} = scalar @{ $s->{gauges_cpu_temps} } ? 0 : 1;
 
         $s->set_disks;
         $s->set_batteries;
@@ -817,12 +813,12 @@ package cdmn::resources {
         $rx_tx = MATH->cut_set( $s->{network_rx}, $nics_active );
         my @rx = map { $_ . POSTFIX_RX } @$rx_tx;
 
-        if ( ( scalar @tx eq 0 and scalar @rx eq 0 ) || ( $notset{network_rx} && $notset{network_tx} ) ) {
+        if ( ( scalar @tx eq 0 and scalar @rx eq 0 ) || ( @{ $s->{network_rx} } && @{ $s->{network_tx} } ) ) {
             $s->{gauges_networks} = [ map { $_ . POSTFIX_RX, $_ . POSTFIX_TX } @$nics_active ];
         }
         else { $s->{gauges_networks} = [ @rx, @tx ]; }
-        $ov != scalar @{ $s->{gauges_networks} } ? $s->{ok} = 1 && return $s : Null->new ;
-      }
+        $ov != scalar @{ $s->{gauges_networks} } ? $s->{ok} = 1 && return $s : Null->new;
+    }
 
     sub set_disks {
         my $s = shift;
@@ -852,7 +848,7 @@ package cdmn::resources {
 
         push @{ $s->{gauges_disks} }, ( @r, @w );
 
-        $ov != @{ $s->{gauges_disks} } ? $s->{ok} = 1 && return $s : Null->new ;
+        $ov != @{ $s->{gauges_disks} } ? $s->{ok} = 1 && return $s : Null->new;
     }
 
     sub ok { (shift)->{'ok'} }
@@ -877,7 +873,7 @@ package cdmn::resources {
                 my \$s = shift;
                 my \$ov = \$s->{gauges_$h} ? scalar \@{\$s->{gauges_$h}} : 0;
                 \$s->{gauges_$h} = MATH->cut_set(cdmn::proc::$h, \$s->{gauges_$h});
-                \$s->{gauges_$h} = cdmn::proc::$h if scalar \@{\$s->{gauges_$h}} eq 0 || \$notset{gauges_$h};
+                \$s->{gauges_$h} = cdmn::proc::$h if scalar \@{\$s->{gauges_$h}} eq 0 || \@{\$s->{gauges_$h}};
                 \$ov != scalar \@{\$s->{gauges_$h}} ? \$s->{ok} = 1 && return \$s : Null->new;
             }
         }
@@ -930,9 +926,9 @@ package cdmn::sidebar {
     }
 
     sub hide_cursor {
-      my $s = shift;
-      $s->{term}->hide_cursor;
-      $s;
+        my $s = shift;
+        $s->{term}->hide_cursor;
+        $s;
     }
 
     sub toggle {
@@ -944,9 +940,9 @@ package cdmn::sidebar {
     }
 
     sub bounds {
-      my $s = shift;
-      $s->{term}->bounds(@_);
-      $s;
+        my $s = shift;
+        $s->{term}->bounds(@_);
+        $s;
     }
 
     sub show_pane {
@@ -1007,7 +1003,7 @@ package cdmn::sidebar {
         push @{ $s->{order} }, $title;
         $s;
     }
-    
+
     #TODO method name and return value
     sub create_pane {
         my @data;
@@ -1079,6 +1075,7 @@ package cdmn::sidebar {
 
 package cdmn::term {
     use Params::Validate qw(:all);
+    use File::Basename;
 
     use fields qw(x y w h term parent bg_color content is_root resource maximized);
 
@@ -1111,7 +1108,9 @@ package cdmn::term {
             my ($term) = @_;
             $term->{termclass} = $s;
             $term->{parent} = $s->{parent} if $s->{is_root};
-            $term->resource( perl_ext_2 => "-cdmn" );    #TODO remove magic name
+
+            my $file_name = fileparse __FILE__;
+            $term->resource( perl_ext_2 => "-$file_name" );    #Do not load this extension for child terminals!
         };
 
         push @urxvt::TERM_EXT, __PACKAGE__;
@@ -1161,6 +1160,11 @@ package cdmn::term {
         ();
     }
 
+    sub on_destroy {
+        exit;
+        1;
+    }
+
     sub bounds {
         my $s = shift;
         @$s{qw/x y w h/} = validate_pos( @_, 1, 1, 1, 1 );
@@ -1168,15 +1172,16 @@ package cdmn::term {
         $s;
     }
 
-    sub on_destroy {
-        exit;
-        1;
+    sub maximize {
+        my $s = shift;
+        $s->{maximized} = 1;    #TODO
+        $s;
     }
 
     sub hide_cursor {
-      my $s = shift;
-      $s->{term}->cmd_parse("\033[?25l");
-      $s;
+        my $s = shift;
+        $s->{term}->cmd_parse("\033[?25l");
+        $s;
     }
 
     sub hide {
@@ -1268,7 +1273,7 @@ package cdmn::visuals::container {
         );
 
         $s->{detail}{ $arg{name} } = $arg{detail};
-        $s->{graph}{ $arg{name} }         = $arg{graph};
+        $s->{graph}{ $arg{name} }  = $arg{graph};
 
         local *_pad = sub {
             for ( values %{ $s->{gauges} } ) {
@@ -1399,10 +1404,10 @@ package cdmn::visuals::container {
         $s;
     }
 
-    sub hide { 
-      my $s = shift;
-      $s->show(FALSE); 
-      $s;
+    sub hide {
+        my $s = shift;
+        $s->show(FALSE);
+        $s;
     }
 
     sub toggle {
@@ -1423,10 +1428,10 @@ package cdmn::visuals::container {
         $s;
     }
 
-    sub hide_labels { 
-      my $s = shift;
-      $s->show_labels(FALSE); 
-      $s;
+    sub hide_labels {
+        my $s = shift;
+        $s->show_labels(FALSE);
+        $s;
     }
 
     sub show_bg {
@@ -1446,10 +1451,10 @@ package cdmn::visuals::container {
         $s;
     }
 
-    sub hide_bg { 
-      my $s = shift;
-      $s->show_bg(FALSE); 
-      $s;
+    sub hide_bg {
+        my $s = shift;
+        $s->show_bg(FALSE);
+        $s;
     }
 }
 
@@ -1457,7 +1462,7 @@ package cdmn::visuals::visual {
     use List::Util qw(max);
     use Params::Validate qw(:all);
 
-    use fields qw( 
+    use fields qw(
         term
 
         x y
@@ -1576,7 +1581,7 @@ package cdmn::visuals::visual {
         };
 
         if ( $s->{label_pos} eq CDMN->RIGHT ) { _gauges(); $x++; _label(); }
-        else { _label(); $x += $w + $s->{padding}; _gauges(); }
+        else                                  { _label(); $x += $w + $s->{padding}; _gauges(); }
         $s;
     }
 
@@ -1591,10 +1596,10 @@ package cdmn::visuals::visual {
         $s;
     }
 
-    sub hide { 
-      my $s = shift;
-      $s->show(FALSE);
-      $s;
+    sub hide {
+        my $s = shift;
+        $s->show(FALSE);
+        $s;
     }
 
     sub show_label {
@@ -1605,7 +1610,7 @@ package cdmn::visuals::visual {
     }
 
     sub hide_label {
-      my $s = shift;
+        my $s = shift;
         $s->show_label(FALSE);
         $s;
     }
@@ -1652,12 +1657,12 @@ package cdmn::visuals::overlay {
 
         (%$s) = validate(
             @_,
-            {   term          => 1,
-                rendition     => 1,
-                x             => 1,
-                y             => 1,
-                width         => 1,
-                height        => 1,
+            {   term      => 1,
+                rendition => 1,
+                x         => 1,
+                y         => 1,
+                width     => 1,
+                height    => 1,
                 text      => 0,
             }
         );
@@ -1676,22 +1681,22 @@ package cdmn::visuals::overlay {
 
     #set text for overlay. If overlay hight > 1 repeat text for each row.
     sub set {
-      my $s = shift;
-      $s->{text} = shift;
-      $s->{overlay}->set( 0, 0, $s->{text} );
+        my $s = shift;
+        $s->{text} = shift;
+        $s->{overlay}->set( 0, 0, $s->{text} );
 
-      if ($s->{height} > 1) {
-        $s->{overlay}->set( 0, $_, $s->{text} ) for ( 0 .. $s->{height} );
-      }
+        if ( $s->{height} > 1 ) {
+            $s->{overlay}->set( 0, $_, $s->{text} ) for ( 0 .. $s->{height} );
+        }
 
-      for my $h (qw(hide show)) {
-          eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } };    ## no critic
-      }
-      $s;
+        for my $h (qw(hide show)) {
+            eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } };    ## no critic
+        }
+        $s;
     }
 }
 
-use constant XR => cdmn::resources->new();
+use constant XR   => cdmn::resources->new();
 use constant CDMN => 'cdmn::constants';
 
 #-----------------------------------------------------------
@@ -1821,7 +1826,7 @@ sub create_caption {
         };
     }
     my %args;
-    $args{cpu_temp} = (XR->configs('cpu_temp')->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if @{ XR->{gauges_cpu_temps} } > 0;
+    $args{cpu_temp} = ( XR->configs('cpu_temp')->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if @{ XR->{gauges_cpu_temps} } > 0;
     $args{cpu} = XR->configs('cpu')->{detail} ? XR->{gauges_cpus} : ["simple"];
     $args{disk}    = XR->{gauges_disks} if @{ XR->{gauges_disks} } > 0 || @{ XR->{disks_write} } > 0 || @{ XR->{disks_read} } > 0;
     $args{memory}  = XR->{gauges_memory};
@@ -1994,23 +1999,21 @@ sub on_start {
         resource => XR,
         bg_color => 4,
         is_root  => 1
-    );
+    )->maximize->show;
 
-    $s->{xterms}{main}{maximized} = 1;
-    my $st = cdmn::term->new(
-        parent   => $s,
-        resource => XR,
-        x        => $s->width / 2,
-        y        => 0,
-        w        => $s->width / 2 + 1,
-        h        => $s->fheight * ( $s->nrow ),
-        bg_color => 5,
-        is_root  => 0
-    );
-
-    $st->hide_cursor;
     $s->{xterms}{sidebar} = cdmn::sidebar->new(
-        term       => $st,
+        term => (
+            cdmn::term->new(
+                parent   => $s,
+                resource => XR,
+                x        => $s->width / 2,
+                y        => 0,
+                w        => $s->width / 2 + 1,
+                h        => $s->fheight * ( $s->nrow ),
+                bg_color => 5,
+                is_root  => 0
+            )->hide_cursor
+            )->hide,
         fg         => XR->{sidebar_fg},
         bg         => XR->{sidebar_bg},
         bg_header  => XR->{sidebar_header_bg},
@@ -2018,9 +2021,6 @@ sub on_start {
         fg_boarder => XR->{sidebar_boarder_fg},
         bg_boarder => XR->{sidebar_boarder_bg},
     );
-
-    $s->{xterms}{sidebar}->hide;
-    $s->{xterms}{main}->show;
 
     #$s->{xterms}{main}->hide if ( XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL );
 
