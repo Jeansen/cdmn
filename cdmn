@@ -976,23 +976,25 @@ package cdmn::sidebar {
 
     sub next_pane {
         my $s = shift;
-        my $i = $s->{active_pane};
-        $s->hide_pane( $s->{order}[$i] );
-        $i++;
-        $i = 0 if $i ge scalar @{ $s->{order} };
-        $s->{active_pane} = $i;
-        $s->show_pane( $s->{order}[$i] );
+        $s->goto_pane(+1);
         $s;
     }
 
     sub prev_pane {
         my $s = shift;
+        $s->goto_pane(-1);
+        $s;
+    }
+
+    sub goto_pane {
+        my $s = shift;
         my $i = $s->{active_pane};
         $s->hide_pane( $s->{order}[$i] );
-        $i--;
-        $i = scalar @{ $s->{order} } - 1 if $i lt 0;
+        $i += (shift);
+        $i = 0 if $i ge scalar @{ $s->{order} };
+        $i = @{ $s->{order} } - 1 if $i lt 0;
         $s->{active_pane} = $i;
-        $s->show_pane( $s->{order}[$i] );
+        #$s->show_pane( $s->{order}[$i] );
         $s;
     }
 
@@ -1010,65 +1012,47 @@ package cdmn::sidebar {
         my $s     = shift;
         my $title = shift;
         my $args  = shift;
+
         my $r     = urxvt::SET_FGCOLOR REND, $s->{fg_boarder};
+        my $i = 0;
 
-        #border
-        $data[0] = cdmn::visuals::overlay->new(
-            term      => $s->{term},
-            x         => 0,
-            y         => 0,
-            width     => 1,
-            height    => $s->{term}->nrow,
-            rendition => $r,
-            text      => "│"
-        );
-
-        $r = urxvt::SET_FGCOLOR REND, $s->{fg_header};
-        $r = $r | urxvt::RS_Uline;
-
-        my $i = 1;
-
-        #title
-        push @data,
-            cdmn::visuals::overlay->new(
+        local *_create = sub {
+          cdmn::visuals::overlay->new(
             term      => $s->{term},
             x         => -1,
             y         => $i++,
             width     => $s->{width},
             height    => 1,
             rendition => $r,
-            text      => $title
-            );
+            text      => (shift),
+          );
+        };
 
+        #border
+        $data[0] = _create("│");
+        $data[0]->{x} = 0;
+        $data[0]->{y} = 0;
+        $data[0]->{width} = 1;
+        $data[0]->{height} = $s->{term}->nrow;
+
+        #title
+        $r = (urxvt::SET_FGCOLOR REND, $s->{fg_header}) | urxvt::RS_Uline;
+        push @data, _create($title);
+        
+        #content
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
+        $i+=2;
+
         for ( sort keys %$args ) {
-            $i++;
-            push @data,
-                cdmn::visuals::overlay->new(
-                term      => $s->{term},
-                x         => -1,
-                y         => $i++,
-                width     => $s->{width},
-                height    => 1,
-                rendition => $r,
-                text      => $_
-                );
+            push @data, _create($_);
+
             my $c = ceil( 25 * $args->{$_} / 100 );
             my $f = $c <= 25 ? 25 - $c : 0;    #should only be necessary on startup
-            push @data,
-                cdmn::visuals::overlay->new(
-                term      => $s->{term},
-                x         => -1,
-                y         => $i++,
-                width     => $s->{width},
-                height    => 1,
-                rendition => $r,
-                text      => "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%"
-                );
+            push @data, _create("■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%");
         }
-        for ( my $j = 0; $j < @data; $j++ ) {
-            $data[$j]->create();
-        }
+
+        for ( my $j = 0; $j < @data; $j++ ) { $data[$j]->create(); }
+
         return \@data;
     }
 }
