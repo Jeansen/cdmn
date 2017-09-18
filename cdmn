@@ -905,7 +905,6 @@ package cdmn::sidebar {
                 fg_boarder => 1,
             }
         );
-        $s->{data}  = ();
         $s->{order} = ();
 
         $s;
@@ -948,28 +947,25 @@ package cdmn::sidebar {
     sub show_pane {
         my ( $s, $title ) = (@_);
         return if !$s->{visible};
-        my $data = $s->{panes}{$title};
-        for ( my $j = 0; $j < @$data; $j++ ) {
-            $$data[$j]->show if $$data[$j]->{y} < $s->{term}->nrow;
+        $s->hide_pane($_) for keys %{$s->{panes}}; #just to make sure we hide everything
+        for (@{$s->{panes}{$title}}) {
+          $_->show if $_->{y} < $s->{term}->nrow;
         }
+
         $s;
     }
 
     sub hide_pane {
         my ( $s, $title ) = (@_);
         return if !$s->{visible};
-        my $data = $s->{panes}{$title};
 
-        for ( my $j = 0; $j < @$data; $j++ ) {
-            $$data[$j]->hide;
-        }
+        $_->hide for @{$s->{panes}{$title}};
         $s;
     }
 
     sub set_pane {
         my ( $s, $title, $args ) = (@_);
         $s->{panes}{$title} = $s->create_pane( $title, $args );
-        $s->{data}{$title} = $args;
         $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
         $s;
     }
@@ -994,14 +990,13 @@ package cdmn::sidebar {
         $i = 0 if $i ge scalar @{ $s->{order} };
         $i = @{ $s->{order} } - 1 if $i lt 0;
         $s->{active_pane} = $i;
-        #$s->show_pane( $s->{order}[$i] );
+        $s->show_pane( $s->{order}[$i] );
         $s;
     }
 
     sub add_pane {
         my ( $s, $title, $args ) = (@_);
         $s->{panes}{$title} = $s->create_pane( $title, $args );
-        $s->{data}{$title} = $args;
         push @{ $s->{order} }, $title;
         $s;
     }
@@ -1016,7 +1011,7 @@ package cdmn::sidebar {
         my $r     = urxvt::SET_FGCOLOR REND, $s->{fg_boarder};
         my $i = 0;
 
-        local *_create = sub {
+        local *_create_overlay = sub {
           cdmn::visuals::overlay->new(
             term      => $s->{term},
             x         => -1,
@@ -1029,7 +1024,7 @@ package cdmn::sidebar {
         };
 
         #border
-        $data[0] = _create("│");
+        $data[0] = _create_overlay("│");
         $data[0]->{x} = 0;
         $data[0]->{y} = 0;
         $data[0]->{width} = 1;
@@ -1037,22 +1032,21 @@ package cdmn::sidebar {
 
         #title
         $r = (urxvt::SET_FGCOLOR REND, $s->{fg_header}) | urxvt::RS_Uline;
-        push @data, _create($title);
+        push @data, _create_overlay($title);
         
         #content
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
-        $i+=2;
+        $i+=1;
 
         for ( sort keys %$args ) {
-            push @data, _create($_);
+            push @data, _create_overlay($_);
 
             my $c = ceil( 25 * $args->{$_} / 100 );
             my $f = $c <= 25 ? 25 - $c : 0;    #should only be necessary on startup
-            push @data, _create("■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%");
+            push @data, _create_overlay("■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%");
         }
 
-        for ( my $j = 0; $j < @data; $j++ ) { $data[$j]->create(); }
-
+        $_->create->hide for @data;
         return \@data;
     }
 }
