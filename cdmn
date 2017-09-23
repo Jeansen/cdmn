@@ -623,12 +623,16 @@ package cdmn::resources {
         colors_memory
         colors_battery
 
-        sidebar_header_fg
-        sidebar_header_bg
         sidebar_fg
         sidebar_bg
+        sidebar_header_fg
+        sidebar_header_bg
         sidebar_border_fg
         sidebar_border_bg
+        sidebar_border
+        sidebar_width
+        sidebar_height
+        sidebar_position
     );
 
     use constant {
@@ -660,9 +664,13 @@ package cdmn::resources {
             [ () ];
         };
 
+        #TODO optimize
         local *_set_number = sub {
             my $n = $t->x_resource("$_[0]");
-            looks_like_number($n) ? $n : $_[1];
+            $n = looks_like_number($n) ? $n : $_[1];
+            $n = $_[2] if exists $_[2] and $n < $_[2];
+            $n = $_[3] if exists $_[3] and $n > $_[3];
+            $n;
         };
 
         $s->{label_network}  = $t->x_resource('%.label.network')  // 'NET';
@@ -711,12 +719,18 @@ package cdmn::resources {
         $s->{gauges_colors} = _set_list( '%.gauges.colors', '-1,-2' );
         $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
 
-        $s->{sidebar_fg}         = _set_number( '%.sidebar.fg',         -2 );
-        $s->{sidebar_bg}         = _set_number( '%.sidebar.bg',         -1 );
-        $s->{sidebar_header_fg}  = _set_number( '%.sidebar.header.fg',  -2 );
-        $s->{sidebar_header_bg}  = _set_number( '%.sidebar.header.bg',  -1 );
+        $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        -2 );
+        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        -1 );
+        $s->{sidebar_header_fg} = _set_number( '%.sidebar.header.fg', -2 );
+        $s->{sidebar_header_bg} = _set_number( '%.sidebar.header.bg', -1 );
         $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', -2 );
         $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', -1 );
+        $s->{sidebar_width}     = _set_number( '%.sidebar.width', 50, 30, 100 ); #percentage
+        $s->{sidebar_height}     = _set_number( '%.sidebar.height', 40, 30, 100 ); #percentage
+        $s->{sidebar_border}     = _set_number( '%.sidebar.border', 1 ); #percentage
+        $s->{sidebar_position}     = 'r';
+        # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
+        # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
 
         $s->set_disks;
         $s->set_batteries;
@@ -886,25 +900,27 @@ package cdmn::sidebar {
     use constant { REND => cdmn::constants::REND, };
 
     use fields qw(
-    term
-    parent
-    
-    x y
-    width
-    height
+        term
+        parent
 
-    panes
-    data
-    active_pane
-    visible
-    order
+        x y
+        width
+        height
 
-    bg
-    fg
-    bg_header
-    fg_header
-    bg_border
-    fg_border);
+        panes
+        data
+        active_pane
+        visible
+        order
+
+        bg
+        fg
+        bg_header
+        fg_header
+        bg_border
+        fg_border
+        border_position
+    );
 
     sub new {
         my $s = shift;
@@ -912,29 +928,30 @@ package cdmn::sidebar {
 
         (%$s) = validate(
             @_,
-            {   
-                parent     => 1,
-                x          => { default => 0 },
-                y          => { default => 0 },
-                width      => 1,
-                height     => 1,
-                visible    => { default => 0 },
-                bg         => 1,
-                fg         => 1,
-                bg_header  => 1,
-                fg_header  => 1,
+            {   parent    => 1,
+                x         => { default => 0 },
+                y         => { default => 0 },
+                width     => 1,
+                height    => 1,
+                visible   => { default => 0 },
+                bg        => 1,
+                fg        => 1,
+                bg_header => 1,
+                fg_header => 1,
                 bg_border => 1,
                 fg_border => 1,
+                border_position => 1,
             }
         );
 
         $s->{term} = cdmn::term->new(
             parent   => $s->{parent},
-            x        => $s->{x} + 4, #TODO why add 4?
+            x        => $s->{x},
             y        => $s->{y},
-            w        => $s->{width},
-            h        => $s->{height} + 4, #TODO why add 4?
-            bg_color => $s->{bg},
+            w        => $s->{width} + 4,    #TODO why add 4?
+            h        => $s->{height} + 4,    #TODO why add 4?
+            # bg_color => $s->{bg},
+            bg_color => 8,
             is_root  => 0
         );
         $s->{term}->hide if !$s->{visible};
@@ -980,9 +997,9 @@ package cdmn::sidebar {
     sub show_pane {
         my ( $s, $title ) = (@_);
         return if !$s->{visible};
-        $s->hide_pane($_) for keys %{$s->{panes}}; #just to make sure we hide everything
-        for (@{$s->{panes}{$title}}) {
-          $_->show if $_->{y} < $s->{term}->nrow;
+        $s->hide_pane($_) for keys %{ $s->{panes} };    #just to make sure we hide everything
+        for ( @{ $s->{panes}{$title} } ) {
+            $_->show if $_->{y} < $s->{term}->nrow;
         }
 
         $s;
@@ -992,7 +1009,7 @@ package cdmn::sidebar {
         my ( $s, $title ) = (@_);
         return if !$s->{visible};
 
-        $_->hide for @{$s->{panes}{$title}};
+        $_->hide for @{ $s->{panes}{$title} };
         $s;
     }
 
@@ -1016,14 +1033,14 @@ package cdmn::sidebar {
     }
 
     sub goto_pane {
-        my $s = shift;
-        my $i = $s->{active_pane};
-        $s->hide_pane( $s->{order}[$i] );
-        $i += (shift);
-        $i = 0 if $i ge scalar @{ $s->{order} };
-        $i = @{ $s->{order} } - 1 if $i lt 0;
-        $s->{active_pane} = $i;
-        $s->show_pane( $s->{order}[$i] );
+        my $s  = shift;
+        my $ap = $s->{active_pane};
+        $s->hide_pane( $s->{order}[$ap] );
+        $ap += (shift);
+        $ap = 0 if $ap ge scalar @{ $s->{order} };
+        $ap = @{ $s->{order} } - 1 if $ap lt 0;
+        $s->{active_pane} = $ap;
+        $s->show_pane( $s->{order}[$ap] );
         $s;
     }
 
@@ -1041,43 +1058,48 @@ package cdmn::sidebar {
         my $title = shift;
         my $args  = shift;
 
-        my $r     = urxvt::SET_FGCOLOR REND, $s->{fg_border};
+        my $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
         my $i = 0;
+        my $width;
+        $width = $s->{term}->ncol - 3 if $s->{border_position} eq 'r';
+        $width = $s->{term}->ncol - 3 if $s->{border_position} eq 'l';
+        $width = $s->{term}->ncol - 1 if $s->{border_position} =~ m/t|b/;
 
         local *_create_overlay = sub {
-          cdmn::visuals::overlay->new(
-            term      => $s->{term},
-            x         => -1,
-            y         => $i++,
-            width     => $s->{width},
-            height    => 1,
-            rendition => $r,
-            text      => (shift),
-          );
+            cdmn::visuals::overlay->new(
+                term      => $s->{term},
+                x         => $s->{border_position} eq 'l' ? 1 : 2,
+                y         => $i++,
+                width     => $width,
+                height    => 1,
+                rendition => $r,
+                text      => (shift),
+            );
         };
 
         #border
-        $data[0] = _create_overlay("│");
-        $data[0]->{x} = 0;
-        $data[0]->{y} = 0;
-        $data[0]->{width} = 1;
-        $data[0]->{height} = $s->{term}->nrow;
+        $data[0]           = _create_overlay($s->{border_position} =~ m/l|r/ ? "│" : "─");
+        $data[0]->{x}      = $s->{border_position} eq 'r' ? 0 :-1;
+        $data[0]->{y}      = $s->{border_position} eq 'b' ? 0 :-1;
+        $data[0]->{width}  = $s->{border_position} =~ m/l|r/ ? 1 : $s->{term}->ncol ;
+        $data[0]->{height} = $s->{border_position} =~ m/t|b/ ? 1 : $s->{term}->nrow;
+        $data[0]->{repeat} = 1;
 
         #title
-        $r = (urxvt::SET_FGCOLOR REND, $s->{fg_header}) | urxvt::RS_Uline;
+        $r = ( urxvt::SET_FGCOLOR REND, $s->{fg_header} ) | urxvt::RS_Uline;
         push @data, _create_overlay($title);
-        
+
         #content
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
-        $i+=1;
+        $i += 1;
 
         for ( sort keys %$args ) {
             push @data, _create_overlay($_);
 
-            my $w = $s->{term}->ncol - 9; #border, number, space
+            my $w = $s->{term}->ncol - 7;             #2 border,space + 4 number% + 1 space
             my $c = ceil( $w * $args->{$_} / 100 );
-            my $f = $c <= $w ? $w - $c : 0;    #should only be necessary on startup
-            push @data, _create_overlay("■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%");
+            my $f = $c <= $w ? $w - $c : 0;           #should only be necessary on startup
+            push @data, _create_overlay( "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%" );
         }
 
         $_->create->hide for @data;
@@ -1130,7 +1152,7 @@ package cdmn::term {
         $environ->{SHELL} = 'sh' if !$s->{is_root};
 
         #$s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg =>6 );
-        $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg => $s->{bg_color} ); #TODO only 16 colors?
+        $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg => $s->{bg_color} );   #TODO only 16 colors?
 
         $s->bounds( @$s{qw/x y w h/} );
         $s->{is_root} ? $root = $s : push( @terminals, $s );
@@ -1661,6 +1683,7 @@ package cdmn::visuals::overlay {
         rendition
         text
         overlay
+        repeat
     );
 
     sub new {
@@ -1676,6 +1699,7 @@ package cdmn::visuals::overlay {
                 width     => 1,
                 height    => 1,
                 text      => 0,
+                repeat    => {default => 0 },
             }
         );
         $s;
@@ -1697,10 +1721,14 @@ package cdmn::visuals::overlay {
         $s->{text} = shift;
         $s->{overlay}->set( 0, 0, $s->{text} );
 
-        if ( $s->{height} > 1 ) {
-            $s->{overlay}->set( 0, $_, $s->{text} ) for ( 0 .. $s->{height} );
+        if ($s->{repeat}) {
+          for my $y ( 0 .. $s->{height}) {
+            for my $x ( 0 .. $s->{width}) {
+              $s->{overlay}->set( $x, $y, $s->{text} );
+            }
+          }
         }
-
+        #wrap hide and show from rxvt
         for my $h (qw(hide show)) {
             eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } };    ## no critic
         }
@@ -1766,6 +1794,7 @@ sub refresh_bounds {
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4, $h + 4 ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL;
 
     }
+
     #$s->{xterms}{sidebar}->bounds( $s->width - $s->fwidth * 25 + 4, 0, $s->fwidth * 25, $s->height + 4 );
 
     #$s->{xterms}{sidebar}->refresh_pane if $s->{xterms}{sidebar}{visible};
@@ -2008,23 +2037,26 @@ sub on_start {
 
     $s->{xterms}{main} = cdmn::term->new(
         parent   => $s,
-        bg_color => 0, #TODO take it from the resource
+        bg_color => 0,    #TODO take it from the resource
         is_root  => 1
     )->maximize->show;
 
+    my $w = $s->fwidth * $s->ncol;
+    my $h = $s->fheight * $s->nrow;
+
     $s->{xterms}{sidebar} = cdmn::sidebar->new(
-        parent     => $s,
-        x          => $s->width / 2,
-        y          => 0,
-        #width      => $s->width / 2 + 1,
-        width      => $s->width / 2 + 1,
-        height     => $s->fheight * ( $s->nrow ),
-        fg         => XR->{sidebar_fg},
-        bg         => XR->{sidebar_bg},
-        bg_header  => XR->{sidebar_header_bg},
-        fg_header  => XR->{sidebar_header_fg},
+        parent => $s,
+        x      => XR->{sidebar_position} eq 'r' ? $w - $w * (XR->{sidebar_width} / 100) : 0,
+        y      => XR->{sidebar_position} eq 'b' ? $h - $h * (XR->{sidebar_height} / 100) : 0,
+        width     => XR->{sidebar_position} =~ m/l|r/ ? $w * (XR->{sidebar_width} / 100) : $w,
+        height    => XR->{sidebar_position} =~ m/t|b/ ? $h * (XR->{sidebar_height} / 100) : $h,
+        fg        => XR->{sidebar_fg},
+        bg        => XR->{sidebar_bg},
+        bg_header => XR->{sidebar_header_bg},
+        fg_header => XR->{sidebar_header_fg},
         fg_border => XR->{sidebar_border_fg},
         bg_border => XR->{sidebar_border_bg},
+        border_position => XR->{sidebar_position},
     );
 
     #$s->{xterms}{main}->hide if ( XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL );
@@ -2048,7 +2080,9 @@ sub on_start {
         sub {
             my %r;
 
-            local *_filter = sub { map { $_ => ${ $_[0] }{$_} } @{ $_[1] }; };
+            local *_filter = sub {
+                map { $_ => ${ $_[0] }{$_} } @{ $_[1] };
+            };
 
             redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok | XR->set_batteries->ok | XR->set_nics->ok;
 
