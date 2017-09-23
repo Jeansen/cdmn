@@ -725,10 +725,11 @@ package cdmn::resources {
         $s->{sidebar_header_bg} = _set_number( '%.sidebar.header.bg', -1 );
         $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', -2 );
         $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', -1 );
-        $s->{sidebar_width}     = _set_number( '%.sidebar.width', 50, 30, 100 ); #percentage
-        $s->{sidebar_height}     = _set_number( '%.sidebar.height', 40, 30, 100 ); #percentage
-        $s->{sidebar_border}     = _set_number( '%.sidebar.border', 1 ); #percentage
-        $s->{sidebar_position}     = 'r';
+        $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
+        $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
+        $s->{sidebar_border}    = _set_number( '%.sidebar.border',    1 );              #percentage
+        $s->{sidebar_position} = 'r';
+
         # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
         # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
 
@@ -928,18 +929,18 @@ package cdmn::sidebar {
 
         (%$s) = validate(
             @_,
-            {   parent    => 1,
-                x         => { default => 0 },
-                y         => { default => 0 },
-                width     => 1,
-                height    => 1,
-                visible   => { default => 0 },
-                bg        => 1,
-                fg        => 1,
-                bg_header => 1,
-                fg_header => 1,
-                bg_border => 1,
-                fg_border => 1,
+            {   parent          => 1,
+                x               => { default => 0 },
+                y               => { default => 0 },
+                width           => 1,
+                height          => 1,
+                visible         => { default => 0 },
+                bg              => 1,
+                fg              => 1,
+                bg_header       => 1,
+                fg_header       => 1,
+                bg_border       => 1,
+                fg_border       => 1,
                 border_position => 1,
             }
         );
@@ -948,9 +949,9 @@ package cdmn::sidebar {
             parent   => $s->{parent},
             x        => $s->{x},
             y        => $s->{y},
-            w        => $s->{width} + 4,    #TODO why add 4?
+            w        => $s->{width} + 4,     #TODO why add 4?
             h        => $s->{height} + 4,    #TODO why add 4?
-            # bg_color => $s->{bg},
+                                             # bg_color => $s->{bg},
             bg_color => 8,
             is_root  => 0
         );
@@ -1078,10 +1079,10 @@ package cdmn::sidebar {
         };
 
         #border
-        $data[0]           = _create_overlay($s->{border_position} =~ m/l|r/ ? "│" : "─");
-        $data[0]->{x}      = $s->{border_position} eq 'r' ? 0 :-1;
-        $data[0]->{y}      = $s->{border_position} eq 'b' ? 0 :-1;
-        $data[0]->{width}  = $s->{border_position} =~ m/l|r/ ? 1 : $s->{term}->ncol ;
+        $data[0] = _create_overlay( $s->{border_position} =~ m/l|r/ ? "│" : "─" );
+        $data[0]->{x}      = $s->{border_position} eq 'r'    ? 0 : -1;
+        $data[0]->{y}      = $s->{border_position} eq 'b'    ? 0 : -1;
+        $data[0]->{width}  = $s->{border_position} =~ m/l|r/ ? 1 : $s->{term}->ncol;
         $data[0]->{height} = $s->{border_position} =~ m/t|b/ ? 1 : $s->{term}->nrow;
         $data[0]->{repeat} = 1;
 
@@ -1699,7 +1700,7 @@ package cdmn::visuals::overlay {
                 width     => 1,
                 height    => 1,
                 text      => 0,
-                repeat    => {default => 0 },
+                repeat    => { default => 0 },
             }
         );
         $s;
@@ -1721,13 +1722,14 @@ package cdmn::visuals::overlay {
         $s->{text} = shift;
         $s->{overlay}->set( 0, 0, $s->{text} );
 
-        if ($s->{repeat}) {
-          for my $y ( 0 .. $s->{height}) {
-            for my $x ( 0 .. $s->{width}) {
-              $s->{overlay}->set( $x, $y, $s->{text} );
+        if ( $s->{repeat} ) {
+            for my $y ( 0 .. $s->{height} ) {
+                for my $x ( 0 .. $s->{width} ) {
+                    $s->{overlay}->set( $x, $y, $s->{text} );
+                }
             }
-          }
         }
+
         #wrap hide and show from rxvt
         for my $h (qw(hide show)) {
             eval qq{ sub $h { my \$s = shift; \$s->{overlay}->$h; } };    ## no critic
@@ -2045,17 +2047,17 @@ sub on_start {
     my $h = $s->fheight * $s->nrow;
 
     $s->{xterms}{sidebar} = cdmn::sidebar->new(
-        parent => $s,
-        x      => XR->{sidebar_position} eq 'r' ? $w - $w * (XR->{sidebar_width} / 100) : 0,
-        y      => XR->{sidebar_position} eq 'b' ? $h - $h * (XR->{sidebar_height} / 100) : 0,
-        width     => XR->{sidebar_position} =~ m/l|r/ ? $w * (XR->{sidebar_width} / 100) : $w,
-        height    => XR->{sidebar_position} =~ m/t|b/ ? $h * (XR->{sidebar_height} / 100) : $h,
-        fg        => XR->{sidebar_fg},
-        bg        => XR->{sidebar_bg},
-        bg_header => XR->{sidebar_header_bg},
-        fg_header => XR->{sidebar_header_fg},
-        fg_border => XR->{sidebar_border_fg},
-        bg_border => XR->{sidebar_border_bg},
+        parent          => $s,
+        x               => XR->{sidebar_position} eq 'r' ? $w - $w * ( XR->{sidebar_width} / 100 ) : 0,
+        y               => XR->{sidebar_position} eq 'b' ? $h - $h * ( XR->{sidebar_height} / 100 ) : 0,
+        width           => XR->{sidebar_position} =~ m/l|r/ ? $w * ( XR->{sidebar_width} / 100 ) : $w,
+        height          => XR->{sidebar_position} =~ m/t|b/ ? $h * ( XR->{sidebar_height} / 100 ) : $h,
+        fg              => XR->{sidebar_fg},
+        bg              => XR->{sidebar_bg},
+        bg_header       => XR->{sidebar_header_bg},
+        fg_header       => XR->{sidebar_header_fg},
+        fg_border       => XR->{sidebar_border_fg},
+        bg_border       => XR->{sidebar_border_bg},
         border_position => XR->{sidebar_position},
     );
 
