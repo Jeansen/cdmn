@@ -716,19 +716,19 @@ package cdmn::resources {
         $s->{graphs} = _set_list('%.graphs');
         $s->{graphs_length} = _set_number( '%.graphs.width', 0 );
 
-        $s->{gauges_colors} = _set_list( '%.gauges.colors', '-1,-2' );
+        $s->{gauges_colors} = _set_list( '%.gauges.colors', '-1,-2' ); #TODO no negative colors
         $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
 
-        $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        -2 );
-        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        -1 );
-        $s->{sidebar_header_fg} = _set_number( '%.sidebar.header.fg', -2 );
-        $s->{sidebar_header_bg} = _set_number( '%.sidebar.header.bg', -1 );
-        $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', -2 );
-        $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', -1 );
+        $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        9 );
+        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        0 );
+        $s->{sidebar_header_fg} = _set_number( '%.sidebar.header.fg', 9 );
+        $s->{sidebar_header_bg} = _set_number( '%.sidebar.header.bg', 0 );
+        $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', 9 );
+        $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', 0 );
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
-        $s->{sidebar_border}    = _set_number( '%.sidebar.border',    1 );              #percentage
-        $s->{sidebar_position} = 'r';
+        $s->{sidebar_border}    = _set_number( '%.sidebar.border',    9 );              #percentage
+        $s->{sidebar_position} = 'b';
 
         # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
         # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
@@ -899,6 +899,8 @@ package cdmn::sidebar {
     use Params::Validate qw(:all);
     use POSIX qw(ceil floor);
     use constant { REND => cdmn::constants::REND, };
+    
+    my %s;
 
     use fields qw(
         term
@@ -922,6 +924,83 @@ package cdmn::sidebar {
         fg_border
         border_position
     );
+
+    $s{header} = sub {
+        my ($c, $f, $h, @l) = @_;
+        return "\\" if !$h;
+        return "\\" . " $h " . $s{header}->($c, $f, @l) if $f;
+        "/" . " $h " . $s{header}->($c, ($h eq $c), @l);
+    };
+
+    #TODO method name and return value
+    $s{create_pane} = sub {
+        my @data;
+        my $s     = shift;
+        my $title = shift;
+        my $args  = shift;
+
+        my $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
+        my $i = 0;
+        my $width;
+        $width = $s->{term}->ncol - 3 if $s->{border_position} eq 'r';
+        $width = $s->{term}->ncol - 3 if $s->{border_position} eq 'l';
+        $width = $s->{term}->ncol - 1 if $s->{border_position} =~ m/t|b/;
+
+        local *_create_overlay = sub {
+            cdmn::visuals::overlay->new(
+                term      => $s->{term},
+                x         => $s->{border_position} eq 'l' ? 1 : 2,
+                y         => $i++,
+                width     => $width,
+                height    => 1,
+                rendition => $r,
+                text      => (shift),
+            );
+        };
+
+        # #border
+        # $data[0] = _create_overlay( $s->{border_position} =~ m/l|r/ ? "│" : "─" );
+        # $data[0]->{x}      = $s->{border_position} eq 'r'    ? 0 : -1;
+        # $data[0]->{y}      = $s->{border_position} eq 'b'    ? 0 : -2;
+        # $data[0]->{width}  = $s->{border_position} =~ m/l|r/ ? 1 : $s->{term}->ncol;
+        # $data[0]->{height} = $s->{border_position} =~ m/t|b/ ? 1 : $s->{term}->nrow;
+        # $data[0]->{repeat} = 1;
+        
+
+        my $n = $s->{term}->ncol - (length("╱ $title ╲") );
+        my $n2 = (length("$title")) + 2;
+        $n = $n % 2 ? ceil($n/2) : $n/2;
+        my $bt = " " x $n;
+        my $vt  =  $bt . " " . "_" x $n2 . " " . $bt;
+        push @data, _create_overlay($vt);
+        $vt  =  $bt . "╱ " . $title . " ╲" . $bt;
+        $data[-1]->{x}      = 0;
+        push @data, _create_overlay($vt);
+        $data[-1]->{x}      = 0;
+        $vt = "▔"x80;
+        push @data, _create_overlay($vt);
+        $data[-1]->{x}      = 0;
+        # #title
+        # $r = ( urxvt::SET_FGCOLOR REND, $s->{fg_header} ) | urxvt::RS_Uline;
+        # push @data, _create_overlay($title);
+
+        #content
+        $r = urxvt::SET_FGCOLOR REND, $s->{fg};
+        # $i += 1;
+
+        for ( sort keys %$args ) {
+            push @data, _create_overlay($_);
+
+            my $w = $s->{term}->ncol - 7;             #2 border,space + 4 number% + 1 space
+            my $c = ceil( $w * $args->{$_} / 100 );
+            my $f = $c <= $w ? $w - $c : 0;           #should only be necessary on startup
+            push @data, _create_overlay( "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%" );
+        }
+
+
+        $_->create->hide for @data;
+        return \@data;
+    };
 
     sub new {
         my $s = shift;
@@ -949,10 +1028,10 @@ package cdmn::sidebar {
             parent   => $s->{parent},
             x        => $s->{x},
             y        => $s->{y},
-            w        => $s->{width} + 4,     #TODO why add 4?
+            w        => $s->{width} + 16,     #TODO this is just to overscan header lines in sidebars but should not be needed at all!
             h        => $s->{height} + 4,    #TODO why add 4?
-                                             # bg_color => $s->{bg},
-            bg_color => 8,
+            bg_color => $s->{bg},
+            # bg_color => 8,
             is_root  => 0
         );
         $s->{term}->hide if !$s->{visible};
@@ -1016,7 +1095,7 @@ package cdmn::sidebar {
 
     sub set_pane {
         my ( $s, $title, $args ) = (@_);
-        $s->{panes}{$title} = $s->create_pane( $title, $args );
+        $s->{panes}{$title} = $s{create_pane}->( $s, $title, $args );
         $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
         $s;
     }
@@ -1047,65 +1126,11 @@ package cdmn::sidebar {
 
     sub add_pane {
         my ( $s, $title, $args ) = (@_);
-        $s->{panes}{$title} = $s->create_pane( $title, $args );
+        $s->{panes}{$title} = $s{create_pane}->( $s, $title, $args );
         push @{ $s->{order} }, $title;
         $s;
     }
 
-    #TODO method name and return value
-    sub create_pane {
-        my @data;
-        my $s     = shift;
-        my $title = shift;
-        my $args  = shift;
-
-        my $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
-        my $i = 0;
-        my $width;
-        $width = $s->{term}->ncol - 3 if $s->{border_position} eq 'r';
-        $width = $s->{term}->ncol - 3 if $s->{border_position} eq 'l';
-        $width = $s->{term}->ncol - 1 if $s->{border_position} =~ m/t|b/;
-
-        local *_create_overlay = sub {
-            cdmn::visuals::overlay->new(
-                term      => $s->{term},
-                x         => $s->{border_position} eq 'l' ? 1 : 2,
-                y         => $i++,
-                width     => $width,
-                height    => 1,
-                rendition => $r,
-                text      => (shift),
-            );
-        };
-
-        #border
-        $data[0] = _create_overlay( $s->{border_position} =~ m/l|r/ ? "│" : "─" );
-        $data[0]->{x}      = $s->{border_position} eq 'r'    ? 0 : -1;
-        $data[0]->{y}      = $s->{border_position} eq 'b'    ? 0 : -1;
-        $data[0]->{width}  = $s->{border_position} =~ m/l|r/ ? 1 : $s->{term}->ncol;
-        $data[0]->{height} = $s->{border_position} =~ m/t|b/ ? 1 : $s->{term}->nrow;
-        $data[0]->{repeat} = 1;
-
-        #title
-        $r = ( urxvt::SET_FGCOLOR REND, $s->{fg_header} ) | urxvt::RS_Uline;
-        push @data, _create_overlay($title);
-
-        #content
-        $r = urxvt::SET_FGCOLOR REND, $s->{fg};
-        $i += 1;
-
-        for ( sort keys %$args ) {
-            push @data, _create_overlay($_);
-
-            my $w = $s->{term}->ncol - 7;             #2 border,space + 4 number% + 1 space
-            my $c = ceil( $w * $args->{$_} / 100 );
-            my $f = $c <= $w ? $w - $c : 0;           #should only be necessary on startup
-            push @data, _create_overlay( "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%" );
-        }
-
-        $_->create->hide for @data;
-        return \@data;
-    }
 }
 
 package cdmn::term {
