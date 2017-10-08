@@ -730,8 +730,7 @@ package cdmn::resources {
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
         $s->{sidebar_border}    = _set_number( '%.sidebar.border',    9 );              #percentage
         $s->{sidebar_position} = 'b';
-
-        # $s->{sidebar_header_position} = 't';
+        $s->{sidebar_header_position} = 't'; #TODO tl, tr, bl, br
 
         # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
         # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
@@ -927,7 +926,24 @@ package cdmn::sidebar {
         bg_border
         fg_border
         border_position
+        header_position
     );
+
+    use constant {
+        TL => "┏", M => "━", TR => "┓",
+        BL => "┗",           BR => "┛",
+        TD => "▔", BD => "▁", VD => "┃",
+        ARR_L => "❮", ARR_R => "❯",
+    };
+
+    use constant {
+        LEFT => 'l',
+        RIGHT => 'r',
+        TOP => 't',
+        BOTTOM => 'b',
+    };
+
+    use constant { FILL => "■", NOFILL => "□", UP => "⌃", DOWN => "⌄", };
 
     #TODO method name and return value
     $s{create_pane} = sub {
@@ -939,20 +955,20 @@ package cdmn::sidebar {
         my $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
         my $i = 0;
         my $width;
-        $width = $s->{term}->ncol - 3 if $s->{border_position} eq 'r';
-        $width = $s->{term}->ncol - 3 if $s->{border_position} eq 'l';
-        $width = $s->{term}->ncol - 1 if $s->{border_position} =~ m/t|b/;
+        $width = $s->{term}->ncol - 3 if $s->{border_position} eq RIGHT;
+        $width = $s->{term}->ncol - 3 if $s->{border_position} eq LEFT;
+        $width = $s->{term}->ncol - 1 if $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/;
 
         local *create_header_line = sub {
             my ( $c, $h, @l ) = @_;
+
             return "" if !$h;
-            return (
-                $s->{border_position} =~ m/b/
-                ? "┏" . "━" x ( ( length $c ) + 2 ) . "┓"
-                : "┗" . "━" x ( ( length $c ) + 2 ) . "┛"
-                )
-                . create_header_line( $c, @l )
-                if $c eq $h;
+            return ( 
+              $s->{header_position} eq TOP
+              ? TL . M x ( ( length $c ) + 2 ) . TR
+              : BL . M x ( ( length $c ) + 2 ) . BR
+            ) . create_header_line( $c, @l ) if $c eq $h;
+
             " " x ( ( length $h ) + 3 ) . create_header_line( $c, @l );
         };
 
@@ -960,10 +976,10 @@ package cdmn::sidebar {
             my $c = shift;
             local *_create = sub {
                 my ( $f, $h, @l ) = @_;
-                return " ┃ " if !$h && $f;
+                return " " . VD . " " if !$h && $f;
                 return "   " if !$h;
-                return " ┃ " . $h . _create( $c eq $h, @l ) if $c eq $h;
-                return " ┃ " . $h . _create( 0,        @l ) if $f;
+                return " " . VD . " " . $h . _create( $c eq $h, @l ) if $c eq $h;
+                return " " . VD . " " . $h . _create( 0,        @l ) if $f;
                 "   " . $h . _create( $f, @l );
             };
             _create( 0, @_ );
@@ -972,8 +988,8 @@ package cdmn::sidebar {
         local *_create_overlay = sub {
             cdmn::visuals::overlay->new(
                 term      => $s->{term},
-                x         => $s->{border_position} eq 'l' ? 1 : 2,
-                y         => $i++,
+                x         => $s->{border_position} eq LEFT ? 1 : 2,
+                y         => $i++, #TODO
                 width     => $width,
                 height    => 1,
                 rendition => $r,
@@ -995,28 +1011,28 @@ package cdmn::sidebar {
         push @data, _create_overlay( _center( create_header( $title, @headers ) ) );
         $data[-1]->{x} = 0;
 
-        push @data, _create_overlay("│") if $s->{border_position} =~ m/l|r/;
-        push @data, _create_overlay( $s->{border_position} =~ m/b/ ? "▔" : "▁" );
-        $data[-1]->{x}      = $s->{border_position} eq 'r'    ? 0 : -1;
-        $data[-1]->{width}  = $s->{border_position} =~ m/l|r/ ? 1 : $s->{term}->ncol;
-        $data[-1]->{height} = $s->{border_position} =~ m/t|b/ ? 1 : $s->{term}->nrow;
+        push @data, _create_overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
+        push @data, _create_overlay( $s->{header_position} eq TOP ? TD : BD );
+        $data[-1]->{x}      = $s->{border_position} eq RIGHT    ? 0 : -1;
+        $data[-1]->{width}  = $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ? 1 : $s->{term}->ncol;
+        $data[-1]->{height} = $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/ ? 1 : $s->{term}->nrow;
         $data[-1]->{repeat} = 1;
 
         #content
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
 
-        # $i += 1;
-
         for ( sort keys %$args ) {
-            push @data, _create_overlay($_);
+            if (@data < $s->{term}->nrow ) {
+                push @data, _create_overlay($_);
 
-            my $w = $s->{term}->ncol - 7;             #2 border,space + 4 number% + 1 space
-            my $c = ceil( $w * $args->{$_} / 100 );
-            my $f = $c <= $w ? $w - $c : 0;           #should only be necessary on startup
-            push @data, _create_overlay( "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%" );
+                my $w = $s->{term}->ncol - 7;             #2 border,space + 4 number% + 1 space
+                my $c = ceil( $w * $args->{$_} / 100 );
+                my $f = $c <= $w ? $w - $c : 0;           #should only be necessary on startup
+                push @data, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $args->{$_} ) . "%" ); 
+            }
         }
 
-        if ( $s->{border_position} =~ m/t/ ) {
+        if ( $s->{header_position} eq BOTTOM ) {
             push @data, ( reverse splice @data, 0, 3 );
             $data[$_]->{y} = $_ for 0 .. $#data;
             $data[$_]->{y} = $_ for -3 .. -1;
@@ -1045,6 +1061,7 @@ package cdmn::sidebar {
                 bg_border       => 1,
                 fg_border       => 1,
                 border_position => 1,
+                header_position => 1,
             }
         );
 
@@ -2110,6 +2127,7 @@ sub on_start {
         fg_border       => XR->{sidebar_border_fg},
         bg_border       => XR->{sidebar_border_bg},
         border_position => XR->{sidebar_position},
+        header_position => XR->{sidebar_header_position},
     );
 
     #$s->{xterms}{main}->hide if ( XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL );
