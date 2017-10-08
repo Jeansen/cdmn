@@ -633,6 +633,7 @@ package cdmn::resources {
         sidebar_width
         sidebar_height
         sidebar_position
+        sidebar_header_position
     );
 
     use constant {
@@ -729,6 +730,7 @@ package cdmn::resources {
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
         $s->{sidebar_border}    = _set_number( '%.sidebar.border',    9 );              #percentage
         $s->{sidebar_position} = 'b';
+        # $s->{sidebar_header_position} = 't';
 
         # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
         # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
@@ -901,6 +903,7 @@ package cdmn::sidebar {
     use constant { REND => cdmn::constants::REND, };
     
     my %s;
+    my @headers = ();
 
     use fields qw(
         term
@@ -925,12 +928,6 @@ package cdmn::sidebar {
         border_position
     );
 
-    $s{header} = sub {
-        my ($c, $f, $h, @l) = @_;
-        return "\\" if !$h;
-        return "\\" . " $h " . $s{header}->($c, $f, @l) if $f;
-        "/" . " $h " . $s{header}->($c, ($h eq $c), @l);
-    };
 
     #TODO method name and return value
     $s{create_pane} = sub {
@@ -946,6 +943,28 @@ package cdmn::sidebar {
         $width = $s->{term}->ncol - 3 if $s->{border_position} eq 'l';
         $width = $s->{term}->ncol - 1 if $s->{border_position} =~ m/t|b/;
 
+        local *create_header_line = sub {
+            my ($c, $h, @l) = @_;
+            return "" if !$h;
+            return ($s->{border_position} =~ m/b/ 
+            ? "┏" . "━" x((length $c)+2) . "┓" 
+            : "┗" . "━" x((length $c)+2) . "┛" ) . create_header_line($c, @l) if $c eq $h;
+            " "x((length $h)+3) . create_header_line($c, @l);
+        };
+
+        local *create_header = sub {
+          my $c = shift;
+          local *_create = sub {
+            my ($f, $h, @l) = @_;
+            return " ┃ " if !$h && $f;
+            return "   " if !$h;
+            return " ┃ " . $h . _create($c eq $h, @l) if $c eq $h;
+            return " ┃ " . $h . _create(0, @l) if $f;
+            "   " . $h . _create($f, @l)
+          };
+          _create(0, @_);
+        };
+
         local *_create_overlay = sub {
             cdmn::visuals::overlay->new(
                 term      => $s->{term},
@@ -958,32 +977,26 @@ package cdmn::sidebar {
             );
         };
 
+        local *_center = sub {
+          my $header = shift;
+          my $n = $s->{term}->ncol - (length($header) );
+          $n = $n % 2 ? ceil($n/2) : $n/2;
+          " " x $n . $header;
+        };
+
         # #border
-        # $data[0] = _create_overlay( $s->{border_position} =~ m/l|r/ ? "│" : "─" );
-        # $data[0]->{x}      = $s->{border_position} eq 'r'    ? 0 : -1;
-        # $data[0]->{y}      = $s->{border_position} eq 'b'    ? 0 : -2;
-        # $data[0]->{width}  = $s->{border_position} =~ m/l|r/ ? 1 : $s->{term}->ncol;
-        # $data[0]->{height} = $s->{border_position} =~ m/t|b/ ? 1 : $s->{term}->nrow;
-        # $data[0]->{repeat} = 1;
-        
 
-        my $n = $s->{term}->ncol - (length("╱ $title ╲") );
-        my $n2 = (length("$title")) + 2;
-        $n = $n % 2 ? ceil($n/2) : $n/2;
-        my $bt = " " x $n;
-        my $vt  =  $bt . " " . "_" x $n2 . " " . $bt;
-        push @data, _create_overlay($vt);
-        $vt  =  $bt . "╱ " . $title . " ╲" . $bt;
+        push @data, _create_overlay(_center(create_header_line($title, @headers)));
         $data[-1]->{x}      = 0;
-        push @data, _create_overlay($vt);
+        push @data, _create_overlay(_center(create_header($title, @headers)));
         $data[-1]->{x}      = 0;
-        $vt = "▔"x80;
-        push @data, _create_overlay($vt);
-        $data[-1]->{x}      = 0;
-        # #title
-        # $r = ( urxvt::SET_FGCOLOR REND, $s->{fg_header} ) | urxvt::RS_Uline;
-        # push @data, _create_overlay($title);
 
+        push @data, _create_overlay("│") if $s->{border_position} =~ m/l|r/;
+        push @data, _create_overlay( $s->{border_position} =~ m/b/ ? "▔" : "▁" );
+        $data[-1]->{x}      = $s->{border_position} eq 'r'    ? 0 : -1;
+        $data[-1]->{width}  = $s->{border_position} =~ m/l|r/ ? 1 : $s->{term}->ncol;
+        $data[-1]->{height} = $s->{border_position} =~ m/t|b/ ? 1 : $s->{term}->nrow;
+        $data[-1]->{repeat} = 1;
         #content
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
         # $i += 1;
@@ -997,6 +1010,11 @@ package cdmn::sidebar {
             push @data, _create_overlay( "■" x $c . "□" x $f . " " . ceil( $args->{$_} ) . "%" );
         }
 
+       if ($s->{border_position} =~ m/t/) {
+        push @data,(reverse splice @data, 0, 3);
+        $data[$_]->{y} = $_ for 0 .. $#data;
+        $data[$_]->{y} = $_ for -3 .. -1;
+       }
 
         $_->create->hide for @data;
         return \@data;
@@ -1128,6 +1146,7 @@ package cdmn::sidebar {
         my ( $s, $title, $args ) = (@_);
         $s->{panes}{$title} = $s{create_pane}->( $s, $title, $args );
         push @{ $s->{order} }, $title;
+        push @headers , $title;
         $s;
     }
 
@@ -1607,7 +1626,7 @@ package cdmn::visuals::visual {
         my $x = $s->{x};
 
         local *_label = sub {
-            $s->{rendition} = urxvt::SET_COLOR $s->{rendition}, $s->{label_fg}, $s->{label_bg};
+            $s->{rendition} = urxvt::SET_COLOR $s->{rendition}, $s->{label_fg}, $s->{label_bg}; #TODO option to be bold
             my $labelObj = cdmn::visuals::overlay->new(
                 term      => $s->{term},
                 x         => $x,
