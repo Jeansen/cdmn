@@ -2,10 +2,22 @@
 
 XSOCK=/tmp/.X11-unix
 XAUTH=/tmp/.docker.xauth
-touch $XAUTH
+#touch $XAUTH
 #xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
-#xhost +local:marcel; 
 
+while getopts :e:x: option
+do
+ case "${option}"
+ in
+ e) EXTENSION=${OPTARG};;
+ x) XRESOURCES=${OPTARG};;
+ *) echo $option;;
+ esac
+done
+
+if [ $OPTIND -eq 1 ]; then echo "No options were passed"; exit 1; fi
+
+xhost +local:;
 
 docker run \
   --rm \
@@ -13,8 +25,8 @@ docker run \
   --volume=$XAUTH:$XAUTH:rw \
   --env="XAUTHORITY=${XAUTH}" \
   --env="DISPLAY" \
-  --user="marcel" \
-  --volume=$1:/home/marcel/.urxvt/cdmn:ro \
-  --volume=$2:/home/marcel/.Xresources:ro \
-  rxvt
+  --volume=$EXTENSION:/urxvt/cdmn:ro \
+  --volume=$XRESOURCES:/Xresources:ro \
+  jeansen/cdmn_docker
+
 xrdb -load ~/.Xresources
