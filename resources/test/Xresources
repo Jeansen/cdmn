@@ -131,7 +131,7 @@ URxvt*colorUL:                        #87afd7
 ! URxvt*backgroundPixmap:               file[;geom]
 ! URxvt*iconFile:                       file
 ! URxvt*font:                           *-fixed-*-*-*-18-*
-URxvt*font:                           xft:DejaVuSansMonoForPowerline Nerd Font:size=14
+URxvt*font:                           xft:DejaVuSansMono:size=14
 ! URxvt*font: xft:Terminess Powerline:size=12
 ! URxvt*boldFont:                       fontname
 ! URxvt*italicFont:                     fontname
@@ -165,7 +165,7 @@ URxvt*depth:                          32
 ! URxvt*answerbackString:               string
 ! URxvt*secondaryScreen:                boolean
 URxvt*secondaryScroll:                true
-URxvt*perl-lib:                       /home/marcel/.urxvt/
+URxvt*perl-lib:                       /urxvt/
 ! URxvt*perl-eval:                      perl-eval
 !URxvt*perl-ext-common:                default,matcher,tabbedex,trc
 !URxvt*perl-ext-common:                trc
