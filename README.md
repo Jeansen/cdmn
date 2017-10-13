@@ -12,6 +12,20 @@ Here's a screenshot of what it looks like:
 
 And here is another example of the additional panel with very simple filesystem information:
 
+
+# Curious? Run the demo!
+
+It is also possible to run a dedicated docker container and tryout this extension. Just run the following commands:
+
+  cd /tmp
+  git clone https://github.com/Jeansen/cdmn.git
+  /tmp/cdmn/resources/test/run.sh -e /tmp/cdmn/cdmn -x /tmp/cdmn/resources/test/Xresources
+  
+If you do not see anything after the docker image finished downloading or the created window is very small prepend a `!` to the line starting with `URxvt*font:` in `tmp/cdmn/resources/test/Xresources`.
+  
+There are some more demo files you can choose from. Just have a look in the `resources/test` folder. And if something does not work try the tip above.
+
+
 # Installation
 
 Before using the package provided by your distribution, I strongly recommend that you [compile rxvt-unicode yourself](#how-to-compile-rxvt-unicode). While developing this extension I came across a bug that results in constant memory consumption over time.
@@ -270,6 +284,17 @@ Here are som example colors you can use for `URxvt.cdmn.gauges.colors` or any of
 | `54,200` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_magenta.png) |
 | `23,87` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_cyan.png) |
 | `52,196` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_red.png) |
+
+If you prefer the led style you might want to have more indicators.
+
+| Colors | Example |
+| --- | --- |
+| `52,88,124,160,196` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_red_led.png) |
+| `22,28,34,40,46` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_green_led.png) |
+| `17,18,19,20,21` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_blue_led.png) |
+| `236,241,246,251,231` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_white_led.png) |
+
+As described in the section on [visual styles](#visual-styles---gauges-colors) the first color always defines the the background color.
 
 # Please note
 

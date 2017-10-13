@@ -17,18 +17,20 @@ URxvt*perl-lib:                       /urxvt/
 
 !URxvt.cdmn.gauges.order: CPU,TEMP,DISK,MEM,NET,BAT
 
-!! URxvt.cdmn.gauges.colors: 5,52,88,124,160,196
-URxvt.cdmn.gauges.colors: 0,246,2,4,3,1
+!URxvt.cdmn.gauges.colors: 0,52,88,124,160,196
+!URxvt.cdmn.gauges.colors: 0,22,28,34,40,46
+!URxvt.cdmn.gauges.colors: 0,17,18,19,20,21
+URxvt.cdmn.gauges.colors: 0,236,241,246,251,231
+!URxvt.cdmn.gauges.colors: 0,246,2,4,3,1
+URxvt.cdmn.visual.detail.cpu: 1
 URxvt.cdmn.label.fg: 210
 
-URxvt.cdmn.graphs: CPU
-URxvt.cdmn.graphs.width: 5
-!!URxvt.cdmn.label.fg: 5
-
-!! URxvt.cdmn.colors.network: 18,27
-!! URxvt.cdmn.colors.disk: 54,200
-URxvt.cdmn.colors.cpu: 58,226
-!! URxvt.cdmn.colors.cpu.temp: 23,87
-!! URxvt.cdmn.colors.memory: 52,196
-!! URxvt.cdmn.colors.battery: 22,46
+!URxvt.cdmn.colors.network: 18,27
+!URxvt.cdmn.colors.disk: 54,200
+!!URxvt.cdmn.colors.cpu: 58,226
+!URxvt.cdmn.colors.cpu.temp: 23,87
+!URxvt.cdmn.colors.memory: 52,196
+!URxvt.cdmn.colors.battery: 22,46
 URxvt.cdmn.padding: 2
+URxvt.cdmn.label.padding: 1
+URxvt.cdmn.visual.style: led
