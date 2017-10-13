@@ -18,15 +18,15 @@ And here is another example of the additional panel with very simple filesystem 
 
 # Curious? Run the demo!
 
-It is also possible to run a dedicated docker container and tryout this extension. Just run the following commands:
+I have created a dedicated docker container for easy demonstrations. Given you have [installed docker](https://docs.docker.com/engine/installation/linux/docker-ce/debian/) just run the following commands:
 
   cd /tmp
   git clone https://github.com/Jeansen/cdmn.git
   /tmp/cdmn/resources/test/run.sh -e /tmp/cdmn/cdmn -x /tmp/cdmn/resources/test/Xresources
   
-If you do not see anything after the docker image finished downloading or the created window is very small prepend a `!` to the line starting with `URxvt*font:` in `tmp/cdmn/resources/test/Xresources`.
+If you do not see anything after the docker image finished downloading or the created window is very small, prepend a `!` to comment out the line starting with `URxvt*font:` in `tmp/cdmn/resources/test/Xresources`.
   
-There are some more demo files you can choose from. Just have a look in the `resources/test` folder. And if something does not work try the tip above.
+There are some more demo files you can choose from. Just have a look in the `resources/test` folder. Again, if something does not work, try the tip above.
 
 
 # Installation
