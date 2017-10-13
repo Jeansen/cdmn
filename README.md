@@ -10,8 +10,11 @@ continued to optimize the UX and added additional features.
 
 Here's a screenshot of what it looks like:
 
+![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_1.png)
+
 And here is another example of the additional panel with very simple filesystem information:
 
+![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
 
 # Curious? Run the demo!
 
