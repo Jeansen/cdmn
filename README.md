@@ -24,7 +24,7 @@ I have created a dedicated docker container for easy demonstrations. Given you h
     git clone https://github.com/Jeansen/cdmn.git
     /tmp/cdmn/resources/test/run.sh -e /tmp/cdmn/cdmn -x /tmp/cdmn/resources/test/Xresources
   
-If you do not see anything after the docker image finished downloading or the created window is very small, prepend a `!` to comment out the line starting with `URxvt*font:` in `tmp/cdmn/resources/test/Xresources`.
+If you do not see anything after the docker image finished downloading or the created window is very small you might need to comment out a font setting. Simply prepend a `!` to the line starting with `URxvt*font:` in `tmp/cdmn/resources/test/Xresources` and try again.
   
 There are some more demo files you can choose from. Just have a look in the `resources/test` folder. Again, if something does not work, try the tip above.
 
