@@ -60,10 +60,10 @@ package cdmn::constants {
         ACTION_TOGGLE_SIDEBAR => 'cdmn:show-sidebar',
         ACTION_TOGGLE_OVERLAY => 'cdmn:action-show-transparent',
 
-        ACTION_NEXT_PANE => 'cdmn:action-next-pane',
-        ACTION_PREV_PANE => 'cdmn:action-prev-pane',
+        ACTION_NEXT_PANE   => 'cdmn:action-next-pane',
+        ACTION_PREV_PANE   => 'cdmn:action-prev-pane',
         ACTION_SCROLL_DOWN => 'cdmn:action-scroll-down',
-        ACTION_SCROLL_UP => 'cdmn:action-scroll-up',
+        ACTION_SCROLL_UP   => 'cdmn:action-scroll-up',
 
         VISUAL_ALIGN_COL => 'col',
         VISUAL_ALIGN_ROW => 'row',
@@ -371,7 +371,7 @@ package cdmn::proc {
             local $/;
             my $cpus = <$f>;
             $cpus =~ /([0-9]+)-([0-9]+)|([0-9]+)/;
-            return 1 + ($2 ? $2 : $3);
+            return 1 + ( $2 ? $2 : $3 );
         }
     }
 
@@ -732,9 +732,9 @@ package cdmn::resources {
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
         $s->{sidebar_border}    = _set_number( '%.sidebar.border',    9 );              #percentage
-        $s->{sidebar_position} = 'b';
-        $s->{sidebar_header_position} = 't'; #TODO tl, tr, bl, br
-        $s->{sidebar_label_position} = 't'; #TODO t, b, l, r
+        $s->{sidebar_position}        = 'b';
+        $s->{sidebar_header_position} = 't';                                            #TODO tl, tr, bl, br
+        $s->{sidebar_label_position}  = 't';                                            #TODO t, b, l, r
 
         # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
         # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
@@ -891,12 +891,12 @@ package cdmn::resources {
         my $s = shift;
         my %c;
         $c{cpu_temp} = @{ $s->{gauges_cpu_temps} };
-        $c{cpu} = 1;
-        $c{disk} = @{ $s->{gauges_disks} } > 0 || @{ $s->{disks_write} } > 0 || @{ $s->{disks_read} } > 0;
-        $c{memory}  = 1;
-        $c{network} = @{ $s->{gauges_networks} };
-        $c{battery} = $s->{gauges_batteries};
-        exists $c{$_[0]} ? $c{$_[0]} : 0;
+        $c{cpu}      = 1;
+        $c{disk}     = @{ $s->{gauges_disks} } > 0 || @{ $s->{disks_write} } > 0 || @{ $s->{disks_read} } > 0;
+        $c{memory}   = 1;
+        $c{network}  = @{ $s->{gauges_networks} };
+        $c{battery}  = $s->{gauges_batteries};
+        exists $c{ $_[0] } ? $c{ $_[0] } : 0;
     }
 
     for my $h (qw(batteries cpu_temps)) {
@@ -949,16 +949,22 @@ package cdmn::sidebar {
     );
 
     use constant {
-        TL => "┏", M => "━", TR => "┓",
-        BL => "┗",           BR => "┛",
-        TD => "▔", BD => "▁", VD => "┃",
-        ARR_L => "❮", ARR_R => "❯",
+        TL    => "┏",
+        TR    => "┓",
+        BL    => "┗",
+        BR    => "┛",
+        M     => "━",
+        TD    => "▔",
+        BD    => "▁",
+        VD    => "┃",
+        ARR_L => "❮",
+        ARR_R => "❯",
     };
 
     use constant {
-        LEFT => 'l',
-        RIGHT => 'r',
-        TOP => 't',
+        LEFT   => 'l',
+        RIGHT  => 'r',
+        TOP    => 't',
         BOTTOM => 'b',
     };
 
@@ -982,11 +988,13 @@ package cdmn::sidebar {
             my ( $c, $h, @l ) = @_;
 
             return "" if !$h;
-            return ( 
-              $s->{header_position} eq TOP
-              ? TL . M x ( ( length $c ) + 2 ) . TR
-              : BL . M x ( ( length $c ) + 2 ) . BR
-            ) . create_header_line( $c, @l ) if $c eq $h;
+            return (
+                $s->{header_position} eq TOP
+                ? TL . M x( ( length $c ) + 2 ) . TR
+                : BL . M x( ( length $c ) + 2 ) . BR
+                )
+                . create_header_line( $c, @l )
+                if $c eq $h;
 
             " " x ( ( length $h ) + 3 ) . create_header_line( $c, @l );
         };
@@ -1008,7 +1016,7 @@ package cdmn::sidebar {
             cdmn::visuals::overlay->new(
                 term      => $s->{term},
                 x         => $s->{border_position} eq LEFT ? 1 : 2,
-                y         => $i++, #TODO
+                y         => $i++,                                    #TODO
                 width     => $width,
                 height    => 1,
                 rendition => $r,
@@ -1032,46 +1040,46 @@ package cdmn::sidebar {
 
         push @data, _create_overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
         push @data, _create_overlay( $s->{header_position} eq TOP ? TD : BD );
-        $data[-1]->{x}      = $s->{border_position} eq RIGHT    ? 0 : -1;
+        $data[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
         $data[-1]->{width}  = $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ? 1 : $s->{term}->ncol;
         $data[-1]->{height} = $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/ ? 1 : $s->{term}->nrow;
         $data[-1]->{repeat} = 1;
 
         #content
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
-        $scroll_i{"$title"}{up} //= 0;
+        $scroll_i{"$title"}{up}   //= 0;
         $scroll_i{"$title"}{down} //= 0;
 
         my $cntlen = 0;
         my @content;
-        
-        my @slctn = (sort keys %{$data{$title}});
 
-        @slctn = splice(@slctn, $scroll_i{"$title"}{up}); 
-        for ( @slctn ) {
-            if (@data + @content + ($s->{label_position} eq TOP ? 1 : 0) < $s->{term}->nrow ) {
+        my @slctn = ( sort keys %{ $data{$title} } );
+
+        @slctn = splice( @slctn, $scroll_i{"$title"}{up} );
+        for (@slctn) {
+            if ( @data + @content + ( $s->{label_position} eq TOP ? 1 : 0 ) < $s->{term}->nrow ) {
                 push @content, _create_overlay($_);
 
-                my $w = $s->{term}->ncol - 7;             #2 border,space + 4 number% + 1 space
+                my $w = $s->{term}->ncol - 7;                       #2 border,space + 4 number% + 1 space
                 my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
-                my $f = $c <= $w ? $w - $c : 0;           #should only be necessary on startup
-                push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{"$title"}->{$_} ) . "%" ); 
+                my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
+                push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{"$title"}->{$_} ) . "%" );
                 $cntlen++;
             }
         }
 
-        $scroll_i{"$title"}{down} = (keys %{$data{$title}}) - $cntlen - $scroll_i{"$title"}{up};
+        $scroll_i{"$title"}{down} = ( keys %{ $data{$title} } ) - $cntlen - $scroll_i{"$title"}{up};
 
-        if ( $scroll_i{"$title"}{down} gt 0) {
+        if ( $scroll_i{"$title"}{down} gt 0 ) {
             pop @content if $s->{label_position} eq TOP;
-            $content[-1]=_create_overlay( _center(DOWN) );
-            $content[-1]->{y}=$s->{term}->nrow-1;
+            $content[-1] = _create_overlay( _center(DOWN) );
+            $content[-1]->{y} = $s->{term}->nrow - 1;
         }
-        
-        if ( $scroll_i{"$title"}{up} gt 0) {
+
+        if ( $scroll_i{"$title"}{up} gt 0 ) {
             shift @content if $s->{label_position} eq TOP;
-            $content[0]=_create_overlay( _center(UP) );
-            $content[0]->{y}=$s->{term}->nrow-$cntlen * 2 if $s->{label_position} eq TOP;
+            $content[0] = _create_overlay( _center(UP) );
+            $content[0]->{y} = $s->{term}->nrow - $cntlen * 2 if $s->{label_position} eq TOP;
         }
 
         push @data, @content;
@@ -1106,7 +1114,7 @@ package cdmn::sidebar {
                 fg_border       => 1,
                 border_position => 1,
                 header_position => 1,
-                label_position => 1,
+                label_position  => 1,
             }
         );
 
@@ -1220,19 +1228,21 @@ package cdmn::sidebar {
     }
 
     sub scroll_up {
-        my $s = shift;
+        my $s     = shift;
         my $title = $s->{order}[ $s->{active_pane} ];
         return if $scroll_i{"$title"}{up} eq 0;
-        $scroll_i{"$title"}{up}-- ;
+        $scroll_i{"$title"}{up}--;
+
         # $scroll_i{"$title"}{down}++;
         # $s->{panes}{$title} = $s{create_pane}->( $s, $title );
     }
 
     sub scroll_down {
-        my $s = shift;
+        my $s     = shift;
         my $title = $s->{order}[ $s->{active_pane} ];
-        return if $scroll_i{"$title"}{down} eq 0; 
+        return if $scroll_i{"$title"}{down} eq 0;
         $scroll_i{"$title"}{up}++;
+
         # $scroll_i{"$title"}{down}--;
         # $s->{panes}{$title} = $s{create_pane}->( $s, $title );
     }
@@ -2011,7 +2021,6 @@ sub create_caption {
     return \$caption;
 }
 
-
 #-----------------------------------------------------------------------------------------------------------------------
 #   ACTIONS
 #-----------------------------------------------------------------------------------------------------------------------
@@ -2201,7 +2210,7 @@ sub on_start {
         bg_border       => XR->{sidebar_border_bg},
         border_position => XR->{sidebar_position},
         header_position => XR->{sidebar_header_position},
-        label_position => XR->{sidebar_label_position},
+        label_position  => XR->{sidebar_label_position},
     );
 
     #$s->{xterms}{main}->hide if ( XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL );
@@ -2217,10 +2226,10 @@ sub on_start {
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
 
     for ( @{ XR->{gauges_order} } ) {
-      $s->{xterms}{sidebar}->add_pane($_) if XR->hast_content($_);
-    };
+        $s->{xterms}{sidebar}->add_pane($_) if XR->hast_content($_);
+    }
 
-    $s->{xterms}{sidebar}->add_pane('FS'); #TODO
+    $s->{xterms}{sidebar}->add_pane('FS');    #TODO
     $s->{xterms}{sidebar}{active_pane} = 0;
 
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval( XR->{refresh} )->cb(
