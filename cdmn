@@ -973,9 +973,8 @@ package cdmn::sidebar {
     #TODO method name and return value
     $s{create_pane} = sub {
         my @data;
-        my $s     = shift;
-        my $title = shift;
-        $data{$title} = shift;
+        my ($s, $title, $args) = @_;
+        $data{$title} = {%$args} if $args; #TODO Cannot use $args as ref directly? So, deref. and new ref.
 
         my $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
         my $i = 0;
@@ -1063,7 +1062,7 @@ package cdmn::sidebar {
                 my $w = $s->{term}->ncol - 7;                       #2 border,space + 4 number% + 1 space
                 my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
                 my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
-                push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{"$title"}->{$_} ) . "%" );
+                push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
                 $cntlen++;
             }
         }
@@ -1232,9 +1231,8 @@ package cdmn::sidebar {
         my $title = $s->{order}[ $s->{active_pane} ];
         return if $scroll_i{"$title"}{up} eq 0;
         $scroll_i{"$title"}{up}--;
-
-        # $scroll_i{"$title"}{down}++;
-        # $s->{panes}{$title} = $s{create_pane}->( $s, $title );
+        $s->{panes}{$title} = $s{create_pane}->( $s, $title );
+        $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
     }
 
     sub scroll_down {
@@ -1242,9 +1240,8 @@ package cdmn::sidebar {
         my $title = $s->{order}[ $s->{active_pane} ];
         return if $scroll_i{"$title"}{down} eq 0;
         $scroll_i{"$title"}{up}++;
-
-        # $scroll_i{"$title"}{down}--;
-        # $s->{panes}{$title} = $s{create_pane}->( $s, $title );
+        $s->{panes}{$title} = $s{create_pane}->( $s, $title );
+        $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
     }
 }
 
