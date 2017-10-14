@@ -62,6 +62,8 @@ package cdmn::constants {
 
         ACTION_NEXT_PANE => 'cdmn:action-next-pane',
         ACTION_PREV_PANE => 'cdmn:action-prev-pane',
+        ACTION_SCROLL_DOWN => 'cdmn:action-scroll-down',
+        ACTION_SCROLL_UP => 'cdmn:action-scroll-up',
 
         VISUAL_ALIGN_COL => 'col',
         VISUAL_ALIGN_ROW => 'row',
@@ -368,8 +370,8 @@ package cdmn::proc {
         {
             local $/;
             my $cpus = <$f>;
-            $cpus =~ /-([0-9]+)/;
-            return $1 + 1;
+            $cpus =~ /([0-9]+)-([0-9]+)|([0-9]+)/;
+            return 1 + ($2 ? $2 : $3);
         }
     }
 
@@ -634,6 +636,7 @@ package cdmn::resources {
         sidebar_height
         sidebar_position
         sidebar_header_position
+        sidebar_label_position
     );
 
     use constant {
@@ -731,6 +734,7 @@ package cdmn::resources {
         $s->{sidebar_border}    = _set_number( '%.sidebar.border',    9 );              #percentage
         $s->{sidebar_position} = 'b';
         $s->{sidebar_header_position} = 't'; #TODO tl, tr, bl, br
+        $s->{sidebar_label_position} = 't'; #TODO t, b, l, r
 
         # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
         # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
@@ -883,6 +887,18 @@ package cdmn::resources {
         1;
     }
 
+    sub hast_content {
+        my $s = shift;
+        my %c;
+        $c{cpu_temp} = @{ $s->{gauges_cpu_temps} };
+        $c{cpu} = 1;
+        $c{disk} = @{ $s->{gauges_disks} } > 0 || @{ $s->{disks_write} } > 0 || @{ $s->{disks_read} } > 0;
+        $c{memory}  = 1;
+        $c{network} = @{ $s->{gauges_networks} };
+        $c{battery} = $s->{gauges_batteries};
+        exists $c{$_[0]} ? $c{$_[0]} : 0;
+    }
+
     for my $h (qw(batteries cpu_temps)) {
         ## no critic
         eval qq{
@@ -904,6 +920,8 @@ package cdmn::sidebar {
 
     my %s;
     my @headers = ();
+    my %scroll_i;
+    my %data;
 
     use fields qw(
         term
@@ -927,6 +945,7 @@ package cdmn::sidebar {
         fg_border
         border_position
         header_position
+        label_position
     );
 
     use constant {
@@ -943,14 +962,14 @@ package cdmn::sidebar {
         BOTTOM => 'b',
     };
 
-    use constant { FILL => "■", NOFILL => "□", UP => "⌃", DOWN => "⌄", };
+    use constant { FILL => "■", NOFILL => "□", UP => "▲", DOWN => "▼", };
 
     #TODO method name and return value
     $s{create_pane} = sub {
         my @data;
         my $s     = shift;
         my $title = shift;
-        my $args  = shift;
+        $data{$title} = shift;
 
         my $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
         my $i = 0;
@@ -1020,17 +1039,42 @@ package cdmn::sidebar {
 
         #content
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
+        $scroll_i{"$title"}{up} //= 0;
+        $scroll_i{"$title"}{down} //= 0;
 
-        for ( sort keys %$args ) {
-            if (@data < $s->{term}->nrow ) {
-                push @data, _create_overlay($_);
+        my $cntlen = 0;
+        my @content;
+        
+        my @slctn = (sort keys %{$data{$title}});
+
+        @slctn = splice(@slctn, $scroll_i{"$title"}{up}); 
+        for ( @slctn ) {
+            if (@data + @content + ($s->{label_position} eq TOP ? 1 : 0) < $s->{term}->nrow ) {
+                push @content, _create_overlay($_);
 
                 my $w = $s->{term}->ncol - 7;             #2 border,space + 4 number% + 1 space
-                my $c = ceil( $w * $args->{$_} / 100 );
+                my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
                 my $f = $c <= $w ? $w - $c : 0;           #should only be necessary on startup
-                push @data, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $args->{$_} ) . "%" ); 
+                push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{"$title"}->{$_} ) . "%" ); 
+                $cntlen++;
             }
         }
+
+        $scroll_i{"$title"}{down} = (keys %{$data{$title}}) - $cntlen - $scroll_i{"$title"}{up};
+
+        if ( $scroll_i{"$title"}{down} gt 0) {
+            pop @content if $s->{label_position} eq TOP;
+            $content[-1]=_create_overlay( _center(DOWN) );
+            $content[-1]->{y}=$s->{term}->nrow-1;
+        }
+        
+        if ( $scroll_i{"$title"}{up} gt 0) {
+            shift @content if $s->{label_position} eq TOP;
+            $content[0]=_create_overlay( _center(UP) );
+            $content[0]->{y}=$s->{term}->nrow-$cntlen * 2 if $s->{label_position} eq TOP;
+        }
+
+        push @data, @content;
 
         if ( $s->{header_position} eq BOTTOM ) {
             push @data, ( reverse splice @data, 0, 3 );
@@ -1062,6 +1106,7 @@ package cdmn::sidebar {
                 fg_border       => 1,
                 border_position => 1,
                 header_position => 1,
+                label_position => 1,
             }
         );
 
@@ -1174,6 +1219,23 @@ package cdmn::sidebar {
         $s;
     }
 
+    sub scroll_up {
+        my $s = shift;
+        my $title = $s->{order}[ $s->{active_pane} ];
+        return if $scroll_i{"$title"}{up} eq 0;
+        $scroll_i{"$title"}{up}-- ;
+        # $scroll_i{"$title"}{down}++;
+        # $s->{panes}{$title} = $s{create_pane}->( $s, $title );
+    }
+
+    sub scroll_down {
+        my $s = shift;
+        my $title = $s->{order}[ $s->{active_pane} ];
+        return if $scroll_i{"$title"}{down} eq 0; 
+        $scroll_i{"$title"}{up}++;
+        # $scroll_i{"$title"}{down}--;
+        # $s->{panes}{$title} = $s{create_pane}->( $s, $title );
+    }
 }
 
 package cdmn::term {
@@ -1242,6 +1304,8 @@ package cdmn::term {
         $s->bind_action( 'M-l', 'perl:' . CDMN->ACTION_TOGGLE_LABELS );
         $s->bind_action( 'M-k', 'perl:' . CDMN->ACTION_NEXT_PANE );
         $s->bind_action( 'M-j', 'perl:' . CDMN->ACTION_PREV_PANE );
+        $s->bind_action( 'C-k', 'perl:' . CDMN->ACTION_SCROLL_UP );
+        $s->bind_action( 'C-j', 'perl:' . CDMN->ACTION_SCROLL_DOWN );
         ();
     }
 
@@ -1937,15 +2001,16 @@ sub create_caption {
         };
     }
     my %args;
-    $args{cpu_temp} = ( XR->configs('cpu_temp')->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if @{ XR->{gauges_cpu_temps} } > 0;
+    $args{cpu_temp} = ( XR->configs('cpu_temp')->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if XR->hast_content("cpu_temp");
     $args{cpu} = XR->configs('cpu')->{detail} ? XR->{gauges_cpus} : ["simple"];
-    $args{disk}    = XR->{gauges_disks} if @{ XR->{gauges_disks} } > 0 || @{ XR->{disks_write} } > 0 || @{ XR->{disks_read} } > 0;
+    $args{disk}    = XR->{gauges_disks} if XR->hast_content("disk");
     $args{memory}  = XR->{gauges_memory};
-    $args{network} = XR->{gauges_networks} if @{ XR->{gauges_networks} } > 0;
-    $args{battery} = ( XR->configs('battery')->{detail} ? XR->{gauges_batteries} : ["simple"] ) if XR->{gauges_batteries} > 0;
+    $args{network} = XR->{gauges_networks} if XR->hast_content("network");
+    $args{battery} = ( XR->configs('battery')->{detail} ? XR->{gauges_batteries} : ["simple"] ) if XR->hast_content("battery");
     _create( (%args) );
     return \$caption;
 }
+
 
 #-----------------------------------------------------------------------------------------------------------------------
 #   ACTIONS
@@ -1999,6 +2064,14 @@ $user_command{ CDMN->ACTION_NEXT_PANE } = sub {
 
 $user_command{ CDMN->ACTION_PREV_PANE } = sub {
     (shift)->{xterms}{sidebar}->prev_pane;
+};
+
+$user_command{ CDMN->ACTION_SCROLL_UP } = sub {
+    (shift)->{xterms}{sidebar}->scroll_up;
+};
+
+$user_command{ CDMN->ACTION_SCROLL_DOWN } = sub {
+    (shift)->{xterms}{sidebar}->scroll_down;
 };
 
 $user_command{ CDMN->ACTION_TOGGLE_LABELS } = sub {
@@ -2128,6 +2201,7 @@ sub on_start {
         bg_border       => XR->{sidebar_border_bg},
         border_position => XR->{sidebar_position},
         header_position => XR->{sidebar_header_position},
+        label_position => XR->{sidebar_label_position},
     );
 
     #$s->{xterms}{main}->hide if ( XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL );
@@ -2142,9 +2216,11 @@ sub on_start {
     #$s->cmd_parse("\e[2T\e[2B"); #Scroll down and move cursor down 2 line.
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
 
-    #TODO WIP
-    $s->{xterms}{sidebar}->add_pane($_) for ( @{ XR->{gauges_order} } );
-    $s->{xterms}{sidebar}->add_pane('FS');
+    for ( @{ XR->{gauges_order} } ) {
+      $s->{xterms}{sidebar}->add_pane($_) if XR->hast_content($_);
+    };
+
+    $s->{xterms}{sidebar}->add_pane('FS'); #TODO
     $s->{xterms}{sidebar}{active_pane} = 0;
 
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval( XR->{refresh} )->cb(
