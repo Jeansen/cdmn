@@ -28,6 +28,8 @@ use utf8;
 use autodie;
 
 use Filesys::Df;
+use POSIX qw(ceil floor);
+
 binmode STDOUT, ":encoding(UTF-8)";
 
 package Null {
@@ -73,6 +75,8 @@ package cdmn::constants {
 
         LEFT  => 'left',
         RIGHT => 'right',
+        TOP    => 'top',
+        BOTTOM => 'bottom',
     };
 
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
@@ -732,9 +736,9 @@ package cdmn::resources {
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
         $s->{sidebar_border}    = _set_number( '%.sidebar.border',    9 );              #percentage
-        $s->{sidebar_position}        = 'b';
-        $s->{sidebar_header_position} = 't';                                            #TODO tl, tr, bl, br
-        $s->{sidebar_label_position}  = 't';                                            #TODO t, b, l, r
+        $s->{sidebar_position}        = 'bottom';
+        $s->{sidebar_header_position} = 'top';                                            #TODO tl, tr, bl, br
+        $s->{sidebar_label_position}  = 'top';                                            #TODO t, b, l, r
 
         # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
         # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
@@ -962,13 +966,15 @@ package cdmn::sidebar {
     };
 
     use constant {
-        LEFT   => 'l',
-        RIGHT  => 'r',
-        TOP    => 't',
-        BOTTOM => 'b',
+        LEFT   => 'left',
+        RIGHT  => 'right',
+        TOP    => 'top',
+        BOTTOM => 'bottom',
     };
 
-    use constant { FILL => "■", NOFILL => "□", UP => "▲", DOWN => "▼", };
+    use constant { FILL => "■", NOFILL => "□", ARR_UP => "▲", ARR_DOWN => "▼", };
+
+    use constant { SCROLL_UP => 'up', SCROLL_DOWN => 'down' };
 
     #TODO method name and return value
     $s{create_pane} = sub {
@@ -1030,13 +1036,13 @@ package cdmn::sidebar {
             " " x $n . $header;
         };
 
-        # #border
-
+        # HEADER
         push @data, _create_overlay( _center( create_header_line( $title, @headers ) ) );
         $data[-1]->{x} = 0;
         push @data, _create_overlay( _center( create_header( $title, @headers ) ) );
         $data[-1]->{x} = 0;
 
+        # LINE 
         push @data, _create_overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
         push @data, _create_overlay( $s->{header_position} eq TOP ? TD : BD );
         $data[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
@@ -1046,15 +1052,14 @@ package cdmn::sidebar {
 
         #content
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
-        $scroll_i{"$title"}{up}   //= 0;
-        $scroll_i{"$title"}{down} //= 0;
+        $scroll_i{$title}{&SCROLL_UP}   //= 0;
+        $scroll_i{$title}{&SCROLL_DOWN} //= 0;
 
         my $cntlen = 0;
         my @content;
-
         my @slctn = ( sort keys %{ $data{$title} } );
 
-        @slctn = splice( @slctn, $scroll_i{"$title"}{up} );
+        @slctn = splice( @slctn, $scroll_i{"$title"}{&SCROLL_UP} );
         for (@slctn) {
             if ( @data + @content + ( $s->{label_position} eq TOP ? 1 : 0 ) < $s->{term}->nrow ) {
                 push @content, _create_overlay($_);
@@ -1067,17 +1072,17 @@ package cdmn::sidebar {
             }
         }
 
-        $scroll_i{"$title"}{down} = ( keys %{ $data{$title} } ) - $cntlen - $scroll_i{"$title"}{up};
+        $scroll_i{$title}{&SCROLL_DOWN} = ( keys %{ $data{$title} } ) - $cntlen - $scroll_i{$title}{&SCROLL_UP};
 
-        if ( $scroll_i{"$title"}{down} gt 0 ) {
+        if ( $scroll_i{$title}{&SCROLL_DOWN} gt 0 && @content > 0 ) {
             pop @content if $s->{label_position} eq TOP;
-            $content[-1] = _create_overlay( _center(DOWN) );
+            $content[-1] = _create_overlay( _center(ARR_DOWN) );
             $content[-1]->{y} = $s->{term}->nrow - 1;
         }
 
-        if ( $scroll_i{"$title"}{up} gt 0 ) {
+        if ( $scroll_i{$title}{&SCROLL_UP} gt 0 ) {
             shift @content if $s->{label_position} eq TOP;
-            $content[0] = _create_overlay( _center(UP) );
+            $content[0] = _create_overlay( _center(ARR_UP) );
             $content[0]->{y} = $s->{term}->nrow - $cntlen * 2 if $s->{label_position} eq TOP;
         }
 
@@ -1227,19 +1232,25 @@ package cdmn::sidebar {
     }
 
     sub scroll_up {
-        my $s     = shift;
+        (shift)->scroll(SCROLL_UP);
+    }
+
+    sub scroll_down {
+        (shift)->scroll(SCROLL_DOWN);
+    }
+
+    sub scroll {
+        my ($s, $d) = @_;
         my $title = $s->{order}[ $s->{active_pane} ];
-        return if $scroll_i{"$title"}{up} eq 0;
-        $scroll_i{"$title"}{up}--;
+        return if $scroll_i{$title}{$d} eq 0;
+        $d eq SCROLL_UP ? $scroll_i{$title}{&SCROLL_UP}-- : $scroll_i{$title}{&SCROLL_UP}++;
         $s->{panes}{$title} = $s{create_pane}->( $s, $title );
         $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
     }
 
-    sub scroll_down {
-        my $s     = shift;
-        my $title = $s->{order}[ $s->{active_pane} ];
-        return if $scroll_i{"$title"}{down} eq 0;
-        $scroll_i{"$title"}{up}++;
+    sub refresh_pane {
+        my ($s, $d) = @_;
+        my $title = $d ? $d : $s->{order}[ $s->{active_pane} ];
         $s->{panes}{$title} = $s{create_pane}->( $s, $title );
         $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
     }
@@ -1341,8 +1352,10 @@ package cdmn::term {
 
     sub bounds {
         my $s = shift;
-        @$s{qw/x y w h/} = validate_pos( @_, 1, 1, 1, 1 );
-        $s->{term}->XMoveResizeWindow( $s->{term}->parent, @_ );
+        my $t = $s->{term};
+        my %wh;
+        @wh{qw/x y w h/} = validate_pos( @_, 1, 1, 1, 1 );
+        $t->XMoveResizeWindow( $t->parent, @_ ) if $wh{h} > $t->fheight && $wh{w} > $t->fwidth; #if window to small
         $s;
     }
 
@@ -1898,7 +1911,7 @@ sub redraw {
         $visible[$key] ? ${$item}->show : ${$item}->hide;
     }
 
-    #$s->{xterms}{sidebar}->refresh_pane if $s->{xterms}{sidebar}{visible};
+    $s->{xterms}{sidebar}->refresh_pane if $s->{xterms}{sidebar}{visible};
     $s->{visuals_updater}->start;
 }
 
@@ -1933,12 +1946,17 @@ sub refresh_bounds {
     else {
         $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4, $h + 4 ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL;
-
     }
 
-    #$s->{xterms}{sidebar}->bounds( $s->width - $s->fwidth * 25 + 4, 0, $s->fwidth * 25, $s->height + 4 );
+    #TODO remove hardcoded constants and try refactoring
+    my $width    = XR->{sidebar_position} =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $w * ( XR->{sidebar_width} / 100 ) : $w;
+    my $height   = XR->{sidebar_position} =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( XR->{sidebar_height} / 100 ) : $h;
+    $x = XR->{sidebar_position} eq CDMN->RIGHT ? $w - $width : 0;
+    $y = XR->{sidebar_position} eq CDMN->BOTTOM ? $h - $height : 0;
+    $s->{xterms}{sidebar}->bounds( $x, $y, $width, $height );
 
-    #$s->{xterms}{sidebar}->refresh_pane if $s->{xterms}{sidebar}{visible};
+    my $sidebar = $s->{xterms}{sidebar};
+    $sidebar->refresh_pane if $sidebar->{visible} && ceil($sidebar->{term}->height / $sidebar->{term}->fheight) > 4;
 
 }
 
@@ -2190,15 +2208,17 @@ sub on_start {
         is_root  => 1
     )->maximize->show;
 
+    #TODO use calc_bounds?
     my $w = $s->fwidth * $s->ncol;
     my $h = $s->fheight * $s->nrow;
 
+    #TODO constants
     $s->{xterms}{sidebar} = cdmn::sidebar->new(
         parent          => $s,
-        x               => XR->{sidebar_position} eq 'r' ? $w - $w * ( XR->{sidebar_width} / 100 ) : 0,
-        y               => XR->{sidebar_position} eq 'b' ? $h - $h * ( XR->{sidebar_height} / 100 ) : 0,
-        width           => XR->{sidebar_position} =~ m/l|r/ ? $w * ( XR->{sidebar_width} / 100 ) : $w,
-        height          => XR->{sidebar_position} =~ m/t|b/ ? $h * ( XR->{sidebar_height} / 100 ) : $h,
+        x               => XR->{sidebar_position} eq CDMN->RIGHT ? $w - $w * ( XR->{sidebar_width} / 100 ) : 0,
+        y               => XR->{sidebar_position} eq CDMN->BOTTOM ? $h - $h * ( XR->{sidebar_height} / 100 ) : 0,
+        width           => XR->{sidebar_position} =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $w * ( XR->{sidebar_width} / 100 ) : $w,
+        height          => XR->{sidebar_position} =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( XR->{sidebar_height} / 100 ) : $h,
         fg              => XR->{sidebar_fg},
         bg              => XR->{sidebar_bg},
         bg_header       => XR->{sidebar_header_bg},
@@ -2226,7 +2246,7 @@ sub on_start {
         $s->{xterms}{sidebar}->add_pane($_) if XR->hast_content($_);
     }
 
-    $s->{xterms}{sidebar}->add_pane('FS');    #TODO
+    $s->{xterms}{sidebar}->add_pane('FS');    #TODO remove hardcoded lines
     $s->{xterms}{sidebar}{active_pane} = 0;
 
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval( XR->{refresh} )->cb(
@@ -2239,8 +2259,6 @@ sub on_start {
 
             redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok | XR->set_batteries->ok | XR->set_nics->ok;
 
-            #say %{cdmn::proc::cpu_usages()};
-            #say @{XR->{gauges_cpus}};
             my %usage_of;
             $usage_of{cpu}      = sub { _filter( cdmn::proc::cpu_usages(), XR->{gauges_cpus} ) };
             $usage_of{memory}   = sub { %{ cdmn::proc::memory_usages() } };
@@ -2256,12 +2274,13 @@ sub on_start {
                 %r = $usage_of{$gauge_name}->();
 
                 return 1 if scalar keys %r < 1;
-                $s->{xterms}{sidebar}->set_pane( $gauge_name, \%r );
+                $s->{xterms}{sidebar}->set_pane( $gauge_name, \%r ) if $s->{xterms}{sidebar}{visible};
                 $$_->set( $gauge_name, \%r, $inverts{$gauge_name} ) for @{ $s->{captions} };
 
                 1;
             };
 
+            #It might have to do with how perl handles old references ..... ?!
             #for (qw/memory/) { _set($_); } #does not work, why?
             #for my $v (qw/memory/) { _set($_); } #works, why?
             #for my $v ( @{ XR->{gauges_order} } ) { _set($v) };
