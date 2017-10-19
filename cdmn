@@ -977,8 +977,9 @@ package cdmn::sidebar {
     use constant { SCROLL_UP => 'up', SCROLL_DOWN => 'down' };
 
     #TODO method name and return value
+    #TODO this method is way too big!
     $s{create_pane} = sub {
-        my @data;
+        my @header;
         my ($s, $title, $args) = @_;
         $data{$title} = {%$args} if $args; #TODO Cannot use $args as ref directly? So, deref. and new ref.
 
@@ -1037,56 +1038,78 @@ package cdmn::sidebar {
         };
 
         # HEADER
-        push @data, _create_overlay( _center( create_header_line( $title, @headers ) ) );
-        $data[-1]->{x} = 0;
-        push @data, _create_overlay( _center( create_header( $title, @headers ) ) );
-        $data[-1]->{x} = 0;
+        push @header, _create_overlay( _center( create_header_line( $title, @headers ) ) );
+        $header[-1]->{x} = 0;
+        push @header, _create_overlay( _center( create_header( $title, @headers ) ) );
+        $header[-1]->{x} = 0;
 
         # LINE 
-        push @data, _create_overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
-        push @data, _create_overlay( $s->{header_position} eq TOP ? TD : BD );
-        $data[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
-        $data[-1]->{width}  = $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ? 1 : $s->{term}->ncol;
-        $data[-1]->{height} = $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/ ? 1 : $s->{term}->nrow;
-        $data[-1]->{repeat} = 1;
+        push @header, _create_overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
+        push @header, _create_overlay( $s->{header_position} eq TOP ? TD : BD );
+        $header[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
+        $header[-1]->{width}  = $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ? 1 : $s->{term}->ncol;
+        $header[-1]->{height} = $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/ ? 1 : $s->{term}->nrow;
+        $header[-1]->{repeat} = 1;
 
         #content
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
         $scroll_i{$title}{&SCROLL_UP}   //= 0;
         $scroll_i{$title}{&SCROLL_DOWN} //= 0;
 
-        my $cntlen = 0;
+
         my @content;
         my @slctn = ( sort keys %{ $data{$title} } );
 
-        @slctn = splice( @slctn, $scroll_i{"$title"}{&SCROLL_UP} );
         for (@slctn) {
-            if ( @data + @content + ( $s->{label_position} eq TOP ? 1 : 0 ) < $s->{term}->nrow ) {
                 push @content, _create_overlay($_);
 
                 my $w = $s->{term}->ncol - 7;                       #2 border,space + 4 number% + 1 space
                 my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
                 my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
                 push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
-                $cntlen++;
-            }
         }
+        
+        my $lp = ($s->{label_position} eq TOP ? 2 : 1);
+        my $sup = $scroll_i{$title}{&SCROLL_UP};
+        my $delta = floor( (@header + @content - $s->{term}->nrow ) / $lp);
+        my $rest = (@header + @content - $s->{term}->nrow ) % $lp;
+        my $cntlen = (@content / ($s->{label_position} eq TOP ? 2 : 1));
+        my $sdown = $scroll_i{$title}{&SCROLL_DOWN} = $delta - $sup;
 
-        $scroll_i{$title}{&SCROLL_DOWN} = ( keys %{ $data{$title} } ) - $cntlen - $scroll_i{$title}{&SCROLL_UP};
-
-        if ( $scroll_i{$title}{&SCROLL_DOWN} gt 0 && @content > 0 ) {
+        local *_down = sub {
             pop @content if $s->{label_position} eq TOP;
             $content[-1] = _create_overlay( _center(ARR_DOWN) );
-            $content[-1]->{y} = $s->{term}->nrow - 1;
-        }
+            $content[-1]->{y} = -1
+        };
 
-        if ( $scroll_i{$title}{&SCROLL_UP} gt 0 ) {
+        local *_up = sub {
             shift @content if $s->{label_position} eq TOP;
             $content[0] = _create_overlay( _center(ARR_UP) );
-            $content[0]->{y} = $s->{term}->nrow - $cntlen * 2 if $s->{label_position} eq TOP;
+            $content[0]->{y} = $header[-1]->{y}+1;
+        };
+
+        if ( $cntlen > 0 ) {
+            if ($sup > 0 && $delta > 0) {
+                @content = splice( @content, $sup * $lp );
+                $_->{y} -= 2 for @content;
+            }
+            @content = splice( @content, 0, -$sdown * $lp ) if $sdown > 0;
+        }
+        
+        _down() if $sdown gt 0 && $delta > 0 && @content > 0;
+        _up() if $sup gt 0 && $delta > 0 && @content > 0;
+
+        if ($rest > 0 && $delta eq 0 && @content > 0 ) {
+            if ($sup gt 0) {
+                _up();
+                $_->{y}-= 1 for @content; 
+                $content[0]->{y}+=1;
+            }
+            elsif ($sdown le 0) { _down() }
         }
 
-        push @data, @content;
+        #Move header to bottom, if configured.
+        my @data = (@header, @content);
 
         if ( $s->{header_position} eq BOTTOM ) {
             push @data, ( reverse splice @data, 0, 3 );
@@ -1922,7 +1945,7 @@ sub calc_bounds {
     my ( $h, $w, $x, $y ) = ( 0, 0, $s->{x}, $s->{y} );
 
     if ( $t eq CDMN->VISUAL_ALIGN_ROW ) {
-        $h = $s->fheight * ( $s->nrow - 1 );
+        $h = $s->fheight * ( $s->nrow );
         $w = $s->width;
         $y = XR->{y} >= 0 ? $s->fheight : -1;
     }
@@ -1955,6 +1978,9 @@ sub refresh_bounds {
     $y = XR->{sidebar_position} eq CDMN->BOTTOM ? $h - $height : 0;
     $s->{xterms}{sidebar}->bounds( $x, $y, $width, $height );
 
+    # say $y;
+    # say $h;
+    # say "";
     my $sidebar = $s->{xterms}{sidebar};
     $sidebar->refresh_pane if $sidebar->{visible} && ceil($sidebar->{term}->height / $sidebar->{term}->fheight) > 4;
 
@@ -2006,7 +2032,7 @@ sub create_caption {
                     even_gauges => 0,
                     visible     => XR->{showing},
                     bg_color    => XR->{caption_bg},
-                    label_pos   => XR->{label_position},
+                    label_pos   => XR->{sidebar_label_position},
                 );
             }
             elsif ( $_ eq CDMN->VISUAL_ALIGN_COL ) {
@@ -2020,7 +2046,7 @@ sub create_caption {
                     even_gauges => 1,
                     visible     => XR->{showing},
                     bg_color    => XR->{caption_bg},
-                    label_pos   => XR->{label_position},
+                    label_pos   => XR->{sidebar_label_position},
                 );
             }
         };
@@ -2212,6 +2238,7 @@ sub on_start {
     my $w = $s->fwidth * $s->ncol;
     my $h = $s->fheight * $s->nrow;
 
+    
     #TODO constants
     $s->{xterms}{sidebar} = cdmn::sidebar->new(
         parent          => $s,
