@@ -728,7 +728,7 @@ package cdmn::resources {
         $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
 
         $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        9 );
-        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        0 );
+        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        5 );
         $s->{sidebar_header_fg} = _set_number( '%.sidebar.header.fg', 9 );
         $s->{sidebar_header_bg} = _set_number( '%.sidebar.header.bg', 0 );
         $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', 9 );
@@ -736,7 +736,7 @@ package cdmn::resources {
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
         $s->{sidebar_border}    = _set_number( '%.sidebar.border',    9 );              #percentage
-        $s->{sidebar_position}        = 'bottom';
+        $s->{sidebar_position}        = 'left';
         $s->{sidebar_header_position} = 'top';                                          #TODO tl, tr, bl, br
         $s->{sidebar_label_position}  = 'top';                                          #TODO t, b, l, r
 
@@ -1034,7 +1034,7 @@ package cdmn::sidebar {
             my $header = shift;
             my $n = $s->{term}->ncol - ( length($header) );
             $n = $n % 2 ? ceil( $n / 2 ) : $n / 2;
-            " " x $n . $header;
+            " " x $n . $header if $n > 0;
         };
 
         # HEADER
@@ -1044,8 +1044,9 @@ package cdmn::sidebar {
         $header[-1]->{x} = 0;
 
         # LINE
-        push @header, _create_overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
         push @header, _create_overlay( $s->{header_position} eq TOP ? TD : BD );
+        $header[-1]->{repeat} = 1;
+        push @header, _create_overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
         $header[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
         $header[-1]->{width}  = $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ? 1 : $s->{term}->ncol;
         $header[-1]->{height} = $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/ ? 1 : $s->{term}->nrow;
@@ -2299,7 +2300,7 @@ sub on_start {
                 %r = $usage_of{$gauge_name}->();
 
                 return 1 if scalar keys %r < 1;
-                $s->{xterms}{sidebar}->set_pane( $gauge_name, \%r ) if $s->{xterms}{sidebar}{visible};
+                $s->{xterms}{sidebar}->set_pane( $gauge_name, \%r ) ;#if $s->{xterms}{sidebar}{visible};
                 $$_->set( $gauge_name, \%r, $inverts{$gauge_name} ) for @{ $s->{captions} };
 
                 1;
@@ -2314,7 +2315,7 @@ sub on_start {
 
             my $mounts = cdmn::proc::mounts;
             %r = map { $_ => df($_)->{per} } ( sort values %$mounts );
-            $s->{xterms}{sidebar}->set_pane( 'FS', \%r ) if $s->{xterms}{sidebar}{visible};
+            $s->{xterms}{sidebar}->set_pane( 'FS', \%r ) ;#if $s->{xterms}{sidebar}{visible};
         }
     );
     refresh_bounds( $s, XR->{visual_align} );
