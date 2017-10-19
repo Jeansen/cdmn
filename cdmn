@@ -635,7 +635,6 @@ package cdmn::resources {
         sidebar_header_bg
         sidebar_border_fg
         sidebar_border_bg
-        sidebar_border
         sidebar_width
         sidebar_height
         sidebar_position
@@ -681,6 +680,15 @@ package cdmn::resources {
             $n;
         };
 
+        local *_set_value = sub {
+            my $n = $t->x_resource("$_[0]");
+            my $r = grep $n, @{ $_[1] };
+            return $r ? $r : $_[2];
+        };
+
+        my $tblrc = [ (qw/top left bottom right center/) ];
+        my $tb   = [ (qw/top bottom/) ];
+
         $s->{label_network}  = $t->x_resource('%.label.network')  // 'NET';
         $s->{label_disk}     = $t->x_resource('%.label.disk')     // 'DISK';
         $s->{label_cpu}      = $t->x_resource('%.label.cpu')      // 'CPU';
@@ -690,14 +698,14 @@ package cdmn::resources {
         $s->{label_battery_AC} = $s->{label_battery} . "(⌁)";
         $s->{label_fg}         = _set_number( '%.label.fg', 0 );
         $s->{label_bg}         = _set_number( '%.label.bg', 1 );
-        $s->{label_position}   = $t->x_resource('%.label.position') || 'left';
+        $s->{label_position}   = _set_value( '%.label.position', [ (qw/left right/) ], 'left' );
         $s->{label_padding}    = _set_number( '%.label.padding', 0 );
 
         $s->{showing}        = _set_number( '%.showing',        1 );
         $s->{showing_labels} = _set_number( '%.showing.labels', 1 );
 
-        $s->{visual_align} = $t->x_resource('%.visual.alignment') // 'row';    #row | col
-        $s->{caption_bg} = _set_number( '%.caption.bg', 1 );                   # 0/1 map onto terminal fg/bg color
+        $s->{visual_align} = _set_value( '%.visual.alignment', [ (qw/row col/) ], 'row' );
+        $s->{caption_bg} = _set_number( '%.caption.bg', 1 );    # 0/1 map onto terminal fg/bg color
 
         $s->{visual_detail_cpu}      = _set_number( '%.visual.detail.cpu',      0 );     #0/1 less or more detail
         $s->{visual_detail_cpu_temp} = _set_number( '%.visual.detail.cpu.temp', 0 );     #0/1 less or more detail
@@ -708,7 +716,7 @@ package cdmn::resources {
         $s->{disk_mounts_only}       = _set_number( '%.disk.mountsonly',        1 );     #TODO rename
         $s->{refresh}                = _set_number( '%.refresh',                1 );
         $s->{sensitivity}            = _set_number( '%.sensitivity',            1 );     #percentage
-        $s->{visual_style} = $t->x_resource('%.visual.style') // 'bar';                  #bar | led | graph
+        $s->{visual_style} = _set_value( '%.visual.style', [ (qw/bar led graph/) ], 'bar' );
 
         $s->{gauges_order}     = _set_list('%.gauges.order');
         $s->{disks}            = _set_list('%.gauges.disks');
@@ -728,20 +736,16 @@ package cdmn::resources {
         $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
 
         $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        9 );
-        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        5 );
+        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        0 );
         $s->{sidebar_header_fg} = _set_number( '%.sidebar.header.fg', 9 );
         $s->{sidebar_header_bg} = _set_number( '%.sidebar.header.bg', 0 );
         $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', 9 );
         $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', 0 );
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
-        $s->{sidebar_border}    = _set_number( '%.sidebar.border',    9 );              #percentage
-        $s->{sidebar_position}        = 'left';
-        $s->{sidebar_header_position} = 'top';                                          #TODO tl, tr, bl, br
-        $s->{sidebar_label_position}  = 'top';                                          #TODO t, b, l, r
-
-        # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
-        # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
+        $s->{sidebar_position}        = _set_value( '%.label.sidebar.position',        $tblrc, 'bottom' );
+        $s->{sidebar_header_position} = _set_value( '%.label.sidebar.header.position', $tb,   'top' );      #TODO tl, tr, bl, br
+        $s->{sidebar_label_position}  = _set_value( '%.label.sidebar.label.position',  $tb,   'top' );      #TODO t, b, l, r
 
         $s->set_disks;
         $s->set_batteries;
@@ -775,6 +779,7 @@ package cdmn::resources {
         $s->{configs}{$t};
     }
 
+    #TODO exract hardcoded list
     my $validate = sub {
         my $s             = shift;
         my @order_default = map { $s->{$_} } (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery /);
@@ -2300,7 +2305,7 @@ sub on_start {
                 %r = $usage_of{$gauge_name}->();
 
                 return 1 if scalar keys %r < 1;
-                $s->{xterms}{sidebar}->set_pane( $gauge_name, \%r ) ;#if $s->{xterms}{sidebar}{visible};
+                $s->{xterms}{sidebar}->set_pane( $gauge_name, \%r );    #if $s->{xterms}{sidebar}{visible};
                 $$_->set( $gauge_name, \%r, $inverts{$gauge_name} ) for @{ $s->{captions} };
 
                 1;
@@ -2315,7 +2320,7 @@ sub on_start {
 
             my $mounts = cdmn::proc::mounts;
             %r = map { $_ => df($_)->{per} } ( sort values %$mounts );
-            $s->{xterms}{sidebar}->set_pane( 'FS', \%r ) ;#if $s->{xterms}{sidebar}{visible};
+            $s->{xterms}{sidebar}->set_pane( 'FS', \%r );    #if $s->{xterms}{sidebar}{visible};
         }
     );
     refresh_bounds( $s, XR->{visual_align} );
