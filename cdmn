@@ -73,8 +73,8 @@ package cdmn::constants {
         STYLE_LED => 'led',
         STYLE_BAR => 'bar',
 
-        LEFT  => 'left',
-        RIGHT => 'right',
+        LEFT   => 'left',
+        RIGHT  => 'right',
         TOP    => 'top',
         BOTTOM => 'bottom',
     };
@@ -737,8 +737,8 @@ package cdmn::resources {
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
         $s->{sidebar_border}    = _set_number( '%.sidebar.border',    9 );              #percentage
         $s->{sidebar_position}        = 'bottom';
-        $s->{sidebar_header_position} = 'top';                                            #TODO tl, tr, bl, br
-        $s->{sidebar_label_position}  = 'top';                                            #TODO t, b, l, r
+        $s->{sidebar_header_position} = 'top';                                          #TODO tl, tr, bl, br
+        $s->{sidebar_label_position}  = 'top';                                          #TODO t, b, l, r
 
         # $s->{sidebar_x}     = _set_number( '%.sidebar.x', 0 ); #percentage
         # $s->{sidebar_y}     = _set_number( '%.sidebar.y', -1 ); #percentage
@@ -980,8 +980,8 @@ package cdmn::sidebar {
     #TODO this method is way too big!
     $s{create_pane} = sub {
         my @header;
-        my ($s, $title, $args) = @_;
-        $data{$title} = {%$args} if $args; #TODO Cannot use $args as ref directly? So, deref. and new ref.
+        my ( $s, $title, $args ) = @_;
+        $data{$title} = {%$args} if $args;    #TODO Cannot use $args as ref directly? So, deref. and new ref.
 
         my $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
         my $i = 0;
@@ -1043,7 +1043,7 @@ package cdmn::sidebar {
         push @header, _create_overlay( _center( create_header( $title, @headers ) ) );
         $header[-1]->{x} = 0;
 
-        # LINE 
+        # LINE
         push @header, _create_overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
         push @header, _create_overlay( $s->{header_position} eq TOP ? TD : BD );
         $header[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
@@ -1056,60 +1056,59 @@ package cdmn::sidebar {
         $scroll_i{$title}{&SCROLL_UP}   //= 0;
         $scroll_i{$title}{&SCROLL_DOWN} //= 0;
 
-
         my @content;
         my @slctn = ( sort keys %{ $data{$title} } );
 
         for (@slctn) {
-                push @content, _create_overlay($_);
+            push @content, _create_overlay($_);
 
-                my $w = $s->{term}->ncol - 7;                       #2 border,space + 4 number% + 1 space
-                my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
-                my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
-                push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
+            my $w = $s->{term}->ncol - 7;                       #2 border,space + 4 number% + 1 space
+            my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
+            my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
+            push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
         }
-        
-        my $lp = ($s->{label_position} eq TOP ? 2 : 1);
-        my $sup = $scroll_i{$title}{&SCROLL_UP};
-        my $delta = floor( (@header + @content - $s->{term}->nrow ) / $lp);
-        my $rest = (@header + @content - $s->{term}->nrow ) % $lp;
-        my $cntlen = (@content / ($s->{label_position} eq TOP ? 2 : 1));
-        my $sdown = $scroll_i{$title}{&SCROLL_DOWN} = $delta - $sup;
+
+        my $lp     = ( $s->{label_position} eq TOP ? 2 : 1 );
+        my $sup    = $scroll_i{$title}{&SCROLL_UP};
+        my $delta  = floor( ( @header + @content - $s->{term}->nrow ) / $lp );
+        my $rest   = ( @header + @content - $s->{term}->nrow ) % $lp;
+        my $cntlen = ( @content / ( $s->{label_position} eq TOP ? 2 : 1 ) );
+        my $sdown  = $scroll_i{$title}{&SCROLL_DOWN} = $delta - $sup;
 
         local *_down = sub {
             pop @content if $s->{label_position} eq TOP;
             $content[-1] = _create_overlay( _center(ARR_DOWN) );
-            $content[-1]->{y} = -1
+            $content[-1]->{y} = -1;
         };
 
         local *_up = sub {
             shift @content if $s->{label_position} eq TOP;
             $content[0] = _create_overlay( _center(ARR_UP) );
-            $content[0]->{y} = $header[-1]->{y}+1;
+            $content[0]->{y} = $header[-1]->{y} + 1;
         };
 
         if ( $cntlen > 0 ) {
-            if ($sup > 0 && $delta > 0) {
+            if ( $sup > 0 && $delta > 0 ) {
                 @content = splice( @content, $sup * $lp );
                 $_->{y} -= 2 for @content;
             }
             @content = splice( @content, 0, -$sdown * $lp ) if $sdown > 0;
         }
-        
-        _down() if $sdown gt 0 && $delta > 0 && @content > 0;
-        _up() if $sup gt 0 && $delta > 0 && @content > 0;
 
-        if ($rest > 0 && $delta eq 0 && @content > 0 ) {
-            if ($sup gt 0) {
+        _down() if $sdown gt 0 && $delta > 0 && @content > 0;
+        _up()   if $sup gt 0   && $delta > 0 && @content > 0;
+
+        if ( $rest > 0 && $delta eq 0 && @content > 0 ) {
+            if ( $sup gt 0 ) {
                 _up();
-                $_->{y}-= 1 for @content; 
-                $content[0]->{y}+=1;
+                $_->{y} -= 1 for @content;
+                $content[0]->{y} += 1;
             }
-            elsif ($sdown le 0) { _down() }
+            elsif ( $sdown le 0 ) { _down() }
         }
 
         #Move header to bottom, if configured.
-        my @data = (@header, @content);
+        my @data = ( @header, @content );
 
         if ( $s->{header_position} eq BOTTOM ) {
             push @data, ( reverse splice @data, 0, 3 );
@@ -1263,7 +1262,7 @@ package cdmn::sidebar {
     }
 
     sub scroll {
-        my ($s, $d) = @_;
+        my ( $s, $d ) = @_;
         my $title = $s->{order}[ $s->{active_pane} ];
         return if $scroll_i{$title}{$d} eq 0;
         $d eq SCROLL_UP ? $scroll_i{$title}{&SCROLL_UP}-- : $scroll_i{$title}{&SCROLL_UP}++;
@@ -1272,7 +1271,7 @@ package cdmn::sidebar {
     }
 
     sub refresh_pane {
-        my ($s, $d) = @_;
+        my ( $s, $d ) = @_;
         my $title = $d ? $d : $s->{order}[ $s->{active_pane} ];
         $s->{panes}{$title} = $s{create_pane}->( $s, $title );
         $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
@@ -1378,13 +1377,13 @@ package cdmn::term {
         my $t = $s->{term};
         my %wh;
         @wh{qw/x y w h/} = validate_pos( @_, 1, 1, 1, 1 );
-        $t->XMoveResizeWindow( $t->parent, @_ ) if $wh{h} > $t->fheight && $wh{w} > $t->fwidth; #if window to small
+        $t->XMoveResizeWindow( $t->parent, @_ ) if $wh{h} > $t->fheight && $wh{w} > $t->fwidth;    #if window to small
         $s;
     }
 
     sub maximize {
         my $s = shift;
-        $s->{maximized} = 1;    #TODO
+        $s->{maximized} = 1;                                                                       #TODO
         $s;
     }
 
@@ -1972,9 +1971,9 @@ sub refresh_bounds {
     }
 
     #TODO remove hardcoded constants and try refactoring
-    my $width    = XR->{sidebar_position} =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $w * ( XR->{sidebar_width} / 100 ) : $w;
-    my $height   = XR->{sidebar_position} =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( XR->{sidebar_height} / 100 ) : $h;
-    $x = XR->{sidebar_position} eq CDMN->RIGHT ? $w - $width : 0;
+    my $width  = XR->{sidebar_position} =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $w * ( XR->{sidebar_width} / 100 )  : $w;
+    my $height = XR->{sidebar_position} =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( XR->{sidebar_height} / 100 ) : $h;
+    $x = XR->{sidebar_position} eq CDMN->RIGHT  ? $w - $width  : 0;
     $y = XR->{sidebar_position} eq CDMN->BOTTOM ? $h - $height : 0;
     $s->{xterms}{sidebar}->bounds( $x, $y, $width, $height );
 
@@ -1982,7 +1981,7 @@ sub refresh_bounds {
     # say $h;
     # say "";
     my $sidebar = $s->{xterms}{sidebar};
-    $sidebar->refresh_pane if $sidebar->{visible} && ceil($sidebar->{term}->height / $sidebar->{term}->fheight) > 4;
+    $sidebar->refresh_pane if $sidebar->{visible} && ceil( $sidebar->{term}->height / $sidebar->{term}->fheight ) > 4;
 
 }
 
@@ -2238,7 +2237,6 @@ sub on_start {
     my $w = $s->fwidth * $s->ncol;
     my $h = $s->fheight * $s->nrow;
 
-    
     #TODO constants
     $s->{xterms}{sidebar} = cdmn::sidebar->new(
         parent          => $s,
