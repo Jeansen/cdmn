@@ -687,7 +687,7 @@ package cdmn::resources {
         };
 
         my $tblrc = [ (qw/top left bottom right center/) ];
-        my $tb   = [ (qw/top bottom/) ];
+        my $tb    = [ (qw/top bottom/) ];
 
         $s->{label_network}  = $t->x_resource('%.label.network')  // 'NET';
         $s->{label_disk}     = $t->x_resource('%.label.disk')     // 'DISK';
@@ -743,9 +743,9 @@ package cdmn::resources {
         $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', 0 );
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
-        $s->{sidebar_position}        = _set_value( '%.label.sidebar.position',        $tblrc, 'bottom' );
-        $s->{sidebar_header_position} = _set_value( '%.label.sidebar.header.position', $tb,   'top' );      #TODO tl, tr, bl, br
-        $s->{sidebar_label_position}  = _set_value( '%.label.sidebar.label.position',  $tb,   'top' );      #TODO t, b, l, r
+        $s->{sidebar_position}        = _set_value( '%.label.sidebar.position',        $tblrc, 'right' );
+        $s->{sidebar_header_position} = _set_value( '%.label.sidebar.header.position', $tb,    'top' );     #TODO tl, tr, bl, br
+        $s->{sidebar_label_position}  = _set_value( '%.label.sidebar.label.position',  $tb,    'top' );     #TODO t, b, l, r
 
         $s->set_disks;
         $s->set_batteries;
@@ -996,29 +996,46 @@ package cdmn::sidebar {
         $width = $s->{term}->ncol - 1 if $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/;
 
         local *create_header_line = sub {
-            my ( $c, $h, @l ) = @_;
-
-            return "" if !$h;
-            return (
-                $s->{header_position} eq TOP
-                ? TL . M x( ( length $c ) + 2 ) . TR
-                : BL . M x( ( length $c ) + 2 ) . BR
-                )
-                . create_header_line( $c, @l )
-                if $c eq $h;
-
-            " " x ( ( length $h ) + 3 ) . create_header_line( $c, @l );
+            my $len = shift;
+            my $c   = shift;
+            local *_create = sub {
+                my ( $h, @l ) = @_;
+                return "" if !$h || $len le 0;
+                if ( $c eq $h ) {
+                    $len -= ( length($h) + 3 );
+                    return (
+                        $s->{header_position} eq TOP
+                        ? TL . M x( ( length $c ) + 2 ) . TR
+                        : BL . M x( ( length $c ) + 2 ) . BR
+                    ) . _create(@l);
+                }
+                if ( $len ge 0 ) {
+                    $len -= ( length($h) + 3 );
+                    " " x ( ( length $h ) + 3 ) . _create(@l);
+                }
+            };
+            _create(@_);
         };
 
         local *create_header = sub {
-            my $c = shift;
+            my $len = shift;
+            my $c   = shift;
             local *_create = sub {
                 my ( $f, $h, @l ) = @_;
-                return " " . VD . " " if !$h && $f;
-                return "   " if !$h;
-                return " " . VD . " " . $h . _create( $c eq $h, @l ) if $c eq $h;
-                return " " . VD . " " . $h . _create( 0,        @l ) if $f;
-                "   " . $h . _create( $f, @l );
+                return " " . VD . " " if ( !$h && $f ) || $f && $len le 0;
+                return "   " if !$h || $len le 0;
+                if ( $c eq $h && $len gt 0 ) {
+                    $len -= ( length($h) + 3 );
+                    return " " . VD . " " . $h . _create( $c eq $h, @l );
+                }
+                if ($f) {
+                    $len -= ( length($h) + 3 );
+                    return " " . VD . " " . $h . _create( 0, @l );
+                }
+                if ( $len ge 0 ) {
+                    $len -= ( length($h) + 3 );
+                    "   " . $h . _create( $f, @l );
+                }
             };
             _create( 0, @_ );
         };
@@ -1043,9 +1060,9 @@ package cdmn::sidebar {
         };
 
         # HEADER
-        push @header, _create_overlay( _center( create_header_line( $title, @headers ) ) );
+        push @header, _create_overlay( _center( create_header_line( $s->{term}->ncol - 7, $title, @headers ) ) );
         $header[-1]->{x} = 0;
-        push @header, _create_overlay( _center( create_header( $title, @headers ) ) );
+        push @header, _create_overlay( _center( create_header( $s->{term}->ncol - 7, $title, @headers ) ) );
         $header[-1]->{x} = 0;
 
         # LINE
