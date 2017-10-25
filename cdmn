@@ -687,7 +687,7 @@ package cdmn::resources {
         };
 
         my $tblrc = [ (qw/top left bottom right center/) ];
-        my $tb    = [ (qw/top bottom/) ];
+        my $tb   = [ (qw/top bottom/) ];
 
         $s->{label_network}  = $t->x_resource('%.label.network')  // 'NET';
         $s->{label_disk}     = $t->x_resource('%.label.disk')     // 'DISK';
@@ -743,9 +743,9 @@ package cdmn::resources {
         $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', 0 );
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
-        $s->{sidebar_position}        = _set_value( '%.label.sidebar.position',        $tblrc, 'right' );
-        $s->{sidebar_header_position} = _set_value( '%.label.sidebar.header.position', $tb,    'top' );     #TODO tl, tr, bl, br
-        $s->{sidebar_label_position}  = _set_value( '%.label.sidebar.label.position',  $tb,    'top' );     #TODO t, b, l, r
+        $s->{sidebar_position}        = _set_value( '%.sidebar.position',        $tblrc, 'right' );
+        $s->{sidebar_header_position} = _set_value( '%.label.sidebar.header.position', $tb,   'top' );      #TODO tl, tr, bl, br
+        $s->{sidebar_label_position}  = _set_value( '%.label.sidebar.label.position',  $tb,   'top' );      #TODO t, b, l, r
 
         $s->set_disks;
         $s->set_batteries;
@@ -968,6 +968,7 @@ package cdmn::sidebar {
         VD    => "┃",
         ARR_L => "❮",
         ARR_R => "❯",
+        SPACE => " ",
     };
 
     use constant {
@@ -977,7 +978,7 @@ package cdmn::sidebar {
         BOTTOM => 'bottom',
     };
 
-    use constant { FILL => "■", NOFILL => "□", ARR_UP => "▲", ARR_DOWN => "▼", ARR_LEFT => "◀", ARR_RIGHT => "▶" };
+    use constant { FILL => "■", NOFILL => "□", ARR_UP => "▲", ARR_DOWN => "▼", };
 
     use constant { SCROLL_UP => 'up', SCROLL_DOWN => 'down' };
 
@@ -996,48 +997,32 @@ package cdmn::sidebar {
         $width = $s->{term}->ncol - 1 if $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/;
 
         local *create_header_line = sub {
-            my $len = shift;
-            my $c   = shift;
-            local *_create = sub {
-                my ( $h, @l ) = @_;
-                return "" if !$h || $len le 0;
-                if ( $c eq $h ) {
-                    $len -= ( length($h) + 3 );
-                    return (
-                        $s->{header_position} eq TOP
-                        ? TL . M x( ( length $c ) + 2 ) . TR
-                        : BL . M x( ( length $c ) + 2 ) . BR
-                    ) . _create(@l);
-                }
-                if ( $len ge 0 ) {
-                    $len -= ( length($h) + 3 );
-                    " " x ( ( length $h ) + 3 ) . _create(@l);
-                }
-            };
-            _create(@_);
+            my ( $c, $h, @l ) = @_;
+
+            return "" if !$h;
+            return (
+                $s->{header_position} eq TOP
+                ? TL . M x( ( length $c ) + 2 ) . TR
+                : BL . M x( ( length $c ) + 2 ) . BR
+                )
+                . create_header_line( $c, @l )
+                if $c eq $h;
+
+            " " x ( ( length $h ) + 3 ) . create_header_line( $c, @l );
         };
 
         local *create_header = sub {
-            my $len = shift;
-            my $c   = shift;
+            my $c = shift;
             local *_create = sub {
                 my ( $f, $h, @l ) = @_;
-                return " " . VD . " " if ( !$h && $f ) || $f && $len le 0;
-                return "   " if !$h || $len le 0;
-                if ( $c eq $h && $len gt 0 ) {
-                    $len -= ( length($h) + 3 );
-                    return " " . VD . " " . $h . _create( $c eq $h, @l );
-                }
-                if ($f) {
-                    $len -= ( length($h) + 3 );
-                    return " " . VD . " " . $h . _create( 0, @l );
-                }
-                if ( $len ge 0 ) {
-                    $len -= ( length($h) + 3 );
-                    "   " . $h . _create( $f, @l );
-                }
+                return " " . VD . " " if !$h && $f;
+                return "   " if !$h;
+                return " " . VD . " " . $h . _create( $c eq $h, @l ) if $c eq $h;
+                return " " . VD . " " . $h . _create( 0,        @l ) if $f;
+                "   " . $h . _create( $f, @l );
             };
             _create( 0, @_ );
+			
         };
 
         local *_create_overlay = sub {
@@ -1059,10 +1044,50 @@ package cdmn::sidebar {
             " " x $n . $header if $n > 0;
         };
 
+
+		local *_headers = sub {
+			my $len = $s->{term}->ncol - 8;
+            my @l = @{(shift)};
+			my $c = shift;
+            my @r = @{(shift)};
+
+			while () {
+				if (@l > @r) {
+				   shift @l if length(join("", @l) . $c . join("", @r))+ ((@l + @r + 2)*3) gt $len;
+				}
+				elsif (@r > @l) {
+				   pop @r if length(join("", @l) . $c . join("", @r))+ ((@l + @r + 2)*3) gt $len;
+				}
+				else {
+				   shift @l if length(join("", @l) . $c . join("", @r))+ ((@l + @r + 2)*3) gt $len;
+				   pop @r if length(join("", @l) . $c . join("", @r))+ ((@l + @r + 2)*3) gt $len;
+				}
+
+				#use () with le, or use <, otherwise it hangs!
+				return (@l, $c, @r) if (length(join("", @l) . $c . join("", @r))+ ((@l + @r + 2)*3)) le $len; 
+			}
+		};
+
+
+		my @headers2 = @headers;
+		local *_pad = sub {
+			my $h = shift;
+			my $l = shift;
+			my $r = shift;
+			$h = " $l " . $h if exists $headers[0] && exists $headers2[0] && $headers[0] ne $headers2[0];
+			$h = $h . " $r " if exists $headers[-1] && exists $headers2[-1] && $headers[-1] ne $headers2[-1];
+			$h;
+		};
+
+		#TODO remove splice and array 2, instead use [..]
+        my %hi = map { $headers2[$_] => $_ } 0 .. @headers2-1;
+        @headers2 =  _headers( [splice(@headers2, 0, $hi{$title})], shift @headers2, [(splice(@headers2, 0))]) if exists $hi{$title};
+
         # HEADER
-        push @header, _create_overlay( _center( create_header_line( $s->{term}->ncol - 7, $title, @headers ) ) );
+        push @header, _create_overlay( _center( _pad(create_header_line( $title, @headers2 ), SPACE, SPACE ) ) );
         $header[-1]->{x} = 0;
-        push @header, _create_overlay( _center( create_header( $s->{term}->ncol - 7, $title, @headers ) ) );
+        
+        push @header, _create_overlay( _center( _pad(create_header( $title, @headers2), ARR_L, ARR_R ) ) ) ;
         $header[-1]->{x} = 0;
 
         # LINE
