@@ -1051,19 +1051,12 @@ package cdmn::sidebar {
             my @r   = @{ (shift) };
 
             while () {
-                if ( @l > @r ) {
-                    shift @l if length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 ) gt $len;
+                if ( ( length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 ) ) gt $len ) {
+                    if    ( @l > @r ) { shift @l; }
+                    elsif ( @r > @l ) { pop @r; }
+                    else              { shift @l; pop @r; }
                 }
-                elsif ( @r > @l ) {
-                    pop @r if length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 ) gt $len;
-                }
-                else {
-                    shift @l if length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 ) gt $len;
-                    pop @r   if length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 ) gt $len;
-                }
-
-                #use () with le, or use <, otherwise it hangs!
-                return ( @l, $c, @r ) if ( length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 ) ) le $len;
+                else { return ( @l, $c, @r ) }
             }
         };
 
