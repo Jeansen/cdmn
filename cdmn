@@ -1045,18 +1045,29 @@ package cdmn::sidebar {
         };
 
         local *_headers = sub {
-            my $len = $s->{term}->ncol - 8;
+            my $len = $s->{term}->ncol - 8; #TODO as parameter
             my @l   = @{ (shift) };
             my $c   = shift;
             my @r   = @{ (shift) };
 
+            local *_strlen = sub {
+                    length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 );
+            };
+
             while () {
-                if ( ( length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 ) ) gt $len ) {
-                    if    ( @l > @r ) { shift @l; }
-                    elsif ( @r > @l ) { pop @r; }
-                    else              { shift @l; pop @r; }
+                if ( @l > @r ) {
+                    shift @l if _strlen() gt $len;
                 }
-                else { return ( @l, $c, @r ) }
+                elsif ( @r > @l ) {
+                    pop @r if _strlen() gt $len;
+                }
+                else {
+                    shift @l if _strlen() gt $len;
+                    pop @r   if _strlen() gt $len;
+                }
+
+                #use () with le, or use <, otherwise it hangs!
+                return ( @l, $c, @r ) if ( _strlen() ) le $len || (@l eq 0 and @r eq 0);
             }
         };
 
@@ -1103,6 +1114,7 @@ package cdmn::sidebar {
 
             my $w = $s->{term}->ncol - 7;                       #2 border,space + 4 number% + 1 space
             my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
+            $c = 0 if $c < 0;
             my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
             push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
         }
