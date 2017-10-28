@@ -682,8 +682,9 @@ package cdmn::resources {
 
         local *_set_value = sub {
             my $n = $t->x_resource("$_[0]");
-            my $r = grep $n, @{ $_[1] };
-            return $r ? $r : $_[2];
+            my @r;
+            @r = grep(/$n/, @{ $_[1] }) if $n;
+            return (@r ? shift @r : $_[2]);
         };
 
         my $tblrc = [ (qw/top left bottom right center/) ];
@@ -743,9 +744,9 @@ package cdmn::resources {
         $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', 0 );
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
-        $s->{sidebar_position}        = _set_value( '%.sidebar.position',              $tblrc, 'bottom' );
-        $s->{sidebar_header_position} = _set_value( '%.label.sidebar.header.position', $tb,    'top' );    #TODO tl, tr, bl, br
-        $s->{sidebar_label_position}  = _set_value( '%.label.sidebar.label.position',  $tb,    'top' );    #TODO t, b, l, r
+        $s->{sidebar_position}        = _set_value( '%.sidebar.position',              $tblrc, 'right' );
+        $s->{sidebar_header_position} = _set_value( '%.sidebar.header.position', $tb,    'bottom' );
+        $s->{sidebar_label_position}  = _set_value( '%.sidebar.label.position',  $tb,    'top' );    #TODO t, b, l, r
 
         $s->set_disks;
         $s->set_batteries;
@@ -1168,7 +1169,11 @@ package cdmn::sidebar {
         my @data = ( @header, @content );
 
         if ( $s->{header_position} eq BOTTOM ) {
-            push @data, ( reverse splice @data, 0, 3 );
+            if ($s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ) {
+                push @data, ( reverse splice @data, 1, 4 ); #TODO remove hardcoded numbers
+            } else {
+                push @data, ( reverse splice @data, 0, 3 ); #TODO remove hardcoded numbers
+            }
             $data[$_]->{y} = $_ for 0 .. $#data;
             $data[$_]->{y} = $_ for -3 .. -1;
         }
