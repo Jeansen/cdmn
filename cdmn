@@ -55,6 +55,7 @@ package cdmn::math {
     }
 }
 
+
 package cdmn::constants {
     use constant {
         ACTION_TOGGLE         => 'cdmn:show',
@@ -736,7 +737,7 @@ package cdmn::resources {
         $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
 
         $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        9 );
-        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        0 );
+        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        4 );
         $s->{sidebar_header_fg} = _set_number( '%.sidebar.header.fg', 9 );
         $s->{sidebar_header_bg} = _set_number( '%.sidebar.header.bg', 0 );
         $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', 9 );
@@ -990,10 +991,8 @@ package cdmn::sidebar {
         $data{$title} = {%$args} if $args;    #TODO Cannot use $args as ref directly? So, deref. and new ref.
 
         my $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
-        my $i = 0;
         my $width;
-        $width = $s->{term}->ncol - 3 if $s->{border_position} eq RIGHT;
-        $width = $s->{term}->ncol - 3 if $s->{border_position} eq LEFT;
+        $width = $s->{term}->ncol - 3 if $s->{border_position} =~ m/^${\(RIGHT)}|${\(LEFT)}/;
         $width = $s->{term}->ncol - 1 if $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/;
 
         local *create_header_line = sub {
@@ -1025,7 +1024,8 @@ package cdmn::sidebar {
 
         };
 
-        local *_create_overlay = sub {
+        local *_overlay = sub {
+            state $i = 0;
             cdmn::visuals::overlay->new(
                 term      => $s->{term},
                 x         => $s->{border_position} eq LEFT ? 1 : 2,
@@ -1045,7 +1045,7 @@ package cdmn::sidebar {
         };
 
         local *_headers = sub {
-            my $len = $s->{term}->ncol - 8; #TODO as parameter
+            my $len = $s->{term}->ncol - 9; #TODO as parameter
             my @l   = @{ (shift) };
             my $c   = shift;
             my @r   = @{ (shift) };
@@ -1071,37 +1071,42 @@ package cdmn::sidebar {
             }
         };
 
-        my @headers2 = @headers;
         local *_pad = sub {
-            my $h = shift;
-            my $l = shift;
-            my $r = shift;
-            $h = " $l " . $h if exists $headers[0]  && exists $headers2[0]  && $headers[0] ne $headers2[0];
-            $h = $h . " $r " if exists $headers[-1] && exists $headers2[-1] && $headers[-1] ne $headers2[-1];
+            my ($h, $l, $r) = @_;
+            my @h1 = @{$_[-2]};
+            my @h2 = @{$_[-1]};
+            $h = " $l " . $h if exists $h1[0]  && exists $h2[0]  && $h1[0]  ne $h2[0];
+            $h = $h . " $r " if exists $h1[-1] && exists $h2[-1] && $h1[-1] ne $h2[-1];
             $h;
         };
 
-        #TODO remove splice and array 2, instead use [..]
-        my %hi = map { $headers2[$_] => $_ } 0 .. @headers2 - 1;
-        @headers2 = _headers( [ splice( @headers2, 0, $hi{$title} ) ], shift @headers2, [ ( splice( @headers2, 0 ) ) ] ) if exists $hi{$title};
+        local *_splice = sub {
+            my $t = shift;
+            my @h = @{(shift)};
+            [ splice( @h, 0, $t ) ], shift @h, [ ( splice( @h, 0 ) ) ];
+        };
 
-        # HEADER
-        push @header, _create_overlay( _center( _pad( create_header_line( $title, @headers2 ), SPACE, SPACE ) ) );
-        $header[-1]->{x} = 0;
-
-        push @header, _create_overlay( _center( _pad( create_header( $title, @headers2 ), ARR_L, ARR_R ) ) );
-        $header[-1]->{x} = 0;
-
-        # LINE
-        push @header, _create_overlay( $s->{header_position} eq TOP ? TD : BD );
-        $header[-1]->{repeat} = 1;
-        push @header, _create_overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
+        # BORDER
+        push @header, _overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
         $header[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
         $header[-1]->{width}  = $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ? 1 : $s->{term}->ncol;
         $header[-1]->{height} = $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/ ? 1 : $s->{term}->nrow;
         $header[-1]->{repeat} = 1;
 
-        #content
+        # HEADER
+        my %hi = map { $headers[$_] => $_ } 0 .. @headers - 1;
+        my @headers2 = exists $hi{$title} ? _headers( _splice($hi{$title},\@headers) ) : ();
+
+        push @header, _overlay( _center( _pad( create_header_line( $title, @headers2 ), SPACE, SPACE, \@headers, \@headers2 ) ) );
+        $header[-1]->{x} = 0;
+        push @header, _overlay( _center( _pad( create_header( $title, @headers2 ), ARR_L, ARR_R, \@headers, \@headers2 ) ) );
+        $header[-1]->{x} = 0;
+
+        # LINE
+        push @header, _overlay( $s->{header_position} eq TOP ? TD : BD );
+        $header[-1]->{repeat} = 1;
+
+        #CONTENT
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
         $scroll_i{$title}{&SCROLL_UP}   //= 0;
         $scroll_i{$title}{&SCROLL_DOWN} //= 0;
@@ -1110,13 +1115,13 @@ package cdmn::sidebar {
         my @slctn = ( sort keys %{ $data{$title} } );
 
         for (@slctn) {
-            push @content, _create_overlay($_);
+            push @content, _overlay($_);
 
             my $w = $s->{term}->ncol - 7;                       #2 border,space + 4 number% + 1 space
             my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
             $c = 0 if $c < 0;
             my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
-            push @content, _create_overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
+            push @content, _overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
         }
 
         my $lp     = ( $s->{label_position} eq TOP ? 2 : 1 );
@@ -1128,13 +1133,13 @@ package cdmn::sidebar {
 
         local *_down = sub {
             pop @content if $s->{label_position} eq TOP;
-            $content[-1] = _create_overlay( _center(ARR_DOWN) );
+            $content[-1] = _overlay( _center(ARR_DOWN) );
             $content[-1]->{y} = -1;
         };
 
         local *_up = sub {
             shift @content if $s->{label_position} eq TOP;
-            $content[0] = _create_overlay( _center(ARR_UP) );
+            $content[0] = _overlay( _center(ARR_UP) );
             $content[0]->{y} = $header[-1]->{y} + 1;
         };
 
@@ -1158,7 +1163,7 @@ package cdmn::sidebar {
             elsif ( $sdown le 0 ) { _down() }
         }
 
-        #Move header to bottom, if configured.
+        #MOVE HEADER TO BOTTOM, IF CONFIGURED.
         my @data = ( @header, @content );
 
         if ( $s->{header_position} eq BOTTOM ) {
@@ -2026,7 +2031,7 @@ sub refresh_bounds {
     my $height = XR->{sidebar_position} =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( XR->{sidebar_height} / 100 ) : $h;
     $x = XR->{sidebar_position} eq CDMN->RIGHT  ? $w - $width  : 0;
     $y = XR->{sidebar_position} eq CDMN->BOTTOM ? $h - $height : 0;
-    $s->{xterms}{sidebar}->bounds( $x, $y, $width, $height );
+    $s->{xterms}{sidebar}->bounds( $x, $y, $width + 4, $height + 4 );
 
     # say $y;
     # say $h;
