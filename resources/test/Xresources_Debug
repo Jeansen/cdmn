@@ -35,4 +35,6 @@ URxvt.cdmn.colors.cpu: 58,226
 URxvt.cdmn.padding: 2
 URxvt.cdmn.refresh: 2
 URxvt.cdmn.sidebar.bg: 4
+URxvt.cdmn.sidebar.header.position: top
+URxvt.cdmn.sidebar.position: right
 
