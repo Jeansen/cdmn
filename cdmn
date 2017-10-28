@@ -55,7 +55,6 @@ package cdmn::math {
     }
 }
 
-
 package cdmn::constants {
     use constant {
         ACTION_TOGGLE         => 'cdmn:show',
@@ -737,16 +736,16 @@ package cdmn::resources {
         $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
 
         $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        9 );
-        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        4 );
+        $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        0 );
         $s->{sidebar_header_fg} = _set_number( '%.sidebar.header.fg', 9 );
         $s->{sidebar_header_bg} = _set_number( '%.sidebar.header.bg', 0 );
         $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', 9 );
         $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', 0 );
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
-        $s->{sidebar_position}        = _set_value( '%.sidebar.position',              $tblrc, 'right' );
-        $s->{sidebar_header_position} = _set_value( '%.label.sidebar.header.position', $tb,    'top' );     #TODO tl, tr, bl, br
-        $s->{sidebar_label_position}  = _set_value( '%.label.sidebar.label.position',  $tb,    'top' );     #TODO t, b, l, r
+        $s->{sidebar_position}        = _set_value( '%.sidebar.position',              $tblrc, 'bottom' );
+        $s->{sidebar_header_position} = _set_value( '%.label.sidebar.header.position', $tb,    'top' );    #TODO tl, tr, bl, br
+        $s->{sidebar_label_position}  = _set_value( '%.label.sidebar.label.position',  $tb,    'top' );    #TODO t, b, l, r
 
         $s->set_disks;
         $s->set_batteries;
@@ -1045,13 +1044,13 @@ package cdmn::sidebar {
         };
 
         local *_headers = sub {
-            my $len = $s->{term}->ncol - 9; #TODO as parameter
+            my $len = $s->{term}->ncol - 9;    #TODO as parameter
             my @l   = @{ (shift) };
             my $c   = shift;
             my @r   = @{ (shift) };
 
             local *_strlen = sub {
-                    length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 );
+                length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 );
             };
 
             while () {
@@ -1067,35 +1066,37 @@ package cdmn::sidebar {
                 }
 
                 #use () with le, or use <, otherwise it hangs!
-                return ( @l, $c, @r ) if ( _strlen() ) le $len || (@l eq 0 and @r eq 0);
+                return ( @l, $c, @r ) if ( _strlen() ) le $len || ( @l eq 0 and @r eq 0 );
             }
         };
 
         local *_pad = sub {
-            my ($h, $l, $r) = @_;
-            my @h1 = @{$_[-2]};
-            my @h2 = @{$_[-1]};
-            $h = " $l " . $h if exists $h1[0]  && exists $h2[0]  && $h1[0]  ne $h2[0];
+            my ( $h, $l, $r ) = @_;
+            my @h1 = @{ $_[-2] };
+            my @h2 = @{ $_[-1] };
+            $h = " $l " . $h if exists $h1[0]  && exists $h2[0]  && $h1[0] ne $h2[0];
             $h = $h . " $r " if exists $h1[-1] && exists $h2[-1] && $h1[-1] ne $h2[-1];
             $h;
         };
 
         local *_splice = sub {
             my $t = shift;
-            my @h = @{(shift)};
+            my @h = @{ (shift) };
             [ splice( @h, 0, $t ) ], shift @h, [ ( splice( @h, 0 ) ) ];
         };
 
         # BORDER
-        push @header, _overlay("│") if $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/;
-        $header[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
-        $header[-1]->{width}  = $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ? 1 : $s->{term}->ncol;
-        $header[-1]->{height} = $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/ ? 1 : $s->{term}->nrow;
-        $header[-1]->{repeat} = 1;
+        if ( $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ) {
+            push @header, _overlay("│");
+            $header[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
+            $header[-1]->{width}  = $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ? 1 : $s->{term}->ncol;
+            $header[-1]->{height} = $s->{border_position} =~ m/^${\(TOP)}|${\(BOTTOM)}/ ? 1 : $s->{term}->nrow;
+            $header[-1]->{repeat} = 1;
+        }
 
         # HEADER
         my %hi = map { $headers[$_] => $_ } 0 .. @headers - 1;
-        my @headers2 = exists $hi{$title} ? _headers( _splice($hi{$title},\@headers) ) : ();
+        my @headers2 = exists $hi{$title} ? _headers( _splice( $hi{$title}, \@headers ) ) : ();
 
         push @header, _overlay( _center( _pad( create_header_line( $title, @headers2 ), SPACE, SPACE, \@headers, \@headers2 ) ) );
         $header[-1]->{x} = 0;
