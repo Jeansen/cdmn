@@ -88,7 +88,8 @@ overlay mode you can use `Meta-h` to go to normal mode and then use `Meta-h` rep
 *cdmn*. Just try it! It should be fairly intuitive.
 
 Additional information can be accessed with the `Meta-p` binding. This will show the sidebar containing multiple 
-panes with more verbose information. Use `Meta-j` and `Meta-k` to navigate between these panes. 
+panes with more verbose information. Use `Meta-j` and `Meta-k` to navigate between these panes and `Ctrl-j` and `Ctrl-k`
+to scroll up and down. Don't worry, you will be able to set these bindings, soon.
 
 The sidebar is in heavy development at the moment. Stay tuned but do not expect too much ;-)
 
@@ -122,6 +123,12 @@ use any number between 0 and 255.
 Want to know what colors have which number? Try this one-liner in your terminal and see for yourself:
 
     for i in {0..255}; do echo -e "\e[38;05;${i}m${i}"; done | column -c 80 -s ' '; echo -e "\e[m"
+    
+And finally, you can define if you would like bold labels:
+
+| Resource | Function | Default |
+| --- | --- | --- |
+| `URxvt.cdmn.label.bold` | Bold labels | 0 (1) |
 
 ## Layout
 
@@ -219,19 +226,40 @@ Finally there are even more settings ...
 | --- | --- | --- |
 | `URxvt.cdmn.disk.mountsonly` | Only show disk gauges for disks with at least one mount point. | 0 (1) |
 
-## Resource Settings for rxvt
-
-For this extension to work properly, you will have to set scrollbars to be invisible, activate 32bit colors and make the background black. Here is 
-an suggestion of the minimal settings necessary. 
-
-    URxvt*scrollBar:        false
-    URxvt*background:       rgba:0000/0000/0000/f000
-    URxvt*depth:            32
-    URxvt*perl-lib:         /home/<USERNAME>/.urxvt/
 
 There is an initial .Xresouces file inthde resources folder with some minimal necessary settings, including some 
 color overwrites to make it look like the example screenshots. Make sure you adapt the line `URxvt*perl-lib: 
 /home/<USERNAME>/.urxvt/` accordingly.
+
+# How to customize the sidebar (so far)
+
+Now, while still in development, there are already some things that work and that you can customize:
+
+| Resource | Function | Default (Other) | Notes |
+| --- | --- | --- | --- |
+| `URxvt.cdmn.sidebar.bg` | Background color | Terminal background (0-255) ||
+| `URxvt.cdmn.sidebar.fg` | Foreground color | Terminal foreground (0-255) ||
+| `URxvt.cdmn.sidebar.border.fg` | Border color | Terminal foreground (0-255) ||
+| `URxvt.cdmn.sidebar.width` | How much space to use for the sidebar in percentages | 50 (30-100) | If `URxvt.cdmn.sidebar.position` set to `left` or `right` |
+| `URxvt.cdmn.sidebar.height` | How much space to use for the sidebar in percentages  | 40 (30-100) | If `URxvt.cdmn.sidebar.position` set to `bottom` or `top` |
+| `URxvt.cdmn.sidebar.position` | Sidebar position | right (top, bottom, left, center) ||
+| `URxvt.cdmn.sidebar.header.position` | Header position | top (bottom) ||
+| `URxvt.cdmn.sidebar.label.position` | Label position for graphs | top (bottom) ||
+| `URxvt.cdmn.sidebar.graph.symbols` | Use given symbols for depicting graphs | '■, □' (ANY) | Any character or list of two characters, e.g.: <br><br> █ ░ <br> ▪ ▫ <br> ▬ ▭ <br> ○ ● |
+| `URxvt.cdmn.sidebar.border.visible` | Show border | 1 (0) | If `URxvt.cdmn.sidebar.position` set to `bottom` or `top` |
+
+Most of these settings should be self-explanatory. Some values are only taken into account with specific sidebar positions. 
+For instance, if you set `URxvt.cdmn.sidebar.position` to `left` or `right`, only your setting for `URxvt.cdmn.sidebar.width` 
+will be honored whereas `URxvt.cdmn.sidebar.height` will be fixed at 100%. Similarly, if you set `URxvt.cdmn.sidebar.position` 
+to `top` or `bottom` only your setting for `URxvt.cdmn.sidebar.height` will be honored whereas `URxvt.cdmn.sidebar.width` 
+will be fixed at 100%. Finally, `center` will set both, width and height, to 100% and ignore any of your settings for
+width and height. In addition you can decide if you would like to have a border when you position the sidbar left or right.
+
+For the graphs shown on each pane you can set the symbols to use. Generally, there are two symbols. One symbols serves as
+the background and the other serves as the indicator. But you can also leave out the second symbols if you want to have a
+transparent effect. Depending on the order you can decide how the graphs will fill - either from left to right or vice-versa.
+Just play with the settings and see what fits best for you!
+
 
 # Context awareness
 
