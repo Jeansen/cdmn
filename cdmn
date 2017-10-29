@@ -593,6 +593,7 @@ package cdmn::resources {
         label_fg
         label_position
         label_padding
+        label_bold
 
         gauges
         gauges_order
@@ -632,15 +633,14 @@ package cdmn::resources {
 
         sidebar_fg
         sidebar_bg
-        sidebar_header_fg
-        sidebar_header_bg
         sidebar_border_fg
-        sidebar_border_bg
         sidebar_width
         sidebar_height
         sidebar_position
         sidebar_header_position
         sidebar_label_position
+        sidebar_graph_symbols
+        sidebar_border_visible
     );
 
     use constant {
@@ -667,8 +667,8 @@ package cdmn::resources {
 
         local *_set_list = sub {
             my $r = $t->x_resource("$_[0]");
-            return [ split( /[,[:space:]]/, $r ) ]    if $r;
-            return [ split( /[,[:space:]]/, $_[1] ) ] if $_[1];
+            return [ split( /[,[:space:]]+/, $r ) ]    if $r;
+            return [ split( /[,[:space:]]+/, $_[1] ) ] if $_[1];
             [ () ];
         };
 
@@ -684,8 +684,8 @@ package cdmn::resources {
         local *_set_value = sub {
             my $n = $t->x_resource("$_[0]");
             my @r;
-            @r = grep(/$n/, @{ $_[1] }) if $n;
-            return (@r ? shift @r : $_[2]);
+            @r = grep( /$n/, @{ $_[1] } ) if $n;
+            return ( @r ? shift @r : $_[2] );
         };
 
         my $tblrc = [ (qw/top left bottom right center/) ];
@@ -702,6 +702,7 @@ package cdmn::resources {
         $s->{label_bg}         = _set_number( '%.label.bg', 1 );
         $s->{label_position}   = _set_value( '%.label.position', [ (qw/left right/) ], 'left' );
         $s->{label_padding}    = _set_number( '%.label.padding', 0 );
+        $s->{label_bold}       = _set_number( '%.label.bold', 0 );
 
         $s->{showing}        = _set_number( '%.showing',        1 );
         $s->{showing_labels} = _set_number( '%.showing.labels', 1 );
@@ -739,15 +740,14 @@ package cdmn::resources {
 
         $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        9 );
         $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        0 );
-        $s->{sidebar_header_fg} = _set_number( '%.sidebar.header.fg', 9 );
-        $s->{sidebar_header_bg} = _set_number( '%.sidebar.header.bg', 0 );
-        $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', 9 );
-        $s->{sidebar_border_bg} = _set_number( '%.sidebar.border.bg', 0 );
+        $s->{sidebar_border_fg} = _set_number( '%.sidebar.border.fg', 7 );
         $s->{sidebar_width}     = _set_number( '%.sidebar.width',     50, 30, 100 );    #percentage
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
-        $s->{sidebar_position}        = _set_value( '%.sidebar.position',              $tblrc, 'right' );
+        $s->{sidebar_position}        = _set_value( '%.sidebar.position',        $tblrc, 'right' );
         $s->{sidebar_header_position} = _set_value( '%.sidebar.header.position', $tb,    'bottom' );
-        $s->{sidebar_label_position}  = _set_value( '%.sidebar.label.position',  $tb,    'top' );    #TODO t, b, l, r
+        $s->{sidebar_label_position}  = _set_value( '%.sidebar.label.position',  $tb,    'top' );      #TODO t, b, l, r
+        $s->{sidebar_graph_symbols} = _set_list( '%.sidebar.graph.symbols', '■, □' );
+        $s->{sidebar_border_visible} = _set_number( '%.sidebar.border.visible', 1 );
 
         $s->set_disks;
         $s->set_batteries;
@@ -950,13 +950,12 @@ package cdmn::sidebar {
 
         bg
         fg
-        bg_header
-        fg_header
-        bg_border
         fg_border
         border_position
         header_position
         label_position
+        graph_symbols
+        border_visible
     );
 
     use constant {
@@ -971,6 +970,8 @@ package cdmn::sidebar {
         ARR_L => "❮",
         ARR_R => "❯",
         SPACE => " ",
+        BL    => "▕",
+        BR    => "▏",
     };
 
     use constant {
@@ -980,7 +981,10 @@ package cdmn::sidebar {
         BOTTOM => 'bottom',
     };
 
-    use constant { FILL => "■", NOFILL => "□", ARR_UP => "▲", ARR_DOWN => "▼", };
+    use constant {
+        ARR_UP   => "▲",
+        ARR_DOWN => "▼",
+    };
 
     use constant { SCROLL_UP => 'up', SCROLL_DOWN => 'down' };
 
@@ -991,7 +995,8 @@ package cdmn::sidebar {
         my ( $s, $title, $args ) = @_;
         $data{$title} = {%$args} if $args;    #TODO Cannot use $args as ref directly? So, deref. and new ref.
 
-        my $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
+        my $r = REND;
+        $r = urxvt::SET_FGCOLOR REND, $s->{fg};
 
         local *create_header_line = sub {
             my ( $c, $h, @l ) = @_;
@@ -1085,13 +1090,16 @@ package cdmn::sidebar {
         };
 
         # BORDER
-        if ( $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ) {
-            push @header, _overlay("│");
-            $header[-1]->{x}      = $s->{border_position} eq RIGHT                      ? 0 : -1;
+        if ( $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ && $s->{border_visible} ) {
+            $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
+            push @header, _overlay( $s->{border_position} eq RIGHT ? BR : BL );
+            $header[-1]->{x}      = $s->{border_position} eq RIGHT                        ? 0 : -1;
             $header[-1]->{width}  = $s->{border_position} =~ m/^(${\(LEFT)}|${\(RIGHT)})/ ? 1 : $s->{term}->ncol;
             $header[-1]->{height} = $s->{border_position} =~ m/^(${\(TOP)}|${\(BOTTOM)})/ ? 1 : $s->{term}->nrow;
             $header[-1]->{repeat} = 1;
         }
+
+        $r = urxvt::SET_FGCOLOR REND, $s->{fg};
 
         # HEADER
         my %hi = map { $headers[$_] => $_ } 0 .. @headers - 1;
@@ -1099,6 +1107,7 @@ package cdmn::sidebar {
 
         push @header, _overlay( _center( _pad( create_header_line( $title, @headers2 ), SPACE, SPACE, \@headers, \@headers2 ) ) );
         $header[-1]->{x} = 0;
+
         push @header, _overlay( _center( _pad( create_header( $title, @headers2 ), ARR_L, ARR_R, \@headers, \@headers2 ) ) );
         $header[-1]->{x} = 0;
 
@@ -1107,7 +1116,6 @@ package cdmn::sidebar {
         $header[-1]->{repeat} = 1;
 
         #CONTENT
-        $r = urxvt::SET_FGCOLOR REND, $s->{fg};
         $scroll_i{$title}{&SCROLL_UP}   //= 0;
         $scroll_i{$title}{&SCROLL_DOWN} //= 0;
 
@@ -1121,7 +1129,7 @@ package cdmn::sidebar {
             my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
             $c = 0 if $c < 0;
             my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
-            push @content, _overlay( FILL x $c . NOFILL x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
+            push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
         }
 
         my $lp     = ( $s->{label_position} eq TOP ? 2 : 1 );
@@ -1167,10 +1175,11 @@ package cdmn::sidebar {
         my @data = ( @header, @content );
 
         if ( $s->{header_position} eq BOTTOM ) {
-            if ($s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ ) {
-                push @data, ( reverse splice @data, 1, 4 ); #TODO remove hardcoded numbers
-            } else {
-                push @data, ( reverse splice @data, 0, 3 ); #TODO remove hardcoded numbers
+            if ( $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ && $s->{border_visible} ) {
+                push @data, ( reverse splice @data, 1, 4 );    #TODO remove hardcoded numbers
+            }
+            else {
+                push @data, ( reverse splice @data, 0, 3 );    #TODO remove hardcoded numbers
             }
             $data[$_]->{y} = $_ for 0 .. $#data;
             $data[$_]->{y} = $_ for -3 .. -1;
@@ -1194,13 +1203,12 @@ package cdmn::sidebar {
                 visible         => { default => 0 },
                 bg              => 1,
                 fg              => 1,
-                bg_header       => 1,
-                fg_header       => 1,
-                bg_border       => 1,
                 fg_border       => 1,
                 border_position => 1,
                 header_position => 1,
                 label_position  => 1,
+                graph_symbols   => 1,
+                border_visible  => 1,
             }
         );
 
@@ -1514,6 +1522,7 @@ package cdmn::visuals::container {
                 gauges        => 1,
                 label_bg      => 1,
                 label_fg      => 1,
+                label_bold    => 1,
                 gauges_colors => 1,
                 gauges_bg     => 1,
                 visual_style  => 1,
@@ -1539,6 +1548,7 @@ package cdmn::visuals::container {
             sensitivity   => $arg{sensitivity},
             label_pos     => $s->{label_pos},
             padding       => $arg{padding},
+            label_bold    => $arg{label_bold},
         );
 
         $s->{detail}{ $arg{name} } = $arg{detail};
@@ -1749,6 +1759,7 @@ package cdmn::visuals::visual {
         label_bg
         label_fg
         label_pos
+        label_bold
 
         gauges
         gauges_colors
@@ -1779,6 +1790,7 @@ package cdmn::visuals::visual {
                 gauges        => 1,
                 label_bg      => 1,
                 label_fg      => 1,
+                label_bold    => 1,
                 gauges_colors => 1,
                 gauges_bg     => 1,
                 visual_style  => 1,
@@ -1816,7 +1828,8 @@ package cdmn::visuals::visual {
         my $x = $s->{x};
 
         local *_label = sub {
-            $s->{rendition} = urxvt::SET_COLOR $s->{rendition}, $s->{label_fg}, $s->{label_bg};    #TODO option to be bold
+            $s->{rendition} = urxvt::SET_COLOR $s->{rendition}, $s->{label_fg}, $s->{label_bg};
+            $s->{rendition} = $s->{rendition} | urxvt::RS_Bold if $s->{label_bold};
             my $labelObj = cdmn::visuals::overlay->new(
                 term      => $s->{term},
                 x         => $x,
@@ -2067,6 +2080,7 @@ sub create_caption {
                 name          => $c->{name},
                 detail        => $c->{detail},
                 graph         => $c->{length},
+                label_bold    => XR->{label_bold},
             );
         };
 
@@ -2303,13 +2317,12 @@ sub on_start {
         height          => XR->{sidebar_position} =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( XR->{sidebar_height} / 100 ) : $h,
         fg              => XR->{sidebar_fg},
         bg              => XR->{sidebar_bg},
-        bg_header       => XR->{sidebar_header_bg},
-        fg_header       => XR->{sidebar_header_fg},
         fg_border       => XR->{sidebar_border_fg},
-        bg_border       => XR->{sidebar_border_bg},
         border_position => XR->{sidebar_position},
         header_position => XR->{sidebar_header_position},
         label_position  => XR->{sidebar_label_position},
+        graph_symbols   => XR->{sidebar_graph_symbols},
+        border_visible  => XR->{sidebar_border_visible},
     );
 
     #$s->{xterms}{main}->hide if ( XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL );
