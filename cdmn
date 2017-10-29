@@ -667,17 +667,17 @@ package cdmn::resources {
 
         local *_set_list = sub {
             my $r = $t->x_resource("$_[0]");
+            $r = $t->locale_decode( $r) if $r;
             return [ split( /[,[:space:]]+/, $r ) ]    if $r;
             return [ split( /[,[:space:]]+/, $_[1] ) ] if $_[1];
             [ () ];
         };
 
-        #TODO optimize
         local *_set_number = sub {
-            my $n = $t->x_resource("$_[0]");
-            $n = looks_like_number($n) ? $n : $_[1];
-            $n = $_[2] if exists $_[2] and $n < $_[2];
-            $n = $_[3] if exists $_[3] and $n > $_[3];
+            my $n = $t->x_resource(shift);
+            $n = looks_like_number($n) ? $n : shift;
+            $n = $_[0] if $_[0] and $n < $_[0];
+            $n = $_[1] if $_[1] and $n > $_[1];
             $n;
         };
 
@@ -745,7 +745,7 @@ package cdmn::resources {
         $s->{sidebar_height}    = _set_number( '%.sidebar.height',    40, 30, 100 );    #percentage
         $s->{sidebar_position}        = _set_value( '%.sidebar.position',        $tblrc, 'right' );
         $s->{sidebar_header_position} = _set_value( '%.sidebar.header.position', $tb,    'bottom' );
-        $s->{sidebar_label_position}  = _set_value( '%.sidebar.label.position',  $tb,    'top' );      #TODO t, b, l, r
+        $s->{sidebar_label_position}  = _set_value( '%.sidebar.label.position',  $tb,    'top' );
         $s->{sidebar_graph_symbols} = _set_list( '%.sidebar.graph.symbols', '■, □' );
         $s->{sidebar_border_visible} = _set_number( '%.sidebar.border.visible', 1 );
 
@@ -970,8 +970,8 @@ package cdmn::sidebar {
         ARR_L => "❮",
         ARR_R => "❯",
         SPACE => " ",
-        BL    => "▕",
-        BR    => "▏",
+        BORDER_L    => "▕",
+        BORDER_R    => "▏",
     };
 
     use constant {
@@ -1092,7 +1092,7 @@ package cdmn::sidebar {
         # BORDER
         if ( $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ && $s->{border_visible} ) {
             $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
-            push @header, _overlay( $s->{border_position} eq RIGHT ? BR : BL );
+            push @header, _overlay( $s->{border_position} eq RIGHT ? BORDER_R : BORDER_L );
             $header[-1]->{x}      = $s->{border_position} eq RIGHT                        ? 0 : -1;
             $header[-1]->{width}  = $s->{border_position} =~ m/^(${\(LEFT)}|${\(RIGHT)})/ ? 1 : $s->{term}->ncol;
             $header[-1]->{height} = $s->{border_position} =~ m/^(${\(TOP)}|${\(BOTTOM)})/ ? 1 : $s->{term}->nrow;
@@ -1216,10 +1216,10 @@ package cdmn::sidebar {
             parent   => $s->{parent},
             x        => $s->{x},
             y        => $s->{y},
-            w        => $s->{width} + 16,    #TODO this is just to overscan header lines in sidebars but should not be needed at all!
-            h        => $s->{height} + 4,    #TODO why add 4?
+            w        => $s->{width},
+            h        => $s->{height},
             bg_color => $s->{bg},
-
+            bare => 1,
             # bg_color => 8,
             is_root => 0
         );
@@ -1350,7 +1350,7 @@ package cdmn::term {
     use Params::Validate qw(:all);
     use File::Basename;
 
-    use fields qw(x y w h term parent bg_color content is_root maximized);
+    use fields qw(x y w h term parent bg_color content is_root maximized bare);
 
     use constant CDMN => 'cdmn::constants';
 
@@ -1364,12 +1364,13 @@ package cdmn::term {
         (%$s) = validate(
             @_,
             {   parent   => 1,
-                bg_color => 1,
+                bg_color => 0,
                 is_root  => 1,
                 x        => { default => 1 },
                 y        => { default => 1 },
                 w        => { default => 1 },
-                h        => { default => 1 }
+                h        => { default => 1 },
+                bare     => { default => 0 }, #bare will deactivate all disturbing settins, e.g. scrollbars, ...
             }
         );
 
@@ -1390,8 +1391,10 @@ package cdmn::term {
         my $environ = $s->{parent}->env;
         $environ->{SHELL} = 'sh' if !$s->{is_root};
 
-        #$s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg =>6 );
-        $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, -depth => 32, -bg => $s->{bg_color} );   #TODO only 16 colors?
+        my @options = ('-depth' => 32);
+        unshift(@options, '+sb') if $s->{bare};
+        push(@options,'-bg' => $s->{bg_color} ) if $s->{bg_color};
+        $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent,  @options );   #TODO only 16 colors?
 
         $s->bounds( @$s{qw/x y w h/} );
         $s->{is_root} ? $root = $s : push( @terminals, $s );
@@ -2043,7 +2046,6 @@ sub refresh_bounds {
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4, $h + 4 ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL;
     }
 
-    #TODO remove hardcoded constants and try refactoring
     my $width  = XR->{sidebar_position} =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $w * ( XR->{sidebar_width} / 100 )  : $w;
     my $height = XR->{sidebar_position} =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( XR->{sidebar_height} / 100 ) : $h;
     $x = XR->{sidebar_position} eq CDMN->RIGHT  ? $w - $width  : 0;
@@ -2300,15 +2302,12 @@ sub on_start {
 
     $s->{xterms}{main} = cdmn::term->new(
         parent   => $s,
-        bg_color => 0,    #TODO take it from the resource
         is_root  => 1
     )->maximize->show;
 
-    #TODO use calc_bounds?
     my $w = $s->fwidth * $s->ncol;
     my $h = $s->fheight * $s->nrow;
 
-    #TODO constants
     $s->{xterms}{sidebar} = cdmn::sidebar->new(
         parent          => $s,
         x               => XR->{sidebar_position} eq CDMN->RIGHT ? $w - $w * ( XR->{sidebar_width} / 100 ) : 0,
@@ -2382,6 +2381,7 @@ sub on_start {
 
             _set($_) foreach keys %{ ${ $s->{captions}[0] }->{gauges} };
 
+            #TODO make it part of resouce options
             my $mounts = cdmn::proc::mounts;
             %r = map { $_ => df($_)->{per} } ( sort values %$mounts );
             $s->{xterms}{sidebar}->set_pane( 'FS', \%r );    #if $s->{xterms}{sidebar}{visible};
