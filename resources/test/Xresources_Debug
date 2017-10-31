@@ -39,4 +39,5 @@ URxvt.cdmn.sidebar.header.position: bottom
 URxvt.cdmn.sidebar.position: bottom
 URxvt.cdmn.label.bold: 1
 URxvt.cdmn.sidebar.graph.symbols: ○,●
+/* URxvt.cdmn.visual.alignment: col */
 
