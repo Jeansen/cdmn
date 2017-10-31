@@ -667,7 +667,7 @@ package cdmn::resources {
 
         local *_set_list = sub {
             my $r = $t->x_resource("$_[0]");
-            $r = $t->locale_decode( $r) if $r;
+            $r = $t->locale_decode($r) if $r;
             return [ split( /[,[:space:]]+/, $r ) ]    if $r;
             return [ split( /[,[:space:]]+/, $_[1] ) ] if $_[1];
             [ () ];
@@ -959,19 +959,19 @@ package cdmn::sidebar {
     );
 
     use constant {
-        TL    => "┏",
-        TR    => "┓",
-        BL    => "┗",
-        BR    => "┛",
-        M     => "━",
-        TD    => "▔",
-        BD    => "▁",
-        VD    => "┃",
-        ARR_L => "❮",
-        ARR_R => "❯",
-        SPACE => " ",
-        BORDER_L    => "▕",
-        BORDER_R    => "▏",
+        TL       => "┏",
+        TR       => "┓",
+        BL       => "┗",
+        BR       => "┛",
+        M        => "━",
+        TD       => "▔",
+        BD       => "▁",
+        VD       => "┃",
+        ARR_L    => "❮",
+        ARR_R    => "❯",
+        SPACE    => " ",
+        BORDER_L => "▕",
+        BORDER_R => "▏",
     };
 
     use constant {
@@ -1219,7 +1219,8 @@ package cdmn::sidebar {
             w        => $s->{width},
             h        => $s->{height},
             bg_color => $s->{bg},
-            bare => 1,
+            bare     => 1,
+
             # bg_color => 8,
             is_root => 0
         );
@@ -1370,7 +1371,7 @@ package cdmn::term {
                 y        => { default => 1 },
                 w        => { default => 1 },
                 h        => { default => 1 },
-                bare     => { default => 0 }, #bare will deactivate all disturbing settins, e.g. scrollbars, ...
+                bare     => { default => 0 },    #bare will deactivate all disturbing settins, e.g. scrollbars, ...
             }
         );
 
@@ -1391,10 +1392,10 @@ package cdmn::term {
         my $environ = $s->{parent}->env;
         $environ->{SHELL} = 'sh' if !$s->{is_root};
 
-        my @options = ('-depth' => 32);
-        unshift(@options, '+sb') if $s->{bare};
-        push(@options,'-bg' => $s->{bg_color} ) if $s->{bg_color};
-        $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent,  @options );   #TODO only 16 colors?
+        my @options = ( '-depth' => 32 );
+        unshift( @options, '+sb' ) if $s->{bare};
+        push( @options, '-bg' => $s->{bg_color} ) if $s->{bg_color};
+        $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, @options );    #TODO only 16 colors?
 
         $s->bounds( @$s{qw/x y w h/} );
         $s->{is_root} ? $root = $s : push( @terminals, $s );
@@ -2017,43 +2018,40 @@ sub redraw {
 # R: List with new bounds
 sub calc_bounds {
     my ( $s, $t ) = @_;
-    my ( $h, $w, $x, $y ) = ( 0, 0, $s->{x}, $s->{y} );
+    my ( $h, $w, $x, $y ) = ( $s->{height}, $s->{width}, $s->{x}, $s->{y} );
 
     if ( $t eq CDMN->VISUAL_ALIGN_ROW ) {
-        $h = $s->fheight * ( $s->nrow );
-        $w = $s->width;
         $y = XR->{y} >= 0 ? $s->fheight : -1;
     }
     if ( $t eq CDMN->VISUAL_ALIGN_COL ) {
-        $h = $s->fheight * ( $s->nrow );
-        $w = $s->width - ${ $s->{captions}[0] }->{width};
+        $w = $s->{width} - ${ $s->{captions}[0] }->{width};
         $y = 0;
     }
     $x = 0;
     ( $h, $w, $x, $y );
 }
 
-#TODO why add 4 to w and h
 sub refresh_bounds {
     my ( $s, $t ) = @_;
     my ( $h, $w, $x, $y ) = calc_bounds( $s, $t );
 
     if ( $s->{xterms}{main}{maximized} ) {
-        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
+        $s->{xterms}{main}->bounds( 0, 0, $s->{width}, $s->{height} );
     }
     else {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h );
-        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4, $h + 4 ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL;
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w, $h );
+        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->{width} - $w : 0, 0, $w, $h ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL;
     }
 
-    my $width  = XR->{sidebar_position} =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $w * ( XR->{sidebar_width} / 100 )  : $w;
-    my $height = XR->{sidebar_position} =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( XR->{sidebar_height} / 100 ) : $h;
-    $x = XR->{sidebar_position} eq CDMN->RIGHT  ? $w - $width  : 0;
-    $y = XR->{sidebar_position} eq CDMN->BOTTOM ? $h - $height : 0;
-    $s->{xterms}{sidebar}->bounds( $x, $y, $width + 4, $height + 4 );
+    my ( $sb_pos, $sb_w, $sb_h ) = @{&XR}{qw(sidebar_position sidebar_width sidebar_height)};
+    my $width  = $sb_pos =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $s->{width} *  ( $sb_w / 100 ) : $s->{width};
+    my $height = $sb_pos =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $s->{height} * ( $sb_h / 100 ) : $s->{height};
+    $x = $sb_pos eq CDMN->RIGHT  ? $s->{width} - $width   : 0;
+    $y = $sb_pos eq CDMN->BOTTOM ? $s->{height} - $height : 0;
+    $s->{xterms}{sidebar}->bounds( $x, $y, $width, $height );
 
     my $sidebar = $s->{xterms}{sidebar};
-    $sidebar->refresh_pane if $sidebar->{visible} && ceil( $sidebar->{term}->height / $sidebar->{term}->fheight ) > 4;
+    $sidebar->refresh_pane if $sidebar->{visible} && ceil( $sidebar->{term}->{height} / $sidebar->{term}->fheight ) > 4;    #TODO remove magic number
 
 }
 
@@ -2146,14 +2144,14 @@ $user_command{ CDMN->ACTION_TOGGLE } = sub {
     my ( $h, $w, $x, $y ) = calc_bounds( $s, XR->{visual_align} );
 
     if ( $s->{xterms}{main}{maximized} ) {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w + 4, $h + 4 ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_ROW;
-        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->width - $w : 0, 0, $w + 4, $h + 4 ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL;
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w, $h ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_ROW;
+        $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->{width} - $w : 0, 0, $w, $h ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL;
         $s->{xterms}{main}{maximized} = 0;
         ${ $s->{captions}->[0] }->hide;
         XR->{showing} = 1;
     }
     else {
-        $s->{xterms}{main}->bounds( 0, 0, $s->width + 4, $s->height + 4 );
+        $s->{xterms}{main}->bounds( 0, 0, $s->{width}, $s->{height} );
         $s->{xterms}{main}{maximized} = 1;
         XR->{showing} = 0;
     }
@@ -2251,7 +2249,9 @@ sub on_refresh_end {
 
 # React on X Events (resize)
 sub on_configure_notify {
-    my $s = shift;
+    my ( $s, $e ) = @_;
+    $s->{width}  = $e->{width};
+    $s->{height} = $e->{height};
     return if $s->{w_size} eq $s->{term}->ncol && $s->{y_size} eq $s->{term}->nrow;
     refresh_bounds( $s, XR->{visual_align} );
     1;
@@ -2294,6 +2294,8 @@ sub on_tt_write {
 sub on_init {
     my ($s) = @_;
     XR->init($s);
+    $s->{width}  = 0;
+    $s->{height} = 0;
     ();
 }
 
@@ -2301,19 +2303,21 @@ sub on_start {
     my ($s) = @_;
 
     $s->{xterms}{main} = cdmn::term->new(
-        parent   => $s,
-        is_root  => 1
+        parent  => $s,
+        is_root => 1
     )->maximize->show;
 
-    my $w = $s->fwidth * $s->ncol;
-    my $h = $s->fheight * $s->nrow;
+    my $w = $s->width;
+    my $h = $s->height;
+
+    my ( $sb_pos, $sb_w, $sb_h ) = @{&XR}{qw(sidebar_position sidebar_width sidebar_height)};
 
     $s->{xterms}{sidebar} = cdmn::sidebar->new(
         parent          => $s,
-        x               => XR->{sidebar_position} eq CDMN->RIGHT ? $w - $w * ( XR->{sidebar_width} / 100 ) : 0,
-        y               => XR->{sidebar_position} eq CDMN->BOTTOM ? $h - $h * ( XR->{sidebar_height} / 100 ) : 0,
-        width           => XR->{sidebar_position} =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $w * ( XR->{sidebar_width} / 100 ) : $w,
-        height          => XR->{sidebar_position} =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( XR->{sidebar_height} / 100 ) : $h,
+        x               => $sb_pos eq CDMN->RIGHT ? $w - $w * ( $sb_w / 100 ) : 0,
+        y               => $sb_pos eq CDMN->BOTTOM ? $h - $h * ( $sb_h / 100 ) : 0,
+        width           => $sb_pos =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $w * ( $sb_w / 100 ) : $w,
+        height          => $sb_pos =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $h * ( $sb_h / 100 ) : $h,
         fg              => XR->{sidebar_fg},
         bg              => XR->{sidebar_bg},
         fg_border       => XR->{sidebar_border_fg},
