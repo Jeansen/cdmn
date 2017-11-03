@@ -53,6 +53,20 @@ package cdmn::math {
 
         return \@cut;
     }
+
+    sub union {
+
+        #TODO named parameters
+        shift if scalar @_ > 2;    #drop first parameter if called as object
+        my @cut = ();
+        my %n   = ();
+
+        for my $e ( @{ $_[0] }, @{ $_[1] } ) { $n{$e} = 1 if !exists $n{$e} }
+        for my $e ( keys %n ) { push @{ \@cut }, $e }
+
+        return \@cut;
+    }
+
 }
 
 package cdmn::constants {
@@ -642,6 +656,7 @@ package cdmn::resources {
         sidebar_label_position
         sidebar_graph_symbols
         sidebar_border_visible
+        sidebar_panes_order
     );
 
     use constant {
@@ -656,6 +671,7 @@ package cdmn::resources {
     };
 
     use constant DEFAULT_ORDER => (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery/);
+    use constant DEFAULT_PANE_ORDER => (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery/);
 
     sub new {
         my $s = shift;
@@ -751,6 +767,7 @@ package cdmn::resources {
         $s->{sidebar_label_position}  = _set_value( '%.sidebar.label.position',  $tb,    'top' );
         $s->{sidebar_graph_symbols} = _set_list( '%.sidebar.graph.symbols', '■, □' );
         $s->{sidebar_border_visible} = _set_number( '%.sidebar.border.visible', 1 );
+        $s->{sidebar_panes_order} = _set_list('%.sidebar.panes.order');
 
         $s->set_disks;
         $s->set_batteries;
@@ -760,6 +777,7 @@ package cdmn::resources {
         $s->set_invert;
         $s->set_colors;
         $s->set_graphs;
+        $s->set_panes;
 
         for (qw/network disk cpu cpu_temp memory battery/) {
             ( my $t = $_ ) =~ s/y$/ie/;
@@ -804,6 +822,13 @@ package cdmn::resources {
         $s->{gauges_order} = $validate->( $s, $s->{gauges_order}, [DEFAULT_ORDER] );
         $s->{gauges_order} = $s->remap( $s->{gauges_order} );
 
+        $s;
+    }
+
+    sub set_panes {
+        my $s = shift;
+        $s->{sidebar_panes_order} = $validate->( $s, $s->{sidebar_panes_order}, [DEFAULT_PANE_ORDER] );
+        $s->{sidebar_panes_order} = $s->remap( $s->{sidebar_panes_order} );
         $s;
     }
 
@@ -2341,11 +2366,11 @@ sub on_start {
     #$s->cmd_parse("\e[2T\e[2B"); #Scroll down and move cursor down 2 line.
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
 
-    for ( @{ XR->{gauges_order} } ) {
+    for ( @{ XR->{sidebar_panes_order} } ) {
         $s->{xterms}{sidebar}->add_pane($_) if XR->has_content($_);
     }
 
-    $s->{xterms}{sidebar}->add_pane('FS');    #TODO remove hardcoded lines
+   # $s->{xterms}{sidebar}->add_pane('FS');    #TODO remove hardcoded lines
     $s->{xterms}{sidebar}{active_pane} = 0;
 
     $s->{visuals_updater} = urxvt::timer->new->start( int urxvt::NOW )->interval( XR->{refresh} )->cb(
@@ -2367,29 +2392,24 @@ sub on_start {
             $usage_of{network}  = sub { _filter( cdmn::proc::network_usages(), XR->{gauges_networks} ) };
 
             local *_set = sub {
-                my $gauge_name = shift;
+                my $gauges = shift;
+                my $panes = shift;
+
+                $r{$_} = {$usage_of{$_}->()} foreach @{ cdmn::math->union( $gauges, $panes )};
+
                 my %inverts = map { $_ => 1 } @{ XR->{gauges_invert} };
 
-                %r = $usage_of{$gauge_name}->();
+                $s->{xterms}{sidebar}->set_pane( $_, $r{$_}) for @$gauges;    #if $s->{xterms}{sidebar}{visible};
+                for my $g (@$gauges) {
+                    $$_->set( $g, $r{$g}, $inverts{$g} ) for @{ $s->{captions} };
+                }
 
-                return 1 if scalar keys %r < 1;
-                $s->{xterms}{sidebar}->set_pane( $gauge_name, \%r );    #if $s->{xterms}{sidebar}{visible};
-                $$_->set( $gauge_name, \%r, $inverts{$gauge_name} ) for @{ $s->{captions} };
-
-                1;
             };
 
-            #It might have to do with how perl handles old references ..... ?!
-            #for (qw/memory/) { _set($_); } #does not work, why?
-            #for my $v (qw/memory/) { _set($_); } #works, why?
-            #for my $v ( @{ XR->{gauges_order} } ) { _set($v) };
+            my @gauges = keys %{ ${ $s->{captions}[0] }->{gauges} };
+            my @panes  = keys %{ $s->{xterms}{sidebar}{panes} };
+            _set(\@gauges, \@panes );
 
-            _set($_) foreach keys %{ ${ $s->{captions}[0] }->{gauges} };
-
-            #TODO make it part of resouce options
-            my $mounts = cdmn::proc::mounts;
-            %r = map { $_ => df($_)->{per} } ( sort values %$mounts );
-            $s->{xterms}{sidebar}->set_pane( 'FS', \%r );    #if $s->{xterms}{sidebar}{visible};
         }
     );
     refresh_bounds( $s, XR->{visual_align} );
