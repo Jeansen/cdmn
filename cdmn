@@ -40,7 +40,7 @@ package Null {
 
 package cdmn::math {
 
-    #return a ref. to anew set containing only the elements that exist in both given sets.
+    #return a ref. to a new set containing only the elements that exist in both given sets.
     sub cut_set {
 
         #TODO named parameters
@@ -86,6 +86,7 @@ package cdmn::constants {
 package cdmn::proc {
     use List::Util qw(sum max min);
     use Params::Validate qw(:all);
+    use Filesys::Df;
 
     use constant {
         PROC_PARTITIONS => '/proc/partitions',
@@ -654,6 +655,8 @@ package cdmn::resources {
         PROC => 'cdmn::proc',
     };
 
+    use constant DEFAULT_ORDER => (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery/);
+
     sub new {
         my $s = shift;
         $s = fields::new($s) unless ref $s;
@@ -781,12 +784,9 @@ package cdmn::resources {
         $s->{configs}{$t};
     }
 
-    #TODO exract hardcoded list
     my $validate = sub {
-        my $s             = shift;
-        my @order_default = map { $s->{$_} } (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery /);
-        my %gauges        = map { $_ => 0 } @order_default;
-        $gauges{$_} = 1 for $_[0];
+        my $s = shift;
+        my @order_default = map { $s->{$_} } @{ $_[1] };
 
         return \@order_default if scalar @{ $_[0] } eq 0;
         return MATH->cut_set( $_[0], \@order_default );
@@ -801,8 +801,9 @@ package cdmn::resources {
 
     sub set_order {
         my $s = shift;
-        $s->{gauges_order} = $validate->( $s, $s->{gauges_order} );
+        $s->{gauges_order} = $validate->( $s, $s->{gauges_order}, [DEFAULT_ORDER] );
         $s->{gauges_order} = $s->remap( $s->{gauges_order} );
+
         $s;
     }
 
@@ -813,9 +814,9 @@ package cdmn::resources {
         $s;
     }
 
+    #TODO make private and more generic!
     sub remap {
         my $s = shift;
-        my @remap;
         my %l = (
             $s->{label_cpu}      => 'cpu',
             $s->{label_disk}     => 'disk',
@@ -824,8 +825,7 @@ package cdmn::resources {
             $s->{label_cpu_temp} => 'cpu_temp',
             $s->{label_battery}  => 'battery',
         );
-        push @remap, $l{$_} for ( @{ +shift } );
-        \@remap;
+        [ map { $l{$_} } @{ +shift } ];
     }
 
     sub set_invert {
@@ -898,7 +898,8 @@ package cdmn::resources {
         1;
     }
 
-    sub hast_content {
+    #TODO I think thins whole method has to be thought over!
+    sub has_content {
         my $s = shift;
         my %c;
         $c{cpu_temp} = @{ $s->{gauges_cpu_temps} };
@@ -1049,9 +1050,9 @@ package cdmn::sidebar {
 
         local *_headers = sub {
             my $len = $s->{term}->ncol - 9;    #TODO as parameter
-            my @l   = @{ (shift) };
+            my @l   = @{ +shift };
             my $c   = shift;
-            my @r   = @{ (shift) };
+            my @r   = @{ +shift };
 
             local *_strlen = sub {
                 length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 );
@@ -1085,7 +1086,7 @@ package cdmn::sidebar {
 
         local *_splice = sub {
             my $t = shift;
-            my @h = @{ (shift) };
+            my @h = @{ +shift };
             [ splice( @h, 0, $t ) ], shift @h, [ ( splice( @h, 0 ) ) ];
         };
 
@@ -2122,12 +2123,12 @@ sub create_caption {
         };
     }
     my %args;
-    $args{cpu_temp} = ( XR->configs('cpu_temp')->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if XR->hast_content("cpu_temp");
+    $args{cpu_temp} = ( XR->configs('cpu_temp')->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if XR->has_content("cpu_temp");
     $args{cpu} = XR->configs('cpu')->{detail} ? XR->{gauges_cpus} : ["simple"];
-    $args{disk}    = XR->{gauges_disks} if XR->hast_content("disk");
+    $args{disk}    = XR->{gauges_disks} if XR->has_content("disk");
     $args{memory}  = XR->{gauges_memory};
-    $args{network} = XR->{gauges_networks} if XR->hast_content("network");
-    $args{battery} = ( XR->configs('battery')->{detail} ? XR->{gauges_batteries} : ["simple"] ) if XR->hast_content("battery");
+    $args{network} = XR->{gauges_networks} if XR->has_content("network");
+    $args{battery} = ( XR->configs('battery')->{detail} ? XR->{gauges_batteries} : ["simple"] ) if XR->has_content("battery");
     _create( (%args) );
     return \$caption;
 }
@@ -2341,7 +2342,7 @@ sub on_start {
     $s->cmd_parse("\033[?25l");    #do not show the cursor!
 
     for ( @{ XR->{gauges_order} } ) {
-        $s->{xterms}{sidebar}->add_pane($_) if XR->hast_content($_);
+        $s->{xterms}{sidebar}->add_pane($_) if XR->has_content($_);
     }
 
     $s->{xterms}{sidebar}->add_pane('FS');    #TODO remove hardcoded lines
