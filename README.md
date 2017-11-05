@@ -108,7 +108,8 @@ Labels can be defined with the following resources. Each label defines the text 
 | `URxvt.cdmn.label.memory` | MEM |
 | `URxvt.cdmn.label.network` | NET |
 | `URxvt.cdmn.label.cpu.temp` | TEMP |
-| `URxvt.cdmn.label.battery` | BAT|
+| `URxvt.cdmn.label.battery` | BAT |
+| `URxvt.cdmn.label.mount` | MOUNT |
 
 In addition you can set colors for different parts. All colors default to the terminal foreground (-2) or background 
 (-1). Normally you will not need to use these values. After all, they are the defaults. But you might want to 
@@ -183,6 +184,7 @@ You can also set (and overwrite) colors individually for each gauge with the fol
     URxvt.cdmn.colors.cpu.temp
     URxvt.cdmn.colors.memory 
     URxvt.cdmn.colors.battery
+    URxvt.cdmn.colors.mount
 
 If you only define one color it will be interpreted as a foreground color. `URxvt.cdmn.gauges.bg` (either your value or the implicit default -2) will be used for the background color.
 
@@ -215,8 +217,8 @@ increase), which flashes (updates) every second but only if there is at least 1%
 ## Visual styles - invert
 
 It might be of interest to revert some colors, e.g. when you are interested in how much energy is left when running on 
-battery power. But of course this is open for debate ;-) Anyway, you cant set `URxvt.cdmn.gauges.invert` to a list 
-of labels for which gauges should use inverted colors. BAT ist inverted be default.
+battery power. But of course this is open for debate ;-) Anyway, you cant set `URxvt.cdmn.gauges.inverts` to a list 
+of labels for which gauges should use inverted colors. BAT ist inverted by default.
 
 ## Miscellaneous settings
 
