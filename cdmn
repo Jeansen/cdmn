@@ -621,7 +621,7 @@ package cdmn::resources {
         gauges_order
         gauges_bg
         gauges_colors
-        gauges_invert
+        gauges_inverts
         gauges_batteries
         gauges_cpu_temps
         gauges_networks
@@ -725,7 +725,7 @@ package cdmn::resources {
         $s->{label_cpu_temp}   = $t->x_resource('%.label.cpu.temp')   // 'TEMP';
         $s->{label_memory}     = $t->x_resource('%.label.memory')     // 'MEM';
         $s->{label_battery}    = $t->x_resource('%.label.battery')    // 'BAT';
-        $s->{label_mount} = $t->x_resource('%.label.mount') // 'MOUNTS';
+        $s->{label_mount} = $t->x_resource('%.label.mount') // 'MOUNT';
         $s->{label_battery_AC} = $s->{label_battery} . "(⌁)";
         $s->{label_fg} = _set_number( '%.label.fg', 0 );
         $s->{label_bg} = _set_number( '%.label.bg', 1 );
@@ -758,7 +758,7 @@ package cdmn::resources {
         $s->{gauges_cpu_temps} = _set_list('%.gauges.cores');
         $s->{network_rx}       = _set_list('%.network.rx');
         $s->{network_tx}       = _set_list('%.network.tx');
-        $s->{gauges_invert}    = _set_list( '%.gauges.invert', 'BAT' );
+        $s->{gauges_inverts}    = _set_list( '%.gauges.inverts', 'BAT' );
         $s->{gauges_memory}    = ["MemAvailable:"];
         $s->{mounts}       = _set_list('%.gauges.mounts');
 
@@ -854,7 +854,7 @@ package cdmn::resources {
 
     sub set_graphs {
         my $s = shift;
-        $s->{graphs} = $validate->( $s, $s->{graphs} );
+        $s->{graphs} = $validate->( $s, $s->{graphs}, [DEFAULT_ORDER]);
         $s->{graphs} = { map { $_ => 1 } @{ $s->remap( $s->{graphs} ) } };
         $s;
     }
@@ -876,7 +876,8 @@ package cdmn::resources {
 
     sub set_invert {
         my $s = shift;
-        $s->{gauges_invert} = $validate->( $s, $s->{gauges_invert} );
+        $s->{gauges_inverts} = $validate->( $s, $s->{gauges_inverts}, [DEFAULT_ORDER]);
+        $s->{gauges_inverts} = $s->remap( $s->{gauges_inverts} );
         1;
     }
 
@@ -2132,7 +2133,6 @@ sub create_caption {
             );
         };
 
-        say @{ XR->{gauges_order} } ;
         for ( @{ XR->{gauges_order} } ) {
             _add( XR->configs($_) ) if $arg{$_};
         }
@@ -2423,7 +2423,8 @@ sub on_start {
 
                 $r{$_} = {$usage_of{$_}->()} foreach @{ cdmn::math->union( $gauges, $panes )};
 
-                my %inverts = map { $_ => 1 } @{ XR->{gauges_invert} };
+                my %inverts = map { $_ => 1 } @{ XR->{gauges_inverts} };
+                say keys %inverts;
 
                 $s->{xterms}{sidebar}->set_pane( $_, $r{$_}) for @$panes;    #if $s->{xterms}{sidebar}{visible};
                 for my $g (@$gauges) {
