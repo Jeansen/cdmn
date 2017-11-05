@@ -2424,7 +2424,6 @@ sub on_start {
                 $r{$_} = {$usage_of{$_}->()} foreach @{ cdmn::math->union( $gauges, $panes )};
 
                 my %inverts = map { $_ => 1 } @{ XR->{gauges_inverts} };
-                say keys %inverts;
 
                 $s->{xterms}{sidebar}->set_pane( $_, $r{$_}) for @$panes;    #if $s->{xterms}{sidebar}{visible};
                 for my $g (@$gauges) {
