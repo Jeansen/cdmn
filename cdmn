@@ -244,6 +244,7 @@ package cdmn::proc {
         return \@ifs;
     }
 
+    #TODO should only return mounts. Introduce another function for disk/mount return
     sub mounts {
         open( my $f, '<', PROC_MOUNTS );
         my @mounts;
@@ -253,6 +254,11 @@ package cdmn::proc {
             %mounts = (@mounts);
         }
         return \%mounts;
+    }
+
+    sub fs_usage {
+        my %r = map { $_ => df($_)->{per} } ( sort values %{ mounts() } );
+        \%r;
     }
 
     sub battery_usages {
@@ -609,6 +615,7 @@ package cdmn::resources {
         label_position
         label_padding
         label_bold
+        label_mount
 
         gauges
         gauges_order
@@ -621,12 +628,14 @@ package cdmn::resources {
         gauges_disks
         gauges_cpus
         gauges_memory
+        gauges_mounts
 
         network_tx
         network_rx
         disks
         disks_read
         disks_write
+        mounts
 
         disk_mounts_only
         refresh
@@ -645,6 +654,7 @@ package cdmn::resources {
         colors_cpu_temp
         colors_memory
         colors_battery
+        colors_mount
 
         sidebar_fg
         sidebar_bg
@@ -670,8 +680,7 @@ package cdmn::resources {
         PROC => 'cdmn::proc',
     };
 
-    use constant DEFAULT_ORDER => (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery/);
-    use constant DEFAULT_PANE_ORDER => (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery/);
+    use constant DEFAULT_ORDER => (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery label_mount/);
 
     sub new {
         my $s = shift;
@@ -710,18 +719,19 @@ package cdmn::resources {
         my $tblrc = [ (qw/top left bottom right center/) ];
         my $tb    = [ (qw/top bottom/) ];
 
-        $s->{label_network}  = $t->x_resource('%.label.network')  // 'NET';
-        $s->{label_disk}     = $t->x_resource('%.label.disk')     // 'DISK';
-        $s->{label_cpu}      = $t->x_resource('%.label.cpu')      // 'CPU';
-        $s->{label_cpu_temp} = $t->x_resource('%.label.cpu.temp') // 'TEMP';
-        $s->{label_memory}   = $t->x_resource('%.label.memory')   // 'MEM';
-        $s->{label_battery}  = $t->x_resource('%.label.battery')  // 'BAT';
+        $s->{label_network}    = $t->x_resource('%.label.network')    // 'NET';
+        $s->{label_disk}       = $t->x_resource('%.label.disk')       // 'DISK';
+        $s->{label_cpu}        = $t->x_resource('%.label.cpu')        // 'CPU';
+        $s->{label_cpu_temp}   = $t->x_resource('%.label.cpu.temp')   // 'TEMP';
+        $s->{label_memory}     = $t->x_resource('%.label.memory')     // 'MEM';
+        $s->{label_battery}    = $t->x_resource('%.label.battery')    // 'BAT';
+        $s->{label_mount} = $t->x_resource('%.label.mount') // 'MOUNTS';
         $s->{label_battery_AC} = $s->{label_battery} . "(⌁)";
-        $s->{label_fg}         = _set_number( '%.label.fg', 0 );
-        $s->{label_bg}         = _set_number( '%.label.bg', 1 );
-        $s->{label_position}   = _set_value( '%.label.position', [ (qw/left right/) ], 'left' );
-        $s->{label_padding}    = _set_number( '%.label.padding', 0 );
-        $s->{label_bold}       = _set_number( '%.label.bold', 0 );
+        $s->{label_fg} = _set_number( '%.label.fg', 0 );
+        $s->{label_bg} = _set_number( '%.label.bg', 1 );
+        $s->{label_position} = _set_value( '%.label.position', [ (qw/left right/) ], 'left' );
+        $s->{label_padding} = _set_number( '%.label.padding', 0 );
+        $s->{label_bold}    = _set_number( '%.label.bold',    0 );
 
         $s->{showing}        = _set_number( '%.showing',        1 );
         $s->{showing_labels} = _set_number( '%.showing.labels', 1 );
@@ -750,12 +760,13 @@ package cdmn::resources {
         $s->{network_tx}       = _set_list('%.network.tx');
         $s->{gauges_invert}    = _set_list( '%.gauges.invert', 'BAT' );
         $s->{gauges_memory}    = ["MemAvailable:"];
+        $s->{mounts}       = _set_list('%.gauges.mounts');
 
         $s->{graphs} = _set_list('%.graphs');
         $s->{graphs_length} = _set_number( '%.graphs.width', 0 );
 
         $s->{gauges_colors} = _set_list( '%.gauges.colors', '-1,-2' );    #TODO no negative colors
-        $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery/);
+        $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery mount/); #TODO extract
 
         $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        9 );
         $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        0 );
@@ -778,8 +789,9 @@ package cdmn::resources {
         $s->set_colors;
         $s->set_graphs;
         $s->set_panes;
+        $s->set_mounts;
 
-        for (qw/network disk cpu cpu_temp memory battery/) {
+        for (qw/network disk cpu cpu_temp memory battery mount/) {
             ( my $t = $_ ) =~ s/y$/ie/;
             $s->{configs}{$_} = cdmn::resources::single->new(
                 name    => $_,
@@ -794,6 +806,14 @@ package cdmn::resources {
                 visual  => $s->{visual_style},
             );
         }
+    }
+
+    sub set_mounts {
+        my $s = shift;
+        my $ov = $s->{gauges_mounts} ? scalar @{$s->{gauges_mounts}} : 0;
+        $s->{gauges_mounts} = MATH->cut_set([values %{&cdmn::proc::mounts}], $s->{gauges_mounts});
+        $s->{gauges_mounts} = [values %{&cdmn::proc::mounts}] if scalar @{$s->{gauges_mounts}} eq 0;
+        $ov != scalar @{$s->{gauges_mounts}} ? $s->{ok} = 1 && return $s : Null->new;
     }
 
     sub configs {
@@ -827,7 +847,7 @@ package cdmn::resources {
 
     sub set_panes {
         my $s = shift;
-        $s->{sidebar_panes_order} = $validate->( $s, $s->{sidebar_panes_order}, [DEFAULT_PANE_ORDER] );
+        $s->{sidebar_panes_order} = $validate->( $s, $s->{sidebar_panes_order}, [DEFAULT_ORDER] );
         $s->{sidebar_panes_order} = $s->remap( $s->{sidebar_panes_order} );
         $s;
     }
@@ -843,12 +863,13 @@ package cdmn::resources {
     sub remap {
         my $s = shift;
         my %l = (
-            $s->{label_cpu}      => 'cpu',
-            $s->{label_disk}     => 'disk',
-            $s->{label_memory}   => 'memory',
-            $s->{label_network}  => 'network',
-            $s->{label_cpu_temp} => 'cpu_temp',
-            $s->{label_battery}  => 'battery',
+            $s->{label_cpu}        => 'cpu',
+            $s->{label_disk}       => 'disk',
+            $s->{label_memory}     => 'memory',
+            $s->{label_network}    => 'network',
+            $s->{label_cpu_temp}   => 'cpu_temp',
+            $s->{label_battery}    => 'battery',
+            $s->{label_mount} => 'mount',
         );
         [ map { $l{$_} } @{ +shift } ];
     }
@@ -912,7 +933,7 @@ package cdmn::resources {
 
     sub set_colors {
         my $s = shift;
-        for my $h (qw(network disk cpu cpu_temp memory battery)) {
+        for my $h (qw(network disk cpu cpu_temp memory battery mount)) { #TODO extract - see above. Redundant?!
 
             # If a specific list of colors is defined, thake it, otherwise use default colors.
             # Make sure values are numbers and add 2.
@@ -933,6 +954,7 @@ package cdmn::resources {
         $c{memory}   = 1;
         $c{network}  = @{ $s->{gauges_networks} };
         $c{battery}  = $s->{gauges_batteries};
+        $c{mount}   = $s->{gauges_mounts};
         exists $c{ $_[0] } ? $c{ $_[0] } : 0;
     }
 
@@ -943,7 +965,7 @@ package cdmn::resources {
                 my \$s = shift;
                 my \$ov = \$s->{gauges_$h} ? scalar \@{\$s->{gauges_$h}} : 0;
                 \$s->{gauges_$h} = MATH->cut_set(cdmn::proc::$h, \$s->{gauges_$h});
-                \$s->{gauges_$h} = cdmn::proc::$h if scalar \@{\$s->{gauges_$h}} eq 0 || \@{\$s->{gauges_$h}};
+                \$s->{gauges_$h} = cdmn::proc::$h if scalar \@{\$s->{gauges_$h}} eq 0;
                 \$ov != scalar \@{\$s->{gauges_$h}} ? \$s->{ok} = 1 && return \$s : Null->new;
             }
         }
@@ -2110,6 +2132,7 @@ sub create_caption {
             );
         };
 
+        say @{ XR->{gauges_order} } ;
         for ( @{ XR->{gauges_order} } ) {
             _add( XR->configs($_) ) if $arg{$_};
         }
@@ -2148,12 +2171,14 @@ sub create_caption {
         };
     }
     my %args;
+	#TODO extract. There should only be one place to set this and no hard codings!
     $args{cpu_temp} = ( XR->configs('cpu_temp')->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if XR->has_content("cpu_temp");
     $args{cpu} = XR->configs('cpu')->{detail} ? XR->{gauges_cpus} : ["simple"];
     $args{disk}    = XR->{gauges_disks} if XR->has_content("disk");
     $args{memory}  = XR->{gauges_memory};
     $args{network} = XR->{gauges_networks} if XR->has_content("network");
     $args{battery} = ( XR->configs('battery')->{detail} ? XR->{gauges_batteries} : ["simple"] ) if XR->has_content("battery");
+    $args{mount}    = XR->{gauges_mounts} if XR->has_content("mount");
     _create( (%args) );
     return \$caption;
 }
@@ -2390,6 +2415,7 @@ sub on_start {
             $usage_of{battery}  = sub { %{ cdmn::proc::battery_usages() } };
             $usage_of{disk}     = sub { _filter( cdmn::proc::disk_usages(), XR->{gauges_disks} ) };
             $usage_of{network}  = sub { _filter( cdmn::proc::network_usages(), XR->{gauges_networks} ) };
+            $usage_of{mount}  = sub { %{ cdmn::proc::fs_usage() } };
 
             local *_set = sub {
                 my $gauges = shift;
@@ -2399,7 +2425,7 @@ sub on_start {
 
                 my %inverts = map { $_ => 1 } @{ XR->{gauges_invert} };
 
-                $s->{xterms}{sidebar}->set_pane( $_, $r{$_}) for @$gauges;    #if $s->{xterms}{sidebar}{visible};
+                $s->{xterms}{sidebar}->set_pane( $_, $r{$_}) for @$panes;    #if $s->{xterms}{sidebar}{visible};
                 for my $g (@$gauges) {
                     $$_->set( $g, $r{$g}, $inverts{$g} ) for @{ $s->{captions} };
                 }
