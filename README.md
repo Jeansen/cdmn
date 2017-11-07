@@ -2,6 +2,8 @@
 
 # cdmn
 
+[![Join the chat at https://gitter.im/cdmn-dev/Lobby](https://badges.gitter.im/cdmn-dev/Lobby.svg)](https://gitter.im/cdmn-dev/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 *cdmn* (**c**pu, **d**isk, **m**emory, **n**etwork) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources.
 
 Originally I planned to have some LED-like indicators but soon decided to make this extension more verbose and 
