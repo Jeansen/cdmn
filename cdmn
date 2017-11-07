@@ -92,6 +92,14 @@ package cdmn::constants {
         TOP    => 'top',
         BOTTOM => 'bottom',
         CENTER => 'center',
+
+        CPU => 'cpu',
+        DISK => 'disk',
+        MEMORY => 'memory',
+        NETWORK => 'network',
+        CPU_TEMP => 'cpu_temp',
+        BATTERY => 'battery',
+        MOUNT => 'mount',
     };
 
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
@@ -610,18 +618,20 @@ package cdmn::resources {
         label_battery
         label_battery_AC
         label_cpu_temp
+        label_mount
+
         label_bg
         label_fg
         label_position
         label_padding
         label_bold
-        label_mount
 
         gauges
         gauges_order
         gauges_bg
         gauges_colors
         gauges_inverts
+
         gauges_batteries
         gauges_cpu_temps
         gauges_networks
@@ -859,18 +869,21 @@ package cdmn::resources {
         $s;
     }
 
+
+
     #TODO make private and more generic!
     sub remap {
         my $s = shift;
         my %l = (
-            $s->{label_cpu}        => 'cpu',
-            $s->{label_disk}       => 'disk',
-            $s->{label_memory}     => 'memory',
-            $s->{label_network}    => 'network',
-            $s->{label_cpu_temp}   => 'cpu_temp',
-            $s->{label_battery}    => 'battery',
-            $s->{label_mount} => 'mount',
+            $s->{label_cpu}        => cdmn::constants::CPU,
+            $s->{label_disk}       => cdmn::constants::DISK,
+            $s->{label_memory}     => cdmn::constants::MEMORY,
+            $s->{label_network}    => cdmn::constants::NETWORK,
+            $s->{label_cpu_temp}   => cdmn::constants::CPU_TEMP,
+            $s->{label_battery}    => cdmn::constants::BATTERY,
+            $s->{label_mount}      => cdmn::constants::MOUNT,
         );
+
         [ map { $l{$_} } @{ +shift } ];
     }
 
@@ -2172,13 +2185,13 @@ sub create_caption {
     }
     my %args;
 	#TODO extract. There should only be one place to set this and no hard codings!
-    $args{cpu_temp} = ( XR->configs('cpu_temp')->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if XR->has_content("cpu_temp");
-    $args{cpu} = XR->configs('cpu')->{detail} ? XR->{gauges_cpus} : ["simple"];
-    $args{disk}    = XR->{gauges_disks} if XR->has_content("disk");
-    $args{memory}  = XR->{gauges_memory};
-    $args{network} = XR->{gauges_networks} if XR->has_content("network");
-    $args{battery} = ( XR->configs('battery')->{detail} ? XR->{gauges_batteries} : ["simple"] ) if XR->has_content("battery");
-    $args{mount}    = XR->{gauges_mounts} if XR->has_content("mount");
+    $args{CDMN->CPU_TEMP} = ( XR->configs(CDMN->CPU_TEMP)->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if XR->has_content(CDMN->CPU_TEMP);
+    $args{CDMN->CPU}      = XR->configs(CDMN->CPU)->{detail} ? XR->{gauges_cpus} : ["simple"];
+    $args{CDMN->DISK}     = XR->{gauges_disks} if XR->has_content(CDMN->DISK);
+    $args{CDMN->MEMORY}   = XR->{gauges_memory};
+    $args{CDMN->NETWORK}  = XR->{gauges_networks} if XR->has_content(CDMN->NETWORK);
+    $args{CDMN->BATTERY}  = ( XR->configs(CDMN->BATTERY)->{detail} ? XR->{gauges_batteries} : ["simple"] ) if XR->has_content(CDMN->CPU);
+    $args{CDMN->MOUNT}    = XR->{gauges_mounts} if XR->has_content(CDMN->MOUNT);
     _create( (%args) );
     return \$caption;
 }
