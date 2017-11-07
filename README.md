@@ -1,8 +1,10 @@
+[![Join the chat at https://gitter.im/cdmn-dev/Lobby](https://badges.gitter.im/cdmn-dev/Lobby.svg)](https://gitter.im/cdmn-dev/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+![](https://rawgit.com/Jeansen/assets/master/project-status.svg)
+![](https://rawgit.com/Jeansen/assets/master/version.svg)
+[![](https://rawgit.com/Jeansen/assets/master/license.svg)](LICENSE)
 <!--[![Build Status](https://travis-ci.org/Jeansen/trc.svg?branch=master)](https://travis-ci.org/Jeansen/trc)-->
 
 # cdmn
-
-[![Join the chat at https://gitter.im/cdmn-dev/Lobby](https://badges.gitter.im/cdmn-dev/Lobby.svg)](https://gitter.im/cdmn-dev/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 *cdmn* (**c**pu, **d**isk, **m**emory, **n**etwork) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources.
 
