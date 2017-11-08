@@ -826,6 +826,7 @@ package cdmn::resources {
         $ov != scalar @{$s->{gauges_mounts}} ? $s->{ok} = 1 && return $s : Null->new;
     }
 
+    #TODO expand or delete
     sub configs {
         my ( $s, $t ) = @_;
         $s->{configs}{$t}{label} = PROC->ac_online() ? $s->{label_battery_AC} : $s->{label_battery} if $t eq 'battery';
@@ -970,6 +971,19 @@ package cdmn::resources {
         $c{battery}  = $s->{gauges_batteries};
         $c{mount}   = $s->{gauges_mounts};
         exists $c{ $_[0] } ? $c{ $_[0] } : 0;
+    }
+
+    sub gauges {
+        my $s = shift;
+        my %g;
+        $g{CDMN->CPU_TEMP} = ( $s->configs(CDMN->CPU_TEMP)->{detail} ? $s->{gauges_cpu_temps} : ["simple"] ) if $s->has_content(CDMN->CPU_TEMP);
+        $g{CDMN->CPU}      = $s->configs(CDMN->CPU)->{detail} ? $s->{gauges_cpus} : ["simple"];
+        $g{CDMN->DISK}     = $s->{gauges_disks} if $s->has_content(CDMN->DISK);
+        $g{CDMN->MEMORY}   = $s->{gauges_memory};
+        $g{CDMN->NETWORK}  = $s->{gauges_networks} if $s->has_content(CDMN->NETWORK);
+        $g{CDMN->BATTERY}  = ( $s->configs(CDMN->BATTERY)->{detail} ? $s->{gauges_batteries} : ["simple"] ) if $s->has_content(CDMN->CPU);
+        $g{CDMN->MOUNT}    = $s->{gauges_mounts} if $s->has_content(CDMN->MOUNT);
+        return %g;
     }
 
     for my $h (qw(batteries cpu_temps)) {
@@ -2183,16 +2197,8 @@ sub create_caption {
             }
         };
     }
-    my %args;
-	#TODO extract. There should only be one place to set this and no hard codings!
-    $args{CDMN->CPU_TEMP} = ( XR->configs(CDMN->CPU_TEMP)->{detail} ? XR->{gauges_cpu_temps} : ["simple"] ) if XR->has_content(CDMN->CPU_TEMP);
-    $args{CDMN->CPU}      = XR->configs(CDMN->CPU)->{detail} ? XR->{gauges_cpus} : ["simple"];
-    $args{CDMN->DISK}     = XR->{gauges_disks} if XR->has_content(CDMN->DISK);
-    $args{CDMN->MEMORY}   = XR->{gauges_memory};
-    $args{CDMN->NETWORK}  = XR->{gauges_networks} if XR->has_content(CDMN->NETWORK);
-    $args{CDMN->BATTERY}  = ( XR->configs(CDMN->BATTERY)->{detail} ? XR->{gauges_batteries} : ["simple"] ) if XR->has_content(CDMN->CPU);
-    $args{CDMN->MOUNT}    = XR->{gauges_mounts} if XR->has_content(CDMN->MOUNT);
-    _create( (%args) );
+
+    _create( XR->gauges() );
     return \$caption;
 }
 
