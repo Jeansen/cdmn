@@ -611,14 +611,7 @@ package cdmn::resources {
         graphs
         configs
 
-        label_network
-        label_disk
-        label_cpu
-        label_memory
-        label_battery
-        label_battery_AC
-        label_cpu_temp
-        label_mount
+        labels
 
         label_bg
         label_fg
@@ -626,7 +619,6 @@ package cdmn::resources {
         label_padding
         label_bold
 
-        gauges
         gauges_order
         gauges_bg
         gauges_colors
@@ -658,13 +650,7 @@ package cdmn::resources {
         visual_style
         visual_align
 
-        colors_network
-        colors_disk
-        colors_cpu
-        colors_cpu_temp
-        colors_memory
-        colors_battery
-        colors_mount
+        colors
 
         sidebar_fg
         sidebar_bg
@@ -690,7 +676,7 @@ package cdmn::resources {
         PROC => 'cdmn::proc',
     };
 
-    use constant DEFAULT_ORDER => (qw/ label_cpu label_cpu_temp label_disk label_memory label_network label_battery label_mount/);
+    use constant DEFAULT_ORDER => (qw/ cpu cpu_temp disk memory network battery mount/);
 
     sub new {
         my $s = shift;
@@ -729,14 +715,15 @@ package cdmn::resources {
         my $tblrc = [ (qw/top left bottom right center/) ];
         my $tb    = [ (qw/top bottom/) ];
 
-        $s->{label_network}    = $t->x_resource('%.label.network')    // 'NET';
-        $s->{label_disk}       = $t->x_resource('%.label.disk')       // 'DISK';
-        $s->{label_cpu}        = $t->x_resource('%.label.cpu')        // 'CPU';
-        $s->{label_cpu_temp}   = $t->x_resource('%.label.cpu.temp')   // 'TEMP';
-        $s->{label_memory}     = $t->x_resource('%.label.memory')     // 'MEM';
-        $s->{label_battery}    = $t->x_resource('%.label.battery')    // 'BAT';
-        $s->{label_mount} = $t->x_resource('%.label.mount') // 'MOUNT';
-        $s->{label_battery_AC} = $s->{label_battery} . "(⌁)";
+        $s->set_label('network', $t->x_resource('%.label.network')    // 'NET');
+        $s->set_label('disk'       , $t->x_resource('%.label.disk')       // 'DISK');
+        $s->set_label('cpu'        , $t->x_resource('%.label.cpu')        // 'CPU');
+        $s->set_label('cpu_temp'   , $t->x_resource('%.label.cpu.temp')   // 'TEMP');
+        $s->set_label('memory'     , $t->x_resource('%.label.memory')     // 'MEM');
+        $s->set_label('battery'    , $t->x_resource('%.label.battery')    // 'BAT');
+        $s->set_label('mount' , $t->x_resource('%.label.mount') // 'MOUNT');
+        $s->set_label('battery_AC', $s->get_label('battery') . "(⌁)");
+
         $s->{label_fg} = _set_number( '%.label.fg', 0 );
         $s->{label_bg} = _set_number( '%.label.bg', 1 );
         $s->{label_position} = _set_value( '%.label.position', [ (qw/left right/) ], 'left' );
@@ -776,7 +763,7 @@ package cdmn::resources {
         $s->{graphs_length} = _set_number( '%.graphs.width', 0 );
 
         $s->{gauges_colors} = _set_list( '%.gauges.colors', '-1,-2' );    #TODO no negative colors
-        $s->{"colors_$_"} = _set_list("%.colors.$_") for (qw/network disk cpu cpu_temp memory battery mount/); #TODO extract
+        $s->set_color($_, _set_list("%.colors.$_")) for (qw/network disk cpu cpu_temp memory battery mount/); #TODO extract
 
         $s->{sidebar_fg}        = _set_number( '%.sidebar.fg',        9 );
         $s->{sidebar_bg}        = _set_number( '%.sidebar.bg',        0 );
@@ -808,8 +795,8 @@ package cdmn::resources {
                 padding => 1,
                 fg      => $s->{label_fg},
                 bg      => $s->{label_bg},
-                colors  => $s->{"colors_$_"},
-                label   => $s->{"label_$_"},
+                colors  => $s->get_color($_),
+                label   => $s->get_label($_),
                 length  => $s->{graphs}{$_} ? $s->{graphs_length} : 0,
                 gauges  => $_ eq 'memory' ? $s->{"gauges_$_"} : $s->{"gauges_${t}s"},
                 detail  => exists $s->{"visual_detail_$_"} ? $s->{"visual_detail_$_"} : 1,
@@ -829,17 +816,40 @@ package cdmn::resources {
     #TODO expand or delete
     sub configs {
         my ( $s, $t ) = @_;
-        $s->{configs}{$t}{label} = PROC->ac_online() ? $s->{label_battery_AC} : $s->{label_battery} if $t eq 'battery';
+        $s->{configs}{$t}{label} = PROC->ac_online() ? $s->get_label('battery_AC') : $s->get_label('battery') if $t eq 'battery';
         $s->{configs}{$t};
     }
 
+    #TODO rename
     my $validate = sub {
         my $s = shift;
-        my @order_default = map { $s->{$_} } @{ $_[1] };
+        my @order_default = map { $s->{labels}{$_} } @{ $_[1] };
 
         return \@order_default if scalar @{ $_[0] } eq 0;
         return MATH->cut_set( $_[0], \@order_default );
     };
+
+    sub set_color {
+        my $s = shift;
+        $s->{colors}{$_[0]}=$_[1];
+        $s;
+    }
+
+    sub get_color {
+        my $s = shift;
+        $s->{colors}{$_[0]};
+    }
+
+    sub set_label {
+        my $s = shift;
+        $s->{labels}{$_[0]}=$_[1];
+        $s;
+    }
+
+    sub get_label {
+        my $s = shift;
+        $s->{labels}{$_[0]};
+    }
 
     sub set_cores {
         my $s    = shift;
@@ -876,13 +886,13 @@ package cdmn::resources {
     sub remap {
         my $s = shift;
         my %l = (
-            $s->{label_cpu}        => cdmn::constants::CPU,
-            $s->{label_disk}       => cdmn::constants::DISK,
-            $s->{label_memory}     => cdmn::constants::MEMORY,
-            $s->{label_network}    => cdmn::constants::NETWORK,
-            $s->{label_cpu_temp}   => cdmn::constants::CPU_TEMP,
-            $s->{label_battery}    => cdmn::constants::BATTERY,
-            $s->{label_mount}      => cdmn::constants::MOUNT,
+            $s->{labels}{cpu}        => cdmn::constants::CPU,
+            $s->{labels}{disk}       => cdmn::constants::DISK,
+            $s->{labels}{memory}     => cdmn::constants::MEMORY,
+            $s->{labels}{network}    => cdmn::constants::NETWORK,
+            $s->{labels}{cpu_temp}   => cdmn::constants::CPU_TEMP,
+            $s->{labels}{battery}    => cdmn::constants::BATTERY,
+            $s->{labels}{mount}      => cdmn::constants::MOUNT,
         );
 
         [ map { $l{$_} } @{ +shift } ];
@@ -950,11 +960,12 @@ package cdmn::resources {
         my $s = shift;
         for my $h (qw(network disk cpu cpu_temp memory battery mount)) { #TODO extract - see above. Redundant?!
 
-            # If a specific list of colors is defined, thake it, otherwise use default colors.
+            # If a specific list of colors is defined, take it, otherwise use default colors.
             # Make sure values are numbers and add 2.
             # We have to add 2 because urxvt uses 0 and 1 for references to the terminals fg and bg colors.
-            $s->{"colors_$h"}
-                = [ map { $_ + 2 } grep ( looks_like_number($_), ( @{ $s->{"colors_$h"} } ? @{ $s->{"colors_$h"} } : @{ $s->{gauges_colors} } ) ) ];
+            $s->set_color($h, 
+                [ map { $_ + 2 } grep ( looks_like_number($_), ( @{ $s->get_color($h) } ? @{ $s->get_color($h) } : @{ $s->{gauges_colors} } ) ) ] 
+            );
         }
         1;
     }
