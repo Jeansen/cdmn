@@ -607,6 +607,7 @@ package cdmn::resources {
         caption_bg
 
         graphs_length
+        graphs_expand
         graphs
 
         disk_mounts_only
@@ -664,7 +665,8 @@ package cdmn::resources {
 
         local *_set_number = sub {
             my $n = $t->x_resource(shift);
-            $n = looks_like_number($n) ? $n : shift;
+            $n = looks_like_number($n) ? $n : return shift;
+            shift;
             $n = $_[0] if $_[0] and $n < $_[0];
             $n = $_[1] if $_[1] and $n > $_[1];
             $n;
@@ -711,6 +713,8 @@ package cdmn::resources {
         local *_set_graphs = sub {
             $s->{graphs} = _validate( $s->{graphs}, [DEFAULT_ORDER] );
             $s->{graphs} = { map { $_ => 1 } @{ $s->remap( $s->{graphs} ) } };
+            $s->{graphs_expand} = _validate( $s->{graphs_expand}, [DEFAULT_ORDER] ) if @{$s->{graphs_expand}};
+            $s->{graphs_expand} = { map { $_ => 1 } @{ $s->remap( $s->{graphs_expand} ) } };
         };
 
         local *_set_panes = sub {
@@ -777,6 +781,7 @@ package cdmn::resources {
 
         $s->{graphs} = _set_list('%.graphs');
         $s->{graphs_length} = _set_number( '%.graphs.width', 0 );
+        $s->{graphs_expand} = _set_list( '%.graphs.expand');
 
         $s->set_default('gauges_colors', _set_list( '%.gauges.colors', '-1,-2' ));    #TODO no negative colors
         $s->set_colors( $_, _set_list("%.colors.$_") ) for (qw/network disk cpu cpu_temp memory battery mount/);    #TODO extract
@@ -797,10 +802,11 @@ package cdmn::resources {
         $s->set_batteries;
         $s->set_nics;
 
+
         ## no critic
         eval qq/_set_$_/ for qw/cores order invert colors graphs panes mounts/;
 
-        for (qw/network disk cpu cpu_temp memory battery mount/) {
+        for (@{$s->get_default('gauges_order')}) {
             ( my $t = $_ ) =~ s/y$/ie/;
             $s->{resources}{$_} = cdmn::resources::single->new(
                 name    => $_,
@@ -809,7 +815,7 @@ package cdmn::resources {
                 bg      => $s->get_default('label_bg'),
                 colors  => $s->get_colors($_),
                 label   => $s->get_label($_),
-                length  => $s->{graphs}{$_} ? $s->{graphs_length} : 0,
+                length  => $s->{graphs_expand}{$_} ? -1 : ( $s->{graphs}{$_} ? $s->{graphs_length} : 0),
                 gauges  => $_ eq 'memory' ? $s->get_gauges($_) : $s->get_gauges("${t}s"),
                 detail  => exists $s->{"visual_detail_$_"} ? $s->{"visual_detail_$_"} : 1,
                 visual  => $s->{visual_style},
@@ -1555,9 +1561,10 @@ package cdmn::term {
 }
 
 package cdmn::visuals::container {
-    use fields qw( term rendition padding align even_gauges x y bg_color label_pos graph_data graph  );
-    use fields qw( gauges visible bg bg_visible label_visible detail width height );
+    use fields qw( term rendition padding align even_gauges x y bg_color label_pos graph_data graph_length  );
+    use fields qw( gauges visible bg bg_visible label_visible detail width height ncol nrow order graphs);
     use Params::Validate qw(:all);
+    use POSIX qw(ceil floor);
 
     use constant CDMN => 'cdmn::constants';
     use constant { TRUE => 1, FALSE => 0 };
@@ -1603,9 +1610,13 @@ package cdmn::visuals::container {
                 sensitivity   => 1,
                 name          => 1,
                 detail        => 1,
-                graph         => { default => 0 },
+                graph_length  => { default => 0 },
             }
         );
+
+        push @{$s->{order}}, $arg{name};
+
+        $s->{graphs}{$arg{name}} = 1 if $arg{graph_length} < 0;
 
         my $visual = cdmn::visuals::visual->new(
             term          => $s->{term},
@@ -1613,7 +1624,7 @@ package cdmn::visuals::container {
             x             => $xOff,
             y             => $yOff,
             label         => $arg{label},
-            gauges        => $arg{graph} ? [ 0 .. $arg{graph} * ( scalar @{ $arg{gauges} } ) - 1 ] : $arg{gauges},
+            gauges        => $arg{graph_length} ? [ 0 .. $arg{graph_length} * ( scalar @{ $arg{gauges} } ) - 1 ] : $arg{gauges},
             label_bg      => $arg{label_bg},
             label_fg      => $arg{label_fg},
             gauges_colors => $arg{gauges_colors},
@@ -1626,7 +1637,7 @@ package cdmn::visuals::container {
         );
 
         $s->{detail}{ $arg{name} } = $arg{detail};
-        $s->{graph}{ $arg{name} }  = $arg{graph};
+        $s->{graph_length}{ $arg{name} }  = $arg{graph_length};
 
         local *_pad = sub {
             for ( values %{ $s->{gauges} } ) {
@@ -1650,6 +1661,7 @@ package cdmn::visuals::container {
         $s;
     }
 
+    #TODO make it shorter
     sub create {
         my $s = shift;
         my $l = 0;
@@ -1672,18 +1684,34 @@ package cdmn::visuals::container {
             }
         }
 
+        $s->{ncol} = $s->{align} eq CDMN->VISUAL_ALIGN_ROW ? $xOff - $s->{padding} : $l;
+        $s->{nrow} = $s->{align} eq CDMN->VISUAL_ALIGN_ROW ? 1 : $yOff - $s->{padding} + 1;
+
+        #Recalculate for all elements in expand list.
+        my @graphs_count = keys %{$s->{graphs}};
+        if (@graphs_count) {
+            my $x = 0;
+            $_->{x} -=  $s->{term}->ncol - $s->{ncol} for values %{$s->{gauges}};
+            for (@{$s->{order}}) {
+                my $old_count = @{$s->{gauges}{$_}{gauges}};
+                my $gauges = [ 0 .. ceil(($s->{term}->ncol - $s->{ncol}) / @graphs_count) + $old_count - 1 ];
+                $s->{gauges}{$_}{x}+=$x;
+                if ($s->{graphs}{$_}) {
+                    $s->{gauges}{$_}{gauges}=$gauges;
+                    $x=+@$gauges-$old_count;
+                }
+                $s->{graph_length}{$_}  = @$gauges;
+            }
+        }
+
         $_->create for values %{ $s->{gauges} };
-
-        $s->{width} = $s->{align} eq CDMN->VISUAL_ALIGN_ROW ? $xOff - $s->{padding} : $l;
-        $s->{height} = $s->{align} eq CDMN->VISUAL_ALIGN_ROW ? 1 : $yOff - $s->{padding} + 1;
-
         #Background
         $s->{bg} = cdmn::visuals::overlay->new(
             term   => $s->{term},
             x      => $s->{x},
             y      => $s->{y},
-            width  => $s->{width},
-            height => $s->{height},
+            width  => $s->{ncol},
+            height => $s->{nrow},
 
             #rendition => urxvt::SET_BGCOLOR CDMN->REND, 4,
             rendition => urxvt::SET_BGCOLOR CDMN->REND,
@@ -1704,8 +1732,8 @@ package cdmn::visuals::container {
         my ( $s, $name, $usage, $invert ) = validate_pos( @_, 1, 1, 1, 1 );
         my $total = 0;
 
-        if ( $s->{graph}{$name} ) {
-            my $graph_count = $s->{graph}{$name};
+        if ( $s->{graph_length}{$name} ) {
+            my $graph_count = $s->{graph_length}{$name};
 
             for ( keys %$usage ) {
                 $s->{graph_data}{$name}{$_} = [ (0) x $graph_count ] if !$s->{graph_data}{$name}{$_};
@@ -1730,7 +1758,7 @@ package cdmn::visuals::container {
         }
 
         if ( $s->{visible} && $s->{gauges}{$name} ) {
-            if ( !$s->{detail}{$name} and !$s->{graph}{$name} ) {
+            if ( !$s->{detail}{$name} and !$s->{graph_length}{$name} ) {
                 $total += $_ for values %$usage;
                 $total /= scalar keys %$usage;
                 $s->{gauges}{$name}->set( 'simple', $total, $invert );
@@ -2150,7 +2178,7 @@ sub create_caption {
                 sensitivity   => XR->{sensitivity},
                 name          => $c->{name},
                 detail        => $c->{detail},
-                graph         => $c->{length},
+                graph_length         => $c->{length},
                 label_bold    => XR->get_default('label_bold'),
             );
         };
