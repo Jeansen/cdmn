@@ -67,14 +67,18 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 
 | Keysym    | Function  |
 | --------- | --------- |
-| Meta-l    | Show left panel |
+| Meta-l    | Show/Hide left labels |
 | Meta-o    | Show/Hide cpations in overlay mode |
 | Meta-h    | Show/Hide cpations in normal mode <br> Toggle between overlay to normal mode |
 | Meta-p    | Show/Hide sidebar |
 | Meta-k    | Show next pane |
 | Meta-j    | Show previous pane |
+| Ctrl-k    | Scroll up in current pane |
+| Ctrl-j    | Scroll down in current pane |
 
 Normally the Meta key maps to the ALT key. If the bindings do not work, please check your system mappings.
+
+If you do not like the default settings, you can [change them](#custom-keysyms).
 
 # How to use cdmn
 
@@ -97,7 +101,7 @@ to scroll up and down. Don't worry, you will be able to set these bindings, soon
 
 The sidebar is in heavy development at the moment. Stay tuned but do not expect too much ;-)
 
-# How to customize cdmn (so far)
+# How to customize cdmn 
 
 Here are some settings, that already work with more to come:
 
@@ -240,6 +244,21 @@ Finally there are even more settings ...
 There is an initial .Xresouces file inthde resources folder with some minimal necessary settings, including some 
 color overwrites to make it look like the example screenshots. Make sure you adapt the line `URxvt*perl-lib: 
 /home/<USERNAME>/.urxvt/` accordingly.
+
+## Custom keysyms
+
+If you do not like the default [keysyms](#default-keysyms), you can change them:
+
+| Resource | Default | Function |
+| --- | --- | --- |
+| `URxvt.cdmn.Keysym.labels.show` | Meta-l    | Show/Hide labels |
+| `URxvt.cdmn.Keysym.overlay.toggle` | Meta-o    | Show/Hide cpations in overlay mode |
+| `URxvt.cdmn.Keysym.toggle` | Meta-h    | Show/Hide cpations in normal mode <br> Toggle between overlay to normal mode |
+| `URxvt.cdmn.Keysym.sidebar.toggle` | Meta-p    | Show/Hide sidebar |
+| `URxvt.cdmn.Keysym.sidebar.pane.next` | Meta-k    | Show next pane |
+| `URxvt.cdmn.Keysym.sidebar.pane.prev` | Meta-j    | Show previous pane |
+| `URxvt.cdmn.Keysym.sidebar.scroll.up` | Ctrl-k    | Scroll up in current pane |
+| `URxvt.cdmn.Keysym.sidebar.scroll.down` | Ctrl-j    | Scroll down in current pane |
 
 # How to customize the sidebar (so far)
 

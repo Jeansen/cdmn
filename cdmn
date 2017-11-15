@@ -629,6 +629,8 @@ package cdmn::resources {
         mounts
         colors
         sidebar
+        
+        keysyms
     );
 
     use constant {
@@ -797,6 +799,16 @@ package cdmn::resources {
         $s->set_sidebar( 'graph_symbols', _set_list( '%.sidebar.graph.symbols', '■, □' ) );
         $s->set_sidebar( 'border_visible', _set_number( '%.sidebar.border.visible', 1 ) );
         $s->set_sidebar( 'panes_order', _set_list('%.sidebar.panes.order') );
+        # $s->set_sidebar( 'enable', _set_number('%.sidebar.panes.enable', 1) ); #TODO
+
+        $s->set_keysym( CDMN->ACTION_TOGGLE, $t->x_resource('%.keysym.toggle')   // 'M-h'  );
+        $s->set_keysym( CDMN->ACTION_TOGGLE_SIDEBAR, $t->x_resource('%.keysym.sidebar.toggle')   // 'M-p' );
+        $s->set_keysym( CDMN->ACTION_TOGGLE_OVERLAY, $t->x_resource('%.keysym.overlay.toggle')   // 'M-o' );
+        $s->set_keysym( CDMN->ACTION_TOGGLE_LABELS, $t->x_resource('%.keysym.lables.toggle')   // 'M-l' );
+        $s->set_keysym( CDMN->ACTION_NEXT_PANE, $t->x_resource('%.keysym.sidebar.pane.next')   // 'M-k' );
+        $s->set_keysym( CDMN->ACTION_PREV_PANE, $t->x_resource('%.keysym.sidebar.pane.prev')   // 'M-j' );
+        $s->set_keysym( CDMN->ACTION_SCROLL_UP, $t->x_resource('%.keysym.sidebar.scroll.up')   // 'C-k' );
+        $s->set_keysym( CDMN->ACTION_SCROLL_DOWN, $t->x_resource('%.keysym.sidebar.scroll.down')   // 'C-j' );
 
         $s->set_disks;
         $s->set_batteries;
@@ -889,6 +901,16 @@ package cdmn::resources {
     sub get_default {
         my $s = shift;
         $s->{defaults}{ $_[0] };
+    }
+
+    sub get_keysym {
+        my $s = shift;
+        $s->{keysyms}{ $_[0] };
+    }
+
+    sub set_keysym {
+        my $s = shift;
+        $s->{keysyms}{ $_[0] } = $_[1];
     }
 
     #TODO make private and more generic!
@@ -1427,7 +1449,7 @@ package cdmn::term {
     use Params::Validate qw(:all);
     use File::Basename;
 
-    use fields qw(x y w h term parent bg_color content is_root maximized bare);
+    use fields qw(x y w h term parent bg_color content is_root maximized bare keysyms);
 
     use constant CDMN => 'cdmn::constants';
 
@@ -1448,6 +1470,7 @@ package cdmn::term {
                 w        => { default => 1 },
                 h        => { default => 1 },
                 bare     => { default => 0 },    #bare will deactivate all disturbing settins, e.g. scrollbars, ...
+                keysyms  => 0,   
             }
         );
 
@@ -1486,14 +1509,13 @@ package cdmn::term {
 
     sub on_init {
         my $s = shift;
-        $s->bind_action( 'M-h', 'perl:' . CDMN->ACTION_TOGGLE );
-        $s->bind_action( 'M-p', 'perl:' . CDMN->ACTION_TOGGLE_SIDEBAR );
-        $s->bind_action( 'M-o', 'perl:' . CDMN->ACTION_TOGGLE_OVERLAY );
-        $s->bind_action( 'M-l', 'perl:' . CDMN->ACTION_TOGGLE_LABELS );
-        $s->bind_action( 'M-k', 'perl:' . CDMN->ACTION_NEXT_PANE );
-        $s->bind_action( 'M-j', 'perl:' . CDMN->ACTION_PREV_PANE );
-        $s->bind_action( 'C-k', 'perl:' . CDMN->ACTION_SCROLL_UP );
-        $s->bind_action( 'C-j', 'perl:' . CDMN->ACTION_SCROLL_DOWN );
+        my $t=$s->{term}{termclass};
+        #TODO do not rely on external structure
+        if (exists $t->{keysyms}){
+            while ( my ( $k, $v ) = each %{$t->{keysyms}} ) {
+                $s->bind_action( $v, 'perl:' . $k);
+            }
+        }
         ();
     }
 
@@ -2397,7 +2419,8 @@ sub on_start {
 
     $s->{xterms}{main} = cdmn::term->new(
         parent  => $s,
-        is_root => 1
+        is_root => 1,
+        keysyms => XR->{keysyms}
     )->maximize->show;
 
     my $w = $s->width;
