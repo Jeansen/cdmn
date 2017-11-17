@@ -1129,15 +1129,16 @@ package cdmn::sidebar {
 
         local *_overlay = sub {
             state $i = 0;
-            cdmn::visuals::overlay->new( {
-					term      => $s->{term},
-					x         => $s->{border_position} eq LEFT ? 1 : 2,
-					y         => $i++,                                    #TODO
-					width     => $s->{term}->ncol-2,
-					height    => 1,
-					rendition => $r,
-					text      => (shift),
-				});
+            cdmn::visuals::overlay->new(
+                {   term      => $s->{term},
+                    x         => $s->{border_position} eq LEFT ? 1 : 2,
+                    y         => $i++,                                    #TODO
+                    width     => $s->{term}->ncol - 2,
+                    height    => 1,
+                    rendition => $r,
+                    text      => (shift),
+                }
+            );
         };
 
         local *_center = sub {
@@ -1193,9 +1194,9 @@ package cdmn::sidebar {
         if ( $s->{border_position} =~ m/^${\(LEFT)}|^${\(RIGHT)}/ && $s->{border_visible} ) {
             $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
             push @header, _overlay( $s->{border_position} eq LEFT ? BORDER_R : BORDER_L );
-            $header[-1]->{x}      = $s->{border_position} eq LEFT                        ? -1 : 0;
-            $header[-1]->{width}  = $s->{border_position} =~ m/^(${\(LEFT)}|${\(RIGHT)})/ ? 1 : $s->{term}->ncol;
-            $header[-1]->{height} = $s->{border_position} =~ m/^(${\(TOP)}|${\(BOTTOM)})/ ? 1 : $s->{term}->nrow;
+            $header[-1]->{x}      = $s->{border_position} eq LEFT                         ? -1 : 0;
+            $header[-1]->{width}  = $s->{border_position} =~ m/^(${\(LEFT)}|${\(RIGHT)})/ ? 1  : $s->{term}->ncol;
+            $header[-1]->{height} = $s->{border_position} =~ m/^(${\(TOP)}|${\(BOTTOM)})/ ? 1  : $s->{term}->nrow;
             $header[-1]->{repeat} = 1;
         }
 
@@ -2168,8 +2169,8 @@ sub refresh_bounds {
     }
 
     my ( $sb_pos, $sb_w, $sb_h ) = map { XR->get_sidebar($_) } (qw/position width height/);
-    my $width  = $sb_pos =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $s->width * ($sb_w / 100)+$s->{dwidth} : $s->{width};
-    my $height = $sb_pos =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $s->height * ( $sb_h / 100)+$s->{dheight} : $s->{height};
+    my $width  = $sb_pos =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $s->width *  ( $sb_w / 100 ) + $s->{dwidth}  : $s->{width};
+    my $height = $sb_pos =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $s->height * ( $sb_h / 100 ) + $s->{dheight} : $s->{height};
 
     $x = $sb_pos eq CDMN->RIGHT  ? $s->{width} - $width   : 0;
     $y = $sb_pos eq CDMN->BOTTOM ? $s->{height} - $height : 0;
@@ -2369,9 +2370,10 @@ sub on_refresh_end {
 # React on X Events (resize)
 sub on_configure_notify {
     my ( $s, $e ) = @_;
+
     #TODO here is a hack for saving the real height and width
-    $s->{width}  = $e->{width};
-    $s->{height} = $e->{height};
+    $s->{width}   = $e->{width};
+    $s->{height}  = $e->{height};
     $s->{dwidth}  = $e->{width} - $s->width;
     $s->{dheight} = $e->{height} - $s->height;
     return if $s->{w_size} eq $s->{term}->ncol && $s->{y_size} eq $s->{term}->nrow;
@@ -2416,7 +2418,7 @@ sub on_tt_write {
 sub on_init {
     my ($s) = @_;
     XR->init($s);
-	@$s{qw/width height dwidth dheight/} = (qw/0 0 0 0/);
+    @$s{qw/width height dwidth dheight/} = (qw/0 0 0 0/);
     ();
 }
 
@@ -2430,7 +2432,8 @@ sub on_start {
     )->maximize->show;
 
     $s->{xterms}{sidebar} = cdmn::sidebar->new(
-		#x,y,width,height will be set on immediate refresh, so we use the default - see new()
+
+        #x,y,width,height will be set on immediate refresh, so we use the default - see new()
         parent          => $s,
         fg              => XR->get_sidebar('fg'),
         bg              => XR->get_sidebar('bg'),
