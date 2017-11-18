@@ -357,7 +357,8 @@ After that a package with the name `rxvt-unicode` will be installed and you shou
 
 # Example Colors
 
-Here are som example colors you can use for `URxvt.cdmn.gauges.colors` or any of the [overwrites](#visual-styles---gauges-colors).
+Here are som example colors you can use for `URxvt.cdmn.gauges.colors` or any of the 
+[overwrites](#visual-styles---gauges-colors).
 
 | Colors   | Example                                                                   |
 | -------- | ------------------------------------------------------------------------- |
@@ -377,11 +378,13 @@ If you prefer the led style you might want to have more indicators.
 | `17,18,19,20,21`      | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_blue_led.png)  |
 | `236,241,246,251,231` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_white_led.png) |
 
-As described in the section on [visual styles](#visual-styles---gauges-colors) the first color always defines the the background color.
+As described in the section on [visual styles](#visual-styles---gauges-colors) the first color always defines the the 
+background color.
 
 # Please note
 
-This extension is with relevance to its current stage [bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). 
+This extension is with relevance to its current stage 
+[bleeding edge alpha](https://de.wikipedia.org/wiki/Release_early,_release_often). 
 If you followed the installation instructions above it should run on any Debian-based distribution, though.
 
 # What's next (without priority)
