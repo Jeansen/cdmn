@@ -52,7 +52,7 @@ with `sudo apt-get install rxvt-unicode-256color`.
 Install needed Perl libraries: `sudo apt-get install libfilesys-df-perl libparams-validate-perl`
 
 Then clone this repository to a place of your liking, e.g. `git clone https://github.com/Jeansen/cdmn.git ~/cdmn` and 
-set the resource `URxvt*perl-lib`. In this example this would be  `URxvt*perl-lib: ~/cdmn/`.
+set the resource `URxvt*perl-lib`. In this example this would be  `URxvt*perl-lib: /path/to/cdmn/`.
 
 Then load the changes with `xrdb -load ~/.Xresources`.
 
