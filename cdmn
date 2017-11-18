@@ -2189,8 +2189,8 @@ sub refresh_bounds {
     $sidebar->refresh_pane
         if $sidebar->{visible}
         && ceil( $sidebar->{term}->{h} / $sidebar->{term}->fheight ) > 4
-        && ceil( $sidebar->{term}->{w} / $sidebar->{term}->fwidth ) > 4;    #TODO remove magic number
-        && $sidebar->{visible}
+        && ceil( $sidebar->{term}->{w} / $sidebar->{term}->fwidth ) > 4    #TODO remove magic number
+        && $sidebar->{visible};
 
 }
 
