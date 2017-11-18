@@ -1133,7 +1133,7 @@ package cdmn::sidebar {
                 {   term      => $s->{term},
                     x         => $s->{border_position} eq LEFT ? 1 : 2,
                     y         => $i++,                                    #TODO
-                    width     => $s->{term}->ncol - 2,
+                    width     => $s->{term}->ncol - ($s->{border_visible} ? 3 : 2 ), 
                     height    => 1,
                     rendition => $r,
                     text      => (shift),
@@ -1228,11 +1228,11 @@ package cdmn::sidebar {
         for (@slctn) {
             push @content, _overlay($_);
 
-            my $w = $s->{term}->ncol - 7;                       #2 border,space + 4 number% + 1 space
-            my $c = ceil( $w * $data{"$title"}->{$_} / 100 );
+            my $w = $s->{term}->ncol - 8;                       #TODO 2 border,space + 4 number% + 1 space 
+            my $c = floor( $w * $data{"$title"}->{$_} / 100 );
             $c = 0 if $c < 0;
             my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
-            push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . ceil( $data{$title}->{$_} ) . "%" );
+            push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . floor( $data{$title}->{$_} ) . "%" );
         }
 
         my $lp     = ( $s->{label_position} eq TOP ? 2 : 1 );
@@ -1279,7 +1279,7 @@ package cdmn::sidebar {
 
         if ( $s->{header_position} eq BOTTOM ) {
             if ( $s->{border_position} =~ m/^${\(LEFT)}|${\(RIGHT)}/ && $s->{border_visible} ) {
-                push @data, ( reverse splice @data, 1, 4 );    #TODO remove hardcoded numbers
+                push @data, ( reverse splice @data, 1, 3 );    #TODO remove hardcoded numbers
             }
             else {
                 push @data, ( reverse splice @data, 0, 3 );    #TODO remove hardcoded numbers
