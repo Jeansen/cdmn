@@ -16,7 +16,7 @@ URxvt*secondaryScroll:                true
 URxvt*perl-lib:                       /urxvt/
 
 !URxvt.cdmn.gauges.order: CPU
-URxvt.cdmn.gauges.order: TEMP,DISK,CPU,MEM,NET,BAT,MOUNT
+URxvt.cdmn.gauges.order: TEMP,DISK,CPU,MEM,NET,MOUNT,BAT
 
 !! URxvt.cdmn.gauges.colors: 5,52,88,124,160,196
 URxvt.cdmn.gauges.colors: 0,246,2,4,3,1
@@ -24,6 +24,7 @@ URxvt.cdmn.label.fg: 210
 
 URxvt.cdmn.graphs: CPU
 URxvt.cdmn.graphs.width: 5
+URxvt.cdmn.graphs.expand: DISK
 !!URxvt.cdmn.label.fg: 5
 
 !! URxvt.cdmn.colors.network: 18,27
@@ -33,10 +34,10 @@ URxvt.cdmn.colors.cpu: 58,226
 !! URxvt.cdmn.colors.memory: 52,196
 !! URxvt.cdmn.colors.battery: 22,46
 URxvt.cdmn.padding: 2
-URxvt.cdmn.refresh: 1
+URxvt.cdmn.refresh: 0.1
 URxvt.cdmn.sidebar.bg: 4
 URxvt.cdmn.sidebar.header.position: top
-URxvt.cdmn.sidebar.position: right
+URxvt.cdmn.sidebar.position: left
 URxvt.cdmn.sidebar.panes.order: CPU,NET,MOUNT
 URxvt.cdmn.sidebar.label.position: top
 URxvt.cdmn.label.bold: 1
