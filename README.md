@@ -63,6 +63,8 @@ Make sure you pull updates on a regular basis to enjoy new features and improved
 Of course you can have the extension loaded automatically by adding the resource `URxvt*perl-ext-common: cdmn` 
 to your .Xresources file. But I would not recommend it at the moment.
 
+Also have a look in the `resources/test` folder. There are some demo files that you can use a a starting point.
+
 ## Using cdmn with wireless NICs
 
 Wireless is a bit of a speciality because there is no constant maximal rx/tx speed. The value is constantly evaluated 
