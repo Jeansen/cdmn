@@ -1132,8 +1132,8 @@ package cdmn::sidebar {
             cdmn::visuals::overlay->new(
                 {   term      => $s->{term},
                     x         => $s->{border_position} eq LEFT ? 1 : 2,
-                    y         => $i++,                                    #TODO
-                    width     => $s->{term}->ncol - ($s->{border_visible} ? 3 : 2 ), 
+                    y         => $i++,                                                  #TODO
+                    width     => $s->{term}->ncol - ( $s->{border_visible} ? 3 : 2 ),
                     height    => 1,
                     rendition => $r,
                     text      => (shift),
@@ -1215,8 +1215,8 @@ package cdmn::sidebar {
         # LINE
         push @header, _overlay( $s->{header_position} eq TOP ? TD : BD );
         $header[-1]->{repeat} = 1;
-        $header[-1]->{x} = 0;
-        $header[-1]->{width} = $s->{term}->ncol;
+        $header[-1]->{x}      = 0;
+        $header[-1]->{width}  = $s->{term}->ncol;
 
         #CONTENT
         $scroll_i{$title}{&SCROLL_UP}   //= 0;
@@ -1228,15 +1228,15 @@ package cdmn::sidebar {
         for (@slctn) {
             push @content, _overlay($_) if $s->{label_position} eq TOP;
 
-            my $w = $s->{term}->ncol - 8;                       #TODO 2 border,space + 4 number% + 1 space 
+            my $w = $s->{term}->ncol - 8;                        #TODO 2 border,space + 4 number% + 1 space
             my $c = floor( $w * $data{"$title"}->{$_} / 100 );
             $c = 0 if $c < 0;
-            my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
+            my $f = $c <= $w ? $w - $c : 0;                      #should only be necessary on startup
             push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . floor( $data{$title}->{$_} ) . "%" );
             push @content, _overlay($_) if $s->{label_position} eq BOTTOM;
         }
 
-        #TODO maybe for label visible but otherwise should be always a cluster of label and graph?! 
+        #TODO maybe for label visible but otherwise should be always a cluster of label and graph?!
         #my $lp     = ( $s->{label_position} eq TOP ? 2 : 1 );
         my $lp     = 1;
         my $sup    = $scroll_i{$title}{&SCROLL_UP};
@@ -1247,14 +1247,18 @@ package cdmn::sidebar {
 
         local *_down = sub {
             pop @content;
-            $content[-1] = _overlay( _center(ARR_DOWN) );
-            $content[-1]->{y} = -1;
+            if (@content) {
+                $content[-1] = _overlay( _center(ARR_DOWN) );
+                $content[-1]->{y} = -1;
+            }
         };
 
         local *_up = sub {
             shift @content;
-            $content[0] = _overlay( _center(ARR_UP) );
-            $content[0]->{y} = $header[-1]->{y} + 1;
+            if (@content) {
+                $content[0] = _overlay( _center(ARR_UP) );
+                $content[0]->{y} = $header[-1]->{y} + 1;
+            }
         };
 
         if ( $cntlen > 0 ) {
@@ -2182,7 +2186,11 @@ sub refresh_bounds {
     $s->{xterms}{sidebar}->bounds( $x, $y, $width, $height );
 
     my $sidebar = $s->{xterms}{sidebar};
-    $sidebar->refresh_pane if $sidebar->{visible} && ceil( $sidebar->{term}->{height} / $sidebar->{term}->fheight ) > 4;    #TODO remove magic number
+    $sidebar->refresh_pane
+        if $sidebar->{visible}
+        && ceil( $sidebar->{term}->{h} / $sidebar->{term}->fheight ) > 4
+        && ceil( $sidebar->{term}->{w} / $sidebar->{term}->fwidth ) > 4;    #TODO remove magic number
+        && $sidebar->{visible}
 
 }
 
