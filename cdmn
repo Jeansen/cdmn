@@ -1215,6 +1215,8 @@ package cdmn::sidebar {
         # LINE
         push @header, _overlay( $s->{header_position} eq TOP ? TD : BD );
         $header[-1]->{repeat} = 1;
+        $header[-1]->{x} = 0;
+        $header[-1]->{width} = $s->{term}->ncol;
 
         #CONTENT
         $scroll_i{$title}{&SCROLL_UP}   //= 0;
