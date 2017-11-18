@@ -1226,16 +1226,19 @@ package cdmn::sidebar {
         my @slctn = ( sort keys %{ $data{$title} } );
 
         for (@slctn) {
-            push @content, _overlay($_);
+            push @content, _overlay($_) if $s->{label_position} eq TOP;
 
             my $w = $s->{term}->ncol - 8;                       #TODO 2 border,space + 4 number% + 1 space 
             my $c = floor( $w * $data{"$title"}->{$_} / 100 );
             $c = 0 if $c < 0;
             my $f = $c <= $w ? $w - $c : 0;                     #should only be necessary on startup
             push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . floor( $data{$title}->{$_} ) . "%" );
+            push @content, _overlay($_) if $s->{label_position} eq BOTTOM;
         }
 
-        my $lp     = ( $s->{label_position} eq TOP ? 2 : 1 );
+        #TODO maybe for label visible but otherwise should be always a cluster of label and graph?! 
+        #my $lp     = ( $s->{label_position} eq TOP ? 2 : 1 );
+        my $lp     = 1;
         my $sup    = $scroll_i{$title}{&SCROLL_UP};
         my $delta  = floor( ( @header + @content - $s->{term}->nrow ) / $lp );
         my $rest   = ( @header + @content - $s->{term}->nrow ) % $lp;
@@ -1243,13 +1246,13 @@ package cdmn::sidebar {
         my $sdown  = $scroll_i{$title}{&SCROLL_DOWN} = $delta - $sup;
 
         local *_down = sub {
-            pop @content if $s->{label_position} eq TOP;
+            pop @content;
             $content[-1] = _overlay( _center(ARR_DOWN) );
             $content[-1]->{y} = -1;
         };
 
         local *_up = sub {
-            shift @content if $s->{label_position} eq TOP;
+            shift @content;
             $content[0] = _overlay( _center(ARR_UP) );
             $content[0]->{y} = $header[-1]->{y} + 1;
         };
