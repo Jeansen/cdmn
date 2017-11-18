@@ -1735,9 +1735,9 @@ package cdmn::visuals::container {
                 $s->{gauges}{$_}{x} += $x;
                 if ( $s->{graphs}{$_} ) {
                     $s->{gauges}{$_}{gauges} = $gauges;
+                    $s->{graph_length}{$_} = @$gauges;
                     $x += @$gauges - $old_count;
                 }
-                $s->{graph_length}{$_} = @$gauges;    #default to 0
             }
         }
 
