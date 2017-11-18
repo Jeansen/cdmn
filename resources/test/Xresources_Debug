@@ -38,7 +38,7 @@ URxvt.cdmn.sidebar.bg: 4
 URxvt.cdmn.sidebar.header.position: top
 URxvt.cdmn.sidebar.position: bottom
 URxvt.cdmn.sidebar.panes.order: CPU,NET,MOUNT
-!!URxvt.cdmn.sidebar.label.position: bottom
+URxvt.cdmn.sidebar.label.position: top
 URxvt.cdmn.label.bold: 1
 
 /* URxvt.cdmn.visual.alignment: col */
