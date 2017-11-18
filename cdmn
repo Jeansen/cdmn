@@ -260,7 +260,7 @@ package cdmn::proc {
         my %mounts;
         for (<$f>) {
             @m = /(\A\/dev\S*)\s+([a-zA-Z0-9-_.\/]+)/;    #TODO this regex is too simple
-            push @mounts, @m if @m and !exists $mounts{$m[0]};
+            push @mounts, @m if @m and !exists $mounts{ $m[0] };
             %mounts = (@mounts);
         }
         return \%mounts;
