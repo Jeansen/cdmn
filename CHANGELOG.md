@@ -1,5 +1,41 @@
 # Change Log
 
+## [alpha-0.8](https://github.com/Jeansen/cdmn/tree/alpha-0.8) (2017-11-18)
+[Full Changelog](https://github.com/Jeansen/cdmn/compare/alpha-0.7...alpha-0.8)
+
+**Implemented enhancements:**
+
+- Add resource options for custom keysyms [\#104](https://github.com/Jeansen/cdmn/issues/104)
+- Add option to specify order and  panes to show in the sidebar [\#100](https://github.com/Jeansen/cdmn/issues/100)
+- Add scrolling for panes with too much content [\#92](https://github.com/Jeansen/cdmn/issues/92)
+- Add indicator, if header space is too small [\#90](https://github.com/Jeansen/cdmn/issues/90)
+- Add resource options for pane header [\#89](https://github.com/Jeansen/cdmn/issues/89)
+- Add resource option to position header [\#88](https://github.com/Jeansen/cdmn/issues/88)
+- Add resource option for bold labels [\#87](https://github.com/Jeansen/cdmn/issues/87)
+- Option to position sidebar left, right, top, bottom and center \(full screen, borderless\) [\#84](https://github.com/Jeansen/cdmn/issues/84)
+- Add option to set padding between label and gauge [\#80](https://github.com/Jeansen/cdmn/issues/80)
+- Add Option to use maximum available space for graphs [\#79](https://github.com/Jeansen/cdmn/issues/79)
+
+**Fixed bugs:**
+
+- Wrong size when scollbars active [\#96](https://github.com/Jeansen/cdmn/issues/96)
+- Do not throw errors when resizing terminal window [\#91](https://github.com/Jeansen/cdmn/issues/91)
+- Do not show empty panes for not present elements [\#82](https://github.com/Jeansen/cdmn/issues/82)
+- Fix evaluation of resouces [\#78](https://github.com/Jeansen/cdmn/issues/78)
+
+**Closed issues:**
+
+- Cleanup resource names [\#101](https://github.com/Jeansen/cdmn/issues/101)
+- Add resource options for panes [\#83](https://github.com/Jeansen/cdmn/issues/83)
+- Refactor for chaining / fluent interfaces [\#81](https://github.com/Jeansen/cdmn/issues/81)
+- Increase code quality [\#76](https://github.com/Jeansen/cdmn/issues/76)
+- Increase orthogonality [\#52](https://github.com/Jeansen/cdmn/issues/52)
+- Resolve TODOs [\#93](https://github.com/Jeansen/cdmn/issues/93)
+
+**Merged pull requests:**
+
+- Add a Gitter chat badge to README.md [\#103](https://github.com/Jeansen/cdmn/pull/103) ([gitter-badger](https://github.com/gitter-badger))
+
 ## [alpha-0.7](https://github.com/Jeansen/cdmn/tree/alpha-0.7) (2017-06-22)
 [Full Changelog](https://github.com/Jeansen/cdmn/compare/alpha-0.6...alpha-0.7)
 
