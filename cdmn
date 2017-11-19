@@ -109,10 +109,10 @@ package cdmn::sys {
     use Proc::ProcessTable;
     use Params::Validate qw(:all);
 
-    local *_pgrep {
+    local *_pgrep{
         my @ssh;
         my $pt = Proc::ProcessTable->new;
-        push @ssh, $_->cmndline =~ /($_[0])/ for @{$pt->table};
+        push @ssh, $_->cmndline =~ /($_[0])/ for @{ $pt->table };
         return @ssh;
     };
 
@@ -121,7 +121,7 @@ package cdmn::sys {
     }
 
     sub ssh_uniq_users {
-        (sort keys %{{map {$_ => 1 } map /(.+)@/, _pgrep('sshd')}});
+        ( sort keys %{ { map { $_ => 1 } map /(.+)@/, _pgrep('sshd') } } );
     }
 
     sub user_ssh_count {
