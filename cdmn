@@ -229,7 +229,7 @@ package cdmn::proc {
         chomp( my $state = <$f> );
 
         # RFC2863 operational states: unknown notpresent down up lowerlayerdown testing dormant
-        return 1 if $state =~ 'down|unknown';
+        return 1 if $state =~ 'down|unknown|dormant';
         0;
     }
 
@@ -2487,7 +2487,7 @@ sub on_start {
                 map { $_ => ${ $_[0] }{$_} } @{ $_[1] };
             };
 
-            redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok | XR->set_batteries->ok | XR->set_nics->ok;
+            redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok || XR->set_batteries->ok || XR->set_nics->ok;
 
             my %usage_of;
             $usage_of{cpu}      = sub { _filter( cdmn::proc::cpu_usages(), XR->get_gauges('cpus') ) };
