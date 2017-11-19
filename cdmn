@@ -105,6 +105,17 @@ package cdmn::constants {
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
 }
 
+package cdmn::sys {
+    use Proc::ProcessTable;
+    use Params::Validate qw(:all);
+
+    sub ssh_count {
+        my $t = Proc::ProcessTable->new;
+        push @x, /(sshd)/ for @{$t->table};
+        return scalar grep /@/, @x;
+    }
+}
+
 package cdmn::proc {
     use List::Util qw(sum max min);
     use Params::Validate qw(:all);
