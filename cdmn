@@ -109,24 +109,26 @@ package cdmn::sys {
     use Proc::ProcessTable;
     use Params::Validate qw(:all);
 
-    local *_pgrep{
+    my $__pgrep = sub {
         my @ssh;
         my $pt = Proc::ProcessTable->new;
-        push @ssh, $_->cmndline =~ /($_[0])/ for @{ $pt->table };
+        for (@{ $pt->table }) {
+            push @ssh, $_->cmndline if $_->cmndline =~ /($_[0])/ 
+        }
         return @ssh;
     };
 
     sub ssh_count {
-        scalar grep /@/, _pgrep('sshd');
+        scalar grep /@/, $__pgrep->('sshd');
     }
 
     sub ssh_uniq_users {
-        ( sort keys %{ { map { $_ => 1 } map /(.+)@/, _pgrep('sshd') } } );
+        ( sort keys %{ { map { $_ => 1 } map /(.+)@/, $__pgrep->('sshd') } } );
     }
 
     sub user_ssh_count {
         my %u;
-        grep { $u{$_}++ } map /(.+)@/, _pgrep('sshd');
+        grep { $u{$_}++ } map /(.+)@/, $__pgrep->('sshd');
         return %u;
     }
 }
@@ -2542,7 +2544,6 @@ sub on_start {
             my @gauges = keys %{ ${ $s->{captions}[0] }->{gauges} };
             my @panes  = keys %{ $s->{xterms}{sidebar}{panes} };
             _set( \@gauges, \@panes );
-
         }
     );
     refresh_bounds( $s, XR->{visual_align} );
