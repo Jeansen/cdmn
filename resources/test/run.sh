@@ -20,6 +20,7 @@ if [ $OPTIND -eq 1 ]; then echo "No options were passed"; exit 1; fi
 xhost +local:;
 
 docker run \
+  --publish-all \
   --rm \
   --volume=$XSOCK:$XSOCK:rw \
   --volume=$XAUTH:$XAUTH:rw \
