@@ -100,6 +100,7 @@ package cdmn::constants {
         CPU_TEMP => 'cpu_temp',
         BATTERY  => 'battery',
         MOUNT    => 'mount',
+        SSH    => 'ssh',
     };
 
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
@@ -674,7 +675,7 @@ package cdmn::resources {
         PROC => 'cdmn::proc',
     };
 
-    use constant DEFAULT_ORDER => (qw/ cpu cpu_temp disk memory network battery mount/);
+    use constant DEFAULT_ORDER => (qw/ cpu cpu_temp disk memory network battery mount ssh/);
 
     sub new {
         my $s = shift;
@@ -801,7 +802,7 @@ package cdmn::resources {
         $s->{disk_mounts_only}       = _set_number( '%.disk.mountsonly',        1 );     #TODO rename
         $s->{refresh}                = _set_number( '%.refresh',                1 );
         $s->{sensitivity}            = _set_number( '%.sensitivity',            1 );     #percentage
-        $s->{visual_style} = _set_value( '%.visual.style', [ (qw/bar led graph/) ], 'bar' );
+        $s->{visual_style} = _set_value( '%.visual.style', [ (qw/bar led text/) ], 'bar' );
 
         $s->set_default( 'gauges_order', _set_list('%.gauges.order') );
         $s->set_gauges( 'disks',       _set_list('%.gauges.disks') );
@@ -2525,6 +2526,7 @@ sub on_start {
             $usage_of{disk}     = sub { _filter( cdmn::proc::disk_usages(), XR->get_gauges('disks') ) };
             $usage_of{network}  = sub { _filter( cdmn::proc::network_usages(), XR->get_gauges('networks') ) };
             $usage_of{mount}    = sub { %{ cdmn::proc::fs_usage() } };
+            $usage_of{ssh}    = sub { %{ cdmn::sys::ssh_count() } };
 
             local *_set = sub {
                 my $gauges = shift;
