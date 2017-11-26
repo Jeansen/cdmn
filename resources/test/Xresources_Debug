@@ -23,6 +23,7 @@ URxvt.cdmn.label.fg: 210
 
 URxvt.cdmn.disk.graph.length: 5
 URxvt.cdmn.cpu.graph.width: 5
+URxvt.cdmn.cpu.detail: false
 !!URxvt.cdmn.disk.graph.expand: true
 !!URxvt.cdmn.label.fg: 5
 
