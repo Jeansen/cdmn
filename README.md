@@ -196,12 +196,6 @@ to adapt its visual style.
 | `URxvt.cdmn.<guage>.detail`       | How much detail, e.g. a gauge for every logical core or just one gauge.                      | true (false)    |
 | `URxvt.cdmn.<guage>.invert`       | Invert colors                                                                                | true (false)    |
 
-## Visual styles - invert
-
-It might be of interest to revert some colors, e.g. when you are interested in how much energy is left when running on 
-battery power. But of course this is open for debate ;-) Anyway, you cant set `URxvt.cdmn.gauges.inverts` to a list 
-of labels for which gauges should use inverted colors. BAT ist inverted by default.
-
 If you specifiy `URxvt.cdmn.<guage>.graph.width` and `URxvt.cdmn.<guage>.graph.expand`, the latter one takes precedence.
 
 You can further define the visual representation and orientation with the following settings.
