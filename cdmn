@@ -640,13 +640,13 @@ package cdmn::resources {
         CDMN => 'cdmn::constants',
         MATH => 'cdmn::math',
         PROC => 'cdmn::proc',
-
-        DEFAULT_ORDER     => (qw/ cpu cpu_temp disk memory network battery mount /),
-        STYLES            => ( CDMN->STYLE_BAR, CDMN->STYLE_LED ),
-        VISUAL_ALIGNMENTS => ( CDMN->VISUAL_ALIGN_COL, CDMN->VISUAL_ALIGN_ROW ),
-        TBLRC             => ( CDMN->TOP, CDMN->LEFT, CDMN->RIGHT, CDMN->BOTTOM, CDMN->CENTER ),
-        TB => ( CDMN->TOP, CDMN->BOTTOM ),
     };
+
+    use constant DEFAULT_ORDER     => (qw/ cpu cpu_temp disk memory network battery mount /);
+    use constant STYLES            => ( CDMN->STYLE_BAR, CDMN->STYLE_LED );
+    use constant VISUAL_ALIGNMENTS => ( CDMN->VISUAL_ALIGN_COL, CDMN->VISUAL_ALIGN_ROW );
+    use constant TBLRC             => ( CDMN->TOP, CDMN->LEFT, CDMN->RIGHT, CDMN->BOTTOM, CDMN->CENTER );
+    use constant TB => ( CDMN->TOP, CDMN->BOTTOM );
 
     sub new {
         my $s = shift;
@@ -814,7 +814,7 @@ package cdmn::resources {
         $s->set_nics;
 
         ## no critic
-        eval qq/_set_$_/ for qw/cores order invert colors panes mounts/;
+        eval qq/_set_$_/ for qw/cores order colors panes mounts/;
 
         for ( @{ $s->get('gauges_order') } ) {
             ( my $t = $_ ) =~ s/y$/ie/;

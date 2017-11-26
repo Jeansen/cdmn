@@ -190,10 +190,17 @@ to adapt its visual style.
 
 | Resource                          | Function                                                                                     | Default (Other) |
 | --------------------------------- | -------------------------------------------------------------------------------------------- | --------------- |
-| `URxvt.cdmn.<guage>.style` | The kind of gauges you prefer. Either a bar that can grow and shrink or simple flashing LED. | bar (led)       |
+| `URxvt.cdmn.<guage>.style`        | The kind of gauges you prefer. Either a bar that can grow and shrink or simple flashing LED. | bar (led)       |
 | `URxvt.cdmn.<guage>.graph.width`  | Width of graph in samplings, for example 5.                                                  | not set         |
 | `URxvt.cdmn.<guage>.graph.expand` | If graph width should take up as much space possible.                                        | not set         |
 | `URxvt.cdmn.<guage>.detail`       | How much detail, e.g. a gauge for every logical core or just one gauge.                      | true (false)    |
+| `URxvt.cdmn.<guage>.invert`       | Invert colors                                                                                | true (false)    |
+
+## Visual styles - invert
+
+It might be of interest to revert some colors, e.g. when you are interested in how much energy is left when running on 
+battery power. But of course this is open for debate ;-) Anyway, you cant set `URxvt.cdmn.gauges.inverts` to a list 
+of labels for which gauges should use inverted colors. BAT ist inverted by default.
 
 If you specifiy `URxvt.cdmn.<guage>.graph.width` and `URxvt.cdmn.<guage>.graph.expand`, the latter one takes precedence.
 
@@ -252,12 +259,6 @@ This results in a flashing LED-like gauge for CPU activity that has 5 red tones 
 increase), which flashes (updates) every second but only if there is at least 1% of activity. Setting the sensitivity
  to 50 would result in the LED-like gauge to flash first at 50% load with the color of 124. It is also possible 
  to use fractions of seconds, e.g. 0.1, 1.1 and so on.
-
-## Visual styles - invert
-
-It might be of interest to revert some colors, e.g. when you are interested in how much energy is left when running on 
-battery power. But of course this is open for debate ;-) Anyway, you cant set `URxvt.cdmn.gauges.inverts` to a list 
-of labels for which gauges should use inverted colors. BAT ist inverted by default.
 
 ## Miscellaneous settings
 
