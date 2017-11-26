@@ -42,6 +42,7 @@ package cdmn::math {
 
     #return a ref. to a new set containing only the elements that exist in both given sets.
     sub cut_set {
+
         #TODO named parameters
         shift if scalar @_ > 2;    #drop first parameter if called as object
         my @cut = ();
@@ -54,10 +55,11 @@ package cdmn::math {
     }
 
     sub union {
+
         #TODO named parameters
         shift if scalar @_ > 2;    #drop first parameter if called as object
         my @union = ();
-        my %n   = ();
+        my %n     = ();
 
         for my $e ( @{ $_[0] }, @{ $_[1] } ) { $n{$e} = 1 if !exists $n{$e} }
         for my $e ( keys %n ) { push @{ \@union }, $e }
@@ -608,9 +610,8 @@ package cdmn::resources {
         refresh
         sensitivity
 
-        visual_detail_cpu
-        visual_detail_cpu_temp
-        visual_detail_battery
+        detail
+        invert
 
         visual_padding
         visual_style
@@ -639,11 +640,13 @@ package cdmn::resources {
         CDMN => 'cdmn::constants',
         MATH => 'cdmn::math',
         PROC => 'cdmn::proc',
-    };
 
-    use constant DEFAULT_ORDER => (qw/ cpu cpu_temp disk memory network battery mount /);
-    use constant STYLES => (CDMN->STYLE_BAR, CDMN->STYLE_LED);
-    use constant VISUAL_ALIGNMENTS => (CDMN->VISUAL_ALIGN_COL, CDMN->VISUAL_ALIGN_ROW);
+        DEFAULT_ORDER     => (qw/ cpu cpu_temp disk memory network battery mount /),
+        STYLES            => ( CDMN->STYLE_BAR, CDMN->STYLE_LED ),
+        VISUAL_ALIGNMENTS => ( CDMN->VISUAL_ALIGN_COL, CDMN->VISUAL_ALIGN_ROW ),
+        TBLRC             => ( CDMN->TOP, CDMN->LEFT, CDMN->RIGHT, CDMN->BOTTOM, CDMN->CENTER ),
+        TB => ( CDMN->TOP, CDMN->BOTTOM ),
+    };
 
     sub new {
         my $s = shift;
@@ -693,7 +696,8 @@ package cdmn::resources {
         };
 
         local *_set_colors = sub {
-            for ( DEFAULT_ORDER ) {
+            for (DEFAULT_ORDER) {
+
                 # If a specific list of colors is defined, take it, otherwise use default colors.
                 # Make sure values are numbers and add 2.
                 # We have to add 2 because urxvt uses 0 and 1 for references to the terminals fg and bg colors.
@@ -724,18 +728,10 @@ package cdmn::resources {
             $s->set_sidebar( 'panes_order', $s->remap( $s->get_sidebar('panes_order') ) );
         };
 
-        local *_set_invert = sub {
-            $s->set( 'gauges_inverts', _validate( $s->get('gauges_inverts'), [DEFAULT_ORDER] ) );
-            $s->set( 'gauges_inverts', $s->remap( $s->get('gauges_inverts') ) );
-        };
-
         local *_set_order = sub {
             $s->set( 'gauges_order', _validate( $s->get('gauges_order'), [DEFAULT_ORDER] ) );
             $s->set( 'gauges_order', $s->remap( $s->get('gauges_order') ) );
         };
-
-        my $tblrc = [ (qw/top left bottom right center/) ];
-        my $tb    = [ (qw/top bottom/) ];
 
         $s->set_label( 'network',  $t->x_resource('%.label.network')  // 'NET' );
         $s->set_label( 'disk',     $t->x_resource('%.label.disk')     // 'DISK' );
@@ -748,25 +744,26 @@ package cdmn::resources {
 
         $s->set( 'label_fg', _set_number( '%.label.fg', 0 ) );
         $s->set( 'label_bg', _set_number( '%.label.bg', 1 ) );
-        $s->set( 'label_position', _set_value( '%.label.position', [  ], CDMN->LEFT ) );
+        $s->set( 'label_position', _set_value( '%.label.position', [], CDMN->LEFT ) );
         $s->set( 'label_padding', _set_number( '%.label.padding', 0 ) );
         $s->set( 'label_bold',    _set_number( '%.label.bold',    0 ) );
 
         $s->{showing}        = _set_number( '%.showing',        1 );
         $s->{showing_labels} = _set_number( '%.showing.labels', 1 );
 
-        $s->{visual_align} = _set_value( '%.visual.alignment', [ VISUAL_ALIGNMENTS ], CDMN->VISUAL_ALIGN_ROW );
+        $s->{visual_align} = _set_value( '%.visual.alignment', [VISUAL_ALIGNMENTS], CDMN->VISUAL_ALIGN_ROW );
         $s->{caption_bg} = _set_number( '%.caption.bg', 1 );    # 0/1 map onto terminal fg/bg color
 
-        $s->{visual_detail_cpu}      = _set_number( '%.visual.detail.cpu',      0 );     #0/1 less or more detail
-        $s->{visual_detail_cpu_temp} = _set_number( '%.visual.detail.cpu.temp', 0 );     #0/1 less or more detail
-        $s->{visual_detail_battery}  = _set_number( '%.visual.detail.battery',  0 );     #0/1 less or more detail
-        $s->{visual_padding}         = _set_number( '%.visual.padding',         2 );     #Padding between visuals
-        $s->{x}                      = _set_number( '%.x',                      -1 );    #positive from left, negativ from right
-        $s->{y}                      = _set_number( '%.y',                      0 );     #positive from top, negativ from bottom
-        $s->{disk_mounts_only}       = _set_number( '%.disk.mountsonly',        1 );     #TODO rename
-        $s->{refresh}                = _set_number( '%.refresh',                1 );
-        $s->{sensitivity}            = _set_number( '%.sensitivity',            1 );     #percentage
+        $s->set_detail( 'cpu',      _set_boolean( '%.cpu.detail',      0 ) );
+        $s->set_detail( 'cpu_temp', _set_boolean( '%.cpu.temp.detail', 0 ) );
+        $s->set_detail( 'battery',  _set_boolean( '%.battery.detail',  0 ) );
+
+        $s->{visual_padding}   = _set_number( '%.visual.padding',  2 );     #Padding between visuals
+        $s->{x}                = _set_number( '%.x',               -1 );    #positive from left, negativ from right
+        $s->{y}                = _set_number( '%.y',               0 );     #positive from top, negativ from bottom
+        $s->{disk_mounts_only} = _set_number( '%.disk.mountsonly', 1 );     #TODO rename
+        $s->{refresh}          = _set_number( '%.refresh',         1 );
+        $s->{sensitivity}      = _set_number( '%.sensitivity',     1 );     #percentage
 
         $s->set( 'gauges_order', _set_list('%.gauges.order') );
         $s->set_gauges( 'disks',       _set_list('%.gauges.disks') );
@@ -774,29 +771,29 @@ package cdmn::resources {
         $s->set_gauges( 'disks_write', _set_list('%.gauges.disks.write') );
         $s->set_gauges( 'network_rx',  _set_list('%.network.rx') );
         $s->set_gauges( 'network_tx',  _set_list('%.network.tx') );
-        $s->set_gauges( 'mounts',  _set_list('%.gauges.mounts') );
-        $s->set_gauges( 'batteries', _set_list('%.gauges.batteries') );
-        $s->set_gauges( 'cpu_temps', _set_list('%.gauges.cores') );
-        $s->set( 'gauges_inverts', _set_list( '%.gauges.inverts', 'BAT' ) );
+        $s->set_gauges( 'mounts',      _set_list('%.gauges.mounts') );
+        $s->set_gauges( 'batteries',   _set_list('%.gauges.batteries') );
+        $s->set_gauges( 'cpu_temps',   _set_list('%.gauges.cores') );
         $s->set_gauges( 'memory', ["MemAvailable:"] );
 
         $s->set( 'gauges_colors', _set_list( '%.gauges.colors', '-1,-2' ) );    #TODO no negative colors
 
-		for (DEFAULT_ORDER) {
-			$s->set_colors( $_, _set_list("%.$_.colors") );
-			$s->set_graph_width( $_, _set_number("%.$_.graph.width", 0) );
-			$s->set_graph_expand( $_, _set_boolean("%.$_.graph.expand", 0) );
-			$s->set_visual_style( $_, _set_value( "%.$_.visual.style", [ STYLES ], CDMN->STYLE_BAR ) );
-		}
+        for (DEFAULT_ORDER) {
+            $s->set_colors( $_, _set_list("%.$_.colors") );
+            $s->set_graph_width( $_, _set_number( "%.$_.graph.width", 0 ) );
+            $s->set_graph_expand( $_, _set_boolean( "%.$_.graph.expand", 0 ) );
+            $s->set_visual_style( $_, _set_value( "%.$_.visual.style", [STYLES], CDMN->STYLE_BAR ) );
+            $s->set_invert( $_, _set_boolean( "%.$_.invert", 0 ) );
+        }
 
         $s->set_sidebar( 'fg',        _set_number( '%.sidebar.fg',        9 ) );
         $s->set_sidebar( 'bg',        _set_number( '%.sidebar.bg',        0 ) );
         $s->set_sidebar( 'border_fg', _set_number( '%.sidebar.border.fg', 7 ) );
-        $s->set_sidebar( 'width',     _set_number( '%.sidebar.width',     50, 30, 100 ) );                          #percentage
-        $s->set_sidebar( 'height',    _set_number( '%.sidebar.height',    40, 30, 100 ) );                          #percentage
-        $s->set_sidebar( 'position',        _set_value( '%.sidebar.position',        $tblrc, CDMN->RIGHT ) );
-        $s->set_sidebar( 'header_position', _set_value( '%.sidebar.header.position', $tb,    CDMN->BOTTOM ) );
-        $s->set_sidebar( 'label_position',  _set_value( '%.sidebar.label.position',  $tb,    CDMN->TOP ) );
+        $s->set_sidebar( 'width',     _set_number( '%.sidebar.width',     50, 30, 100 ) );    #percentage
+        $s->set_sidebar( 'height',    _set_number( '%.sidebar.height',    40, 30, 100 ) );    #percentage
+        $s->set_sidebar( 'position',        _set_value( '%.sidebar.position',        [TBLRC], CDMN->RIGHT ) );
+        $s->set_sidebar( 'header_position', _set_value( '%.sidebar.header.position', [TB],    CDMN->BOTTOM ) );
+        $s->set_sidebar( 'label_position',  _set_value( '%.sidebar.label.position',  [TB],    CDMN->TOP ) );
         $s->set_sidebar( 'graph_symbols', _set_list( '%.sidebar.graph.symbols', '■, □' ) );
         $s->set_sidebar( 'border_visible', _set_number( '%.sidebar.border.visible', 1 ) );
         $s->set_sidebar( 'panes_order', _set_list('%.sidebar.panes.order') );
@@ -829,9 +826,9 @@ package cdmn::resources {
                 colors  => $s->get_colors($_),
                 label   => $s->get_label($_),
                 length  => $s->get_graph_expand($_) ? -1 : $s->get_graph_width($_),
-                gauges => $_ eq 'memory'                  ? $s->get_gauges($_)       : $s->get_gauges("${t}s"),
-                detail => exists $s->{"visual_detail_$_"} ? $s->{"visual_detail_$_"} : 1,
-                visual => $s->get_visual_style($_),
+                gauges  => $_ eq 'memory' ? $s->get_gauges($_) : $s->get_gauges("${t}s"),
+                detail  => $s->get_detail($_),
+                visual  => $s->get_visual_style($_),
             );
         }
     }
@@ -872,7 +869,7 @@ package cdmn::resources {
     }
 
     sub set_colors {
-        my ($s, $k, $v) = @_;
+        my ( $s, $k, $v ) = @_;
         $s->{colors}{$k} = $v;
         $s;
     }
@@ -882,38 +879,60 @@ package cdmn::resources {
         $s->{colors}{ $_[0] };
     }
 
-sub set_graph_width {
-    my ($s, $k, $v) = @_;
-    $s->{graph_length}{$k} = $v;
-    $s;
-}
+    sub set_invert {
+        my ( $s, $k, $v ) = @_;
+        $s->{invert}{$k} = $v;
+        $s;
+    }
 
-sub get_graph_width {
-    my $s = shift;
-    $s->{graph_length}{ $_[0] };
-}
+    sub get_invert {
+        my $s = shift;
+        $s->{invert}{ $_[0] };
+    }
 
-sub set_graph_expand {
-    my ($s, $k, $v) = @_;
-    $s->{graph_expand}{$k} = $v;
-    $s;
-}
+    sub set_detail {
+        my ( $s, $k, $v ) = @_;
+        $s->{detail}{$k} = $v;
+        $s;
+    }
 
-sub get_graph_expand {
-    my $s = shift;
-    $s->{graph_expand}{ $_[0] };
-}
+    sub get_detail {
+        my $s = shift;
+        exists $s->{detail}{ $_[0] } ? $s->{detail}{ $_[0] } : 0;
+    }
 
-sub set_visual_style {
-    my ($s, $k, $v) = @_;
-    $s->{visual_style}{$k} = $v;
-    $s;
-}
+    sub set_graph_width {
+        my ( $s, $k, $v ) = @_;
+        $s->{graph_length}{$k} = $v;
+        $s;
+    }
 
-sub get_visual_style {
-    my $s = shift;
-    $s->{visual_style}{ $_[0] };
-}
+    sub get_graph_width {
+        my $s = shift;
+        $s->{graph_length}{ $_[0] };
+    }
+
+    sub set_graph_expand {
+        my ( $s, $k, $v ) = @_;
+        $s->{graph_expand}{$k} = $v;
+        $s;
+    }
+
+    sub get_graph_expand {
+        my $s = shift;
+        $s->{graph_expand}{ $_[0] };
+    }
+
+    sub set_visual_style {
+        my ( $s, $k, $v ) = @_;
+        $s->{visual_style}{$k} = $v;
+        $s;
+    }
+
+    sub get_visual_style {
+        my $s = shift;
+        $s->{visual_style}{ $_[0] };
+    }
 
     sub set_label {
         my $s = shift;
@@ -2077,7 +2096,7 @@ package cdmn::visuals::visual {
         my $clr_i = ( $usage > 100 ? 100 : $usage ) / 100 * ( $size - 1 ) + 1;
         $clr_i -= 1 if $clr_i >= $size;
         my $color = $usage < $s->{sensitivity} ? $s->{gauges_colors}[1] : $s->{gauges_colors}[$clr_i];
-		$_->hide for values %{ $s->{gauges}{"$i"} };
+        $_->hide for values %{ $s->{gauges}{"$i"} };
 
         $s->{gauges}{"$i"}{"$color"}->set( BLOCKS->[$bar_i] ) if $s->{visual_style} eq CDMN->STYLE_BAR;
         $s->{gauges}{"$i"}{"$color"}->set(LED) if $s->{visual_style} eq CDMN->STYLE_LED;
@@ -2511,7 +2530,7 @@ sub on_start {
 
             redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok || XR->set_batteries->ok || XR->set_nics->ok;
 
-			#use subs because we only want to get values when we need them!
+            #use subs because we only want to get values when we need them!
             my %usage_of;
             $usage_of{cpu}      = sub { _filter( cdmn::proc::cpu_usages(), XR->get_gauges('cpus') ) };
             $usage_of{memory}   = sub { %{ cdmn::proc::memory_usages() } };
@@ -2527,11 +2546,9 @@ sub on_start {
 
                 $r{$_} = { $usage_of{$_}->() } foreach @{ cdmn::math->union( $gauges, $panes ) };
 
-                my %inverts = map { $_ => 1 } @{ XR->get('gauges_inverts') };
-
                 $s->{xterms}{sidebar}->set_pane( $_, $r{$_} ) for @$panes;    #if $s->{xterms}{sidebar}{visible};
                 for my $g (@$gauges) {
-                    $$_->set( $g, $r{$g}, $inverts{$g} ) for @{ $s->{captions} };
+                    $$_->set( $g, $r{$g}, XR->get_invert($g) ) for @{ $s->{captions} };
                 }
             };
 
