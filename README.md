@@ -190,15 +190,18 @@ You can further define the visual representation and orientation with the follow
 | Resource                                                                                                    | Function                                                                                     | Default (Other) |
 | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------- |
 | `URxvt.cdmn.visual.detail.cpu`<br>`URxvt.cdmn.visual.detail.cpu.temp`<br>`URxvt.cdmn.visual.detail.battery` | How much detail, e.g. a gauge for every logical core or just one gauge.                      | 0 (1)           |
-| `URxvt.cdmn.visual.style`                                                                                   | The kind of gauges you prefer. Either a bar that can grow and shrink or simple flashing LED. | bar (led)       |
 | `URxvt.cdmn.visual.alignment`                                                                               | Vertical or horizontal alignment.                                                            | row (col)       |
-| `URxvt.cdmn.graphs`                                                                                         | List of gauges to show time graphs for. This list must contain existing labels.              | not set         |
-| `URxvt.cdmn.graphs.width`                                                                                   | Width of graph in samplings, for example 5.                                                  | not set         |
-| `URxvt.cdmn.graphs.expand`                                                                                  | List of gauges for which the graph width should take up as much space possible.              | not set         |
 
-If you specify `URxvt.cdmn.graphs.width` only, all gauges in 'URxvt.cdmn.gauges.order' will have that number of samples.
-If you specify 'URxvt.cdmn.graphs' only those gauges will have `URxvt.cdmn.graphs.width` applied.
-If you specifiy `URxvt.cdmn.graphs.width` and `URxvt.cdmn.graphs.expand`, the latter one takes precedence.
+Each available guage (network, disk, cpu, cpu.temp, memory, battery, mount) has the following settings that you can use 
+to adapt its visual style.
+
+| Resource                                                                                                    | Function                                                                                     | Default (Other) |
+| ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------- |
+| `URxvt.cdmn.<guage>.visual.style`                                                                           | The kind of gauges you prefer. Either a bar that can grow and shrink or simple flashing LED. | bar (led)       |
+| `URxvt.cdmn.<guage>.graph.width`                                                                            | Width of graph in samplings, for example 5.                                                  | not set         |
+| `URxvt.cdmn.<guage>.graph.expand`                                                                           | If graph width should take up as much space possible.                                        | not set         |
+
+If you specifiy `URxvt.cdmn.<guage>.graph.width` and `URxvt.cdmn.<guage>.graph.expand`, the latter one takes precedence.
 
 ## Visual styles - gauges colors
 
