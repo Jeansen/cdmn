@@ -827,7 +827,7 @@ package cdmn::resources {
                 label   => $s->get_label($_),
                 length  => $s->get_graph_expand($_) ? -1 : $s->get_graph_width($_),
                 gauges  => $_ eq 'memory' ? $s->get_gauges($_) : $s->get_gauges("${t}s"),
-                detail  => $s->get_detail($_),
+                detail  => $s->get_detail($_), #TODO some gauges are broken, if detail is 1, e.g. memory.
                 visual  => $s->get_visual_style($_),
             );
         }
@@ -898,7 +898,7 @@ package cdmn::resources {
 
     sub get_detail {
         my $s = shift;
-        exists $s->{detail}{ $_[0] } ? $s->{detail}{ $_[0] } : 0;
+        exists $s->{detail}{ $_[0] } ? $s->{detail}{ $_[0] } : 1; #TODO default should be 0
     }
 
     sub set_graph_width {
