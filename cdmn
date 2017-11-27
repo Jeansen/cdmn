@@ -2323,7 +2323,7 @@ $user_command{ CDMN->ACTION_TOGGLE } = sub {
     my ( $h, $w, $x, $y ) = calc_bounds( $s, XR->{visual_align} );
 
     if ( $s->{xterms}{main}{maximized} ) {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w, $h ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_ROW;
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w, $h - $s->fheight ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_ROW;
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->{width} - $w : 0, 0, $w, $h ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL;
         $s->{xterms}{main}{maximized} = 0;
         ${ $s->{captions}->[0] }->hide;
