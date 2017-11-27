@@ -824,7 +824,7 @@ package cdmn::resources {
                 label   => $s->get_label($_),
                 length  => $s->get_graph_expand($_) ? -1 : $s->get_graph_width($_),
                 gauges  => $_ eq 'memory' ? $s->get_gauges($_) : $s->get_gauges("${t}s"),
-                detail  => $s->get_detail($_), #TODO some gauges are broken, if detail is 1, e.g. memory.
+                detail  => $s->get_detail($_),
                 visual  => $s->get_visual_style($_),
             );
         }
