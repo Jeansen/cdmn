@@ -126,7 +126,7 @@ corresponding gauges:
 | `URxvt.cdmn.label.cpu`      | CPU     |
 | `URxvt.cdmn.label.memory`   | MEM     |
 | `URxvt.cdmn.label.network`  | NET     |
-| `URxvt.cdmn.label.cpu.temp` | TEMP    |
+| `URxvt.cdmn.label.cpu_temp` | TEMP    |
 | `URxvt.cdmn.label.battery`  | BAT     |
 | `URxvt.cdmn.label.mount`    | MOUNT   |
 
@@ -185,7 +185,7 @@ because half of the time was spent reading in data and the other half of the tim
 
 ## Visual styles
 
-Each available guage (network, disk, cpu, cpu.temp, memory, battery, mount) has the following settings that you can use 
+Each available guage (network, disk, cpu, cpu_temp, memory, battery, mount) has the following settings that you can use 
 to adapt its visual style.
 
 | Resource                          | Function                                                                                     | Default (Other) |
@@ -217,7 +217,7 @@ You can also set (and overwrite) colors individually for each gauge with the fol
     URxvt.cdmn.colors.network
     URxvt.cdmn.colors.disk
     URxvt.cdmn.colors.cpu
-    URxvt.cdmn.colors.cpu.temp
+    URxvt.cdmn.colors.cpu_temp
     URxvt.cdmn.colors.memory 
     URxvt.cdmn.colors.battery
     URxvt.cdmn.colors.mount
