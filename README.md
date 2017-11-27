@@ -134,21 +134,22 @@ In addition you can set colors for different parts. All colors default to the te
 (-1). Normally you will not need to use these values. After all, they are the defaults. But you might want to 
 use any number between 0 and 255.
 
-| Resource                | Function                         | Default |
-| ----------------------- | -------------------------------- | ------- |
-| `URxvt.cdmn.label.fg`   | Foreground color for all labels. | -2      |
-| `URxvt.cdmn.label.bg`   | Background color for all labels. | -2      |
-| `URxvt.cdmn.caption.bg` | Global background, e.g. padding. | -2      |
+| Resource                | Function                         | Default (Other) |
+| ----------------------- | -------------------------------- | --------------- |
+| `URxvt.cdmn.label.fg`   | Foreground color for all labels. | -2 (0-155)      |
+| `URxvt.cdmn.label.bg`   | Background color for all labels. | -1 (0-155)      |
+| `URxvt.cdmn.caption.bg` | Global background, e.g. padding. | -2 (0-155)      |
 
 Want to know what colors have which number? Try this one-liner in your terminal and see for yourself:
 
     for i in {0..255}; do echo -e "\e[38;05;${i}m${i}"; done | column -c 80 -s ' '; echo -e "\e[m"
 
-And finally, you can define if you would like bold labels:
+And finally, you can define if you would like bold labels and where to position labels:
 
-| Resource                | Function    | Default |
-| ----------------------- | ----------- | ------- |
-| `URxvt.cdmn.label.bold` | Bold labels | 0 (1)   |
+| Resource                    | Function        | Default (Other) |
+| --------------------------- | --------------- | --------------- |
+| `URxvt.cdmn.label.bold`     | Bold labels     | false (true)    |
+| `URxvt.cdmn.label.position` | Labels position | left (right)    |
 
 ## Layout
 

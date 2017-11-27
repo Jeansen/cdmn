@@ -613,7 +613,7 @@ package cdmn::resources {
         detail
         invert
 
-        visual_padding
+        padding
         visual_style
         visual_align
 
@@ -746,7 +746,7 @@ package cdmn::resources {
         $s->set( 'label_bg', _set_number( '%.label.bg', 1 ) );
         $s->set( 'label_position', _set_value( '%.label.position', [], CDMN->LEFT ) );
         $s->set( 'label_padding', _set_number( '%.label.padding', 0 ) );
-        $s->set( 'label_bold',    _set_number( '%.label.bold',    0 ) );
+        $s->set( 'label_bold',    _set_boolean( '%.label.bold',    0 ) );
 
         $s->{showing}        = _set_number( '%.showing',        1 );
         $s->{showing_labels} = _set_number( '%.showing.labels', 1 );
@@ -754,7 +754,7 @@ package cdmn::resources {
         $s->{visual_align} = _set_value( '%.visual.alignment', [VISUAL_ALIGNMENTS], CDMN->VISUAL_ALIGN_ROW );
         $s->{caption_bg} = _set_number( '%.caption.bg', 1 );    # 0/1 map onto terminal fg/bg color
 
-        $s->{visual_padding}   = _set_number( '%.visual.padding',  2 );     #Padding between visuals
+        $s->{padding}   = _set_number( '%.padding',  2 );     #Padding between visuals
         $s->{x}                = _set_number( '%.x',               -1 );    #positive from left, negativ from right
         $s->{y}                = _set_number( '%.y',               0 );     #positive from top, negativ from bottom
         $s->{disk_mounts_only} = _set_number( '%.disk.mountsonly', 1 );     #TODO rename
@@ -817,7 +817,7 @@ package cdmn::resources {
             ( my $t = $_ ) =~ s/y$/ie/;
             $s->{resources}{$_} = cdmn::resources::single->new(
                 name    => $_,
-                padding => 1,
+                padding => $s->{padding},
                 fg      => $s->get('label_fg'),
                 bg      => $s->get('label_bg'),
                 colors  => $s->get_colors($_),
@@ -2276,12 +2276,12 @@ sub create_caption {
                     rendition   => CDMN->REND,
                     x           => XR->{x},
                     y           => XR->{y},
-                    padding     => XR->{visual_padding},
+                    padding     => XR->{padding},
                     align       => $_,
                     even_gauges => 0,
                     visible     => XR->{showing},
                     bg_color    => XR->{caption_bg},
-                    label_pos   => XR->get_sidebar('label_position'),
+                    label_pos   => XR->get('label_position'),
                 );
             }
             elsif ( $_ eq CDMN->VISUAL_ALIGN_COL ) {
@@ -2290,12 +2290,12 @@ sub create_caption {
                     rendition   => CDMN->REND,
                     x           => XR->{x},
                     y           => XR->{y},
-                    padding     => XR->{visual_padding},
+                    padding     => XR->{padding},
                     align       => $_,
                     even_gauges => 1,
                     visible     => XR->{showing},
                     bg_color    => XR->{caption_bg},
-                    label_pos   => XR->get_sidebar('label_position'),
+                    label_pos   => XR->get('label_position'),
                 );
             }
         };
