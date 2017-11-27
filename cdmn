@@ -736,7 +736,7 @@ package cdmn::resources {
         $s->set_label( 'network',  $t->x_resource('%.label.network')  // 'NET' );
         $s->set_label( 'disk',     $t->x_resource('%.label.disk')     // 'DISK' );
         $s->set_label( 'cpu',      $t->x_resource('%.label.cpu')      // 'CPU' );
-        $s->set_label( 'cpu_temp', $t->x_resource('%.label.cpu.temp') // 'TEMP' );
+        $s->set_label( 'cpu_temp', $t->x_resource('%.label.cpu_temp') // 'TEMP' );
         $s->set_label( 'memory',   $t->x_resource('%.label.memory')   // 'MEM' );
         $s->set_label( 'battery',  $t->x_resource('%.label.battery')  // 'BAT' );
         $s->set_label( 'mount',    $t->x_resource('%.label.mount')    // 'MOUNT' );
@@ -753,10 +753,6 @@ package cdmn::resources {
 
         $s->{visual_align} = _set_value( '%.visual.alignment', [VISUAL_ALIGNMENTS], CDMN->VISUAL_ALIGN_ROW );
         $s->{caption_bg} = _set_number( '%.caption.bg', 1 );    # 0/1 map onto terminal fg/bg color
-
-        $s->set_detail( 'cpu',      _set_boolean( '%.cpu.detail',      0 ) );
-        $s->set_detail( 'cpu_temp', _set_boolean( '%.cpu.temp.detail', 0 ) );
-        $s->set_detail( 'battery',  _set_boolean( '%.battery.detail',  0 ) );
 
         $s->{visual_padding}   = _set_number( '%.visual.padding',  2 );     #Padding between visuals
         $s->{x}                = _set_number( '%.x',               -1 );    #positive from left, negativ from right
@@ -784,6 +780,7 @@ package cdmn::resources {
             $s->set_graph_expand( $_, _set_boolean( "%.$_.graph.expand", 0 ) );
             $s->set_visual_style( $_, _set_value( "%.$_.visual.style", [STYLES], CDMN->STYLE_BAR ) );
             $s->set_invert( $_, _set_boolean( "%.$_.invert", 0 ) );
+            $s->set_detail( $_, _set_boolean( "%.$_.detail", 0) );
         }
 
         $s->set_sidebar( 'fg',        _set_number( '%.sidebar.fg',        9 ) );
@@ -898,7 +895,7 @@ package cdmn::resources {
 
     sub get_detail {
         my $s = shift;
-        exists $s->{detail}{ $_[0] } ? $s->{detail}{ $_[0] } : 1; #TODO default should be 0
+        $s->{detail}{ $_[0] };
     }
 
     sub set_graph_width {
@@ -1049,13 +1046,9 @@ package cdmn::resources {
     sub gauges {
         my $s = shift;
         my %g;
-        $g{ CDMN->CPU_TEMP } = ( $s->resources( CDMN->CPU_TEMP )->{detail} ? $s->get_gauges('cpu_temps') : ["simple"] ) if $s->has_content( CDMN->CPU_TEMP );
-        $g{ CDMN->CPU } = $s->resources( CDMN->CPU )->{detail} ? $s->get_gauges('cpus') : ["simple"];
-        $g{ CDMN->DISK }    = $s->get_gauges('disks') if $s->has_content( CDMN->DISK );
-        $g{ CDMN->MEMORY }  = $s->get_gauges('memory');
-        $g{ CDMN->NETWORK } = $s->get_gauges('networks') if $s->has_content( CDMN->NETWORK );
-        $g{ CDMN->BATTERY } = ( $s->resources( CDMN->BATTERY )->{detail} ? $s->get_gauges('batteries') : ["simple"] ) if $s->has_content( CDMN->CPU );
-        $g{ CDMN->MOUNT }   = $s->get_gauges('mounts') if $s->has_content( CDMN->MOUNT );
+        for(DEFAULT_ORDER) {
+            $g{$_} = ( $s->resources($_)->{detail} ? $s->get_gauges("${_}s") : ["simple"] ) if $s->has_content($_);
+        }
         return %g;
     }
 
