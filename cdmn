@@ -647,6 +647,7 @@ package cdmn::resources {
     use constant VISUAL_ALIGNMENTS => ( CDMN->VISUAL_ALIGN_COL, CDMN->VISUAL_ALIGN_ROW );
     use constant TBLRC             => ( CDMN->TOP, CDMN->LEFT, CDMN->RIGHT, CDMN->BOTTOM, CDMN->CENTER );
     use constant TB => ( CDMN->TOP, CDMN->BOTTOM );
+    use constant LR => ( CDMN->LEFT, CDMN->RIGHT );
 
     sub new {
         my $s = shift;
@@ -744,7 +745,7 @@ package cdmn::resources {
 
         $s->set( 'label_fg', _set_number( '%.label.fg', 0 ) );
         $s->set( 'label_bg', _set_number( '%.label.bg', 1 ) );
-        $s->set( 'label_position', _set_value( '%.label.position', [], CDMN->LEFT ) );
+        $s->set( 'label_position', _set_value( '%.label.position', [LR], CDMN->LEFT ) );
         $s->set( 'label_padding', _set_number( '%.label.padding', 0 ) );
         $s->set( 'label_bold',    _set_boolean( '%.label.bold',    0 ) );
 
@@ -1079,6 +1080,7 @@ package cdmn::sidebar {
     use fields qw(
         term
         parent
+        keysyms
 
         x y
         width
@@ -1361,6 +1363,7 @@ package cdmn::sidebar {
                 label_position  => 1,
                 graph_symbols   => 1,
                 border_visible  => 1,
+                keysyms => 0,
             }
         );
 
@@ -1371,6 +1374,7 @@ package cdmn::sidebar {
             w        => $s->{width},
             h        => $s->{height},
             bg_color => $s->{bg},
+            keysyms  => $s->{keysyms},
             bare     => 1,
 
             # bg_color => 8,
@@ -1575,8 +1579,9 @@ package cdmn::term {
     }
 
     sub on_tt_write {
-        if ( !(shift)->{term}{parent} ) {
-            $root->{term}->tt_write(shift);
+        my $s = shift;
+        if ( !$s->{term}{parent} ) {
+            $root->{term}->tt_write(@_);
             1;
         }
         ();
@@ -2008,32 +2013,32 @@ package cdmn::visuals::visual {
         my $x = $s->{x};
 
         local *_label = sub {
-            $s->{rendition} = urxvt::SET_COLOR $s->{rendition}, $s->{label_fg}, $s->{label_bg};
-            $s->{rendition} = $s->{rendition} | urxvt::RS_Bold if $s->{label_bold};
+            my $rend = urxvt::SET_COLOR $s->{rendition}, $s->{label_fg}, $s->{label_bg};
+            $rend = $rend | urxvt::RS_Bold if $s->{label_bold};
             my $labelObj = cdmn::visuals::overlay->new(
                 term      => $s->{term},
                 x         => $x,
                 y         => $s->{y},
                 width     => $w,
                 height    => $s->{height},
-                rendition => $s->{rendition},
+                rendition => $rend,
                 text      => $s->{label}
             );
             $s->{label} = $labelObj->create();
         };
 
         local *_gauges = sub {
-            $s->{rendition} = urxvt::SET_BGCOLOR $s->{rendition}, $s->{gauges_bg};
+            my $rend = urxvt::SET_BGCOLOR $s->{rendition}, $s->{gauges_bg};
             for my $i (@gauges) {
                 for ( @{ $s->{gauges_colors} } ) {
-                    $s->{rendition} = urxvt::SET_FGCOLOR $s->{rendition}, $_;
+                    $rend = urxvt::SET_FGCOLOR $rend, $_;
                     my $pictorial = cdmn::visuals::overlay->new(
                         term      => $s->{term},
                         x         => $x,
                         y         => $s->{y},
                         width     => 1,
                         height    => 1,
-                        rendition => $s->{rendition},
+                        rendition => $rend,
                         text      => BLOCKS->[0],
                     );
                     $s->{gauges}{"$i"}{"$_"} = $pictorial->create();
@@ -2042,8 +2047,11 @@ package cdmn::visuals::visual {
             }
         };
 
-        if ( $s->{label_pos} eq CDMN->RIGHT ) { _gauges(); $x++; _label(); }
-        else                                  { _label(); $x += $w + $s->{padding}; _gauges(); }
+        if ( $s->{label_pos} eq CDMN->RIGHT ) { 
+            _gauges(); $x+= $s->{padding}; _label();
+        } else { 
+            _label(); $x += $w + $s->{padding}; _gauges();
+        }
         $s;
     }
 
@@ -2495,6 +2503,7 @@ sub on_start {
         label_position  => XR->get_sidebar('label_position'),
         graph_symbols   => XR->get_sidebar('graph_symbols'),
         border_visible  => XR->get_sidebar('border_visible'),
+        keysyms => XR->{keysyms},
     );
 
     $s->{w_size}      = $s->{term}->ncol;
