@@ -755,7 +755,7 @@ package cdmn::resources {
         $s->{visual_align} = _set_value( '%.visual.alignment', [VISUAL_ALIGNMENTS], CDMN->VISUAL_ALIGN_ROW );
         $s->{caption_bg} = _set_number( '%.caption.bg', 1 );    # 0/1 map onto terminal fg/bg color
 
-        $s->{padding}   = _set_number( '%.padding',  2 );     #Padding between visuals
+        $s->set('padding', _set_number( '%.padding',  2 ) );     #Padding between visuals
         $s->{x}                = _set_number( '%.x',               -1 );    #positive from left, negativ from right
         $s->{y}                = _set_number( '%.y',               0 );     #positive from top, negativ from bottom
         $s->{disk_mounts_only} = _set_number( '%.disk.mountsonly', 1 );     #TODO rename
@@ -818,7 +818,7 @@ package cdmn::resources {
             ( my $t = $_ ) =~ s/y$/ie/;
             $s->{resources}{$_} = cdmn::resources::single->new(
                 name    => $_,
-                padding => $s->{padding},
+                padding => $s->get('label_padding'),
                 fg      => $s->get('label_fg'),
                 bg      => $s->get('label_bg'),
                 colors  => $s->get_colors($_),
@@ -2256,11 +2256,11 @@ sub create_caption {
             my @colors = @{ $c->{colors} };
             $caption->add(
                 label => $showLabels ? $c->{label} : '',
-                padding       => XR->get('label_padding'),
+                padding       => $c->{padding},
                 gauges        => $arg{ $c->{name} },
-                label_bg      => XR->get('label_bg'),
+                label_bg      => $c->{bg},
                 gauges_bg     => scalar @colors > 1 ? shift @colors : XR->get('gauges_colors')->[0],
-                label_fg      => XR->get('label_fg'),
+                label_fg      => $c->{fg},
                 gauges_colors => $c->{colors},
                 visual_style  => $c->{visual},
                 sensitivity   => XR->{sensitivity},
@@ -2284,7 +2284,7 @@ sub create_caption {
                     rendition   => CDMN->REND,
                     x           => XR->{x},
                     y           => XR->{y},
-                    padding     => XR->{padding},
+                    padding     => XR->get('padding'),
                     align       => $_,
                     even_gauges => 0,
                     visible     => XR->{showing},
@@ -2298,7 +2298,7 @@ sub create_caption {
                     rendition   => CDMN->REND,
                     x           => XR->{x},
                     y           => XR->{y},
-                    padding     => XR->{padding},
+                    padding     => XR->get('padding'),
                     align       => $_,
                     even_gauges => 1,
                     visible     => XR->{showing},
