@@ -29,7 +29,7 @@ following commands:
 
     cd /tmp
     git clone https://github.com/Jeansen/cdmn.git
-    /tmp/cdmn/resources/test/run.sh -e /tmp/cdmn/cdmn -x /tmp/cdmn/resources/test/Xresources
+    /tmp/cdmn/resources/test/run.sh -e /tmp/cdmn/cdmn -x /tmp/cdmn/resources/test/Xresources_Debug
 
 If you do not see anything after the docker image finished downloading or the created window is very small you might 
 need to comment out a font setting. Simply prepend a `!` to the line starting with `URxvt*font:` in 
