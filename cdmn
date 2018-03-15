@@ -306,6 +306,7 @@ package cdmn::proc {
             my $bat = $_;
             next if (/\A\.\.?\z/);
             next if (/\AAC/);
+            next if (/\Ahid/);
             push @bats, $bat;
         }
         closedir $dh;
@@ -1039,8 +1040,8 @@ package cdmn::resources {
         $c{disk}     = @{ $s->get_gauges('disks') } > 0 || @{ $s->get_gauges('disks_write') } > 0 || @{ $s->get_gauges('disks_read') } > 0;
         $c{memory}   = 1;
         $c{network}  = @{ $s->get_gauges('networks') };
-        $c{battery}  = $s->get_gauges('batteries');
-        $c{mount}    = $s->get_gauges('mounts');
+        $c{battery}  = @{ $s->get_gauges('batteries') };
+        $c{mount}    = @{  $s->get_gauges('mounts') };
         exists $c{ $_[0] } ? $c{ $_[0] } : 0;
     }
 
@@ -1048,7 +1049,8 @@ package cdmn::resources {
         my $s = shift;
         my %g;
         for(DEFAULT_ORDER) {
-            $g{$_} = ( $s->resources($_)->{detail} ? $s->get_gauges("${_}s") : ["simple"] ) if $s->has_content($_);
+            ( my $t = $_ ) =~ s/y$/ie/;
+            $g{$_} = ( $s->resources($_)->{detail} ? $s->get_gauges("${t}s") : ["simple"] ) if $s->has_content($_);
         }
         return %g;
     }
