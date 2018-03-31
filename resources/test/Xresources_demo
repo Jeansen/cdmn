@@ -15,24 +15,23 @@ URxvt*depth:                          32
 URxvt*secondaryScroll:                true
 URxvt*perl-lib:                       /urxvt/
 
-!URxvt.cdmn.gauges.order: CPU
-URxvt.cdmn.gauges.order: CPU,TEMP,DISK,MEM,NET,BAT
+!URxvt.cdmn.gauges.order: CPU,TEMP,DISK,MEM,NET,BAT
 
-!! URxvt.cdmn.gauges.colors: 5,52,88,124,160,196
+!URxvt.cdmn.gauges.colors: 0,52,88,124,160,196
+!URxvt.cdmn.gauges.colors: 0,22,28,34,40,46
+!URxvt.cdmn.gauges.colors: 0,17,18,19,20,21
+!URxvt.cdmn.gauges.colors: 0,236,241,246,251,231
 URxvt.cdmn.gauges.colors: 0,246,2,4,3,1
 URxvt.cdmn.label.fg: 210
 
-URxvt.cdmn.graphs: CPU
-URxvt.cdmn.graphs.width: 5
-!!URxvt.cdmn.label.fg: 5
-
-!! URxvt.cdmn.colors.network: 18,27
-!! URxvt.cdmn.colors.disk: 54,200
-URxvt.cdmn.colors.cpu: 58,226
-!! URxvt.cdmn.colors.cpu.temp: 23,87
-!! URxvt.cdmn.colors.memory: 52,196
-!! URxvt.cdmn.colors.battery: 22,46
+!URxvt.cdmn.network.colors: 18,27
+!URxvt.cdmn.disk.colors: 54,200
+URxvt.cdmn.cpu.colors: 58,226
+!URxvt.cdmn.cpu.temp.colors: 23,87
+!URxvt.cdmn.memory.colors: 52,196
+!URxvt.cdmn.battery.colors: 22,46
 URxvt.cdmn.padding: 2
-URxvt.cdmn.refresh: 2
+URxvt.cdmn.label.padding: 1
+URxvt.cdmn.style: bar
 URxvt.cdmn.disk.mountsonly: false
-
+URxvt.cdmn.cpu.graph.width: 5

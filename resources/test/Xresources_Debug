@@ -42,6 +42,7 @@ URxvt.cdmn.sidebar.position: left
 URxvt.cdmn.sidebar.panes.order: CPU,NET,MOUNT
 URxvt.cdmn.sidebar.label.position: top
 URxvt.cdmn.label.bold: 1
+URxvt.cdmn.disk.mountsonly: false
 
 /* URxvt.cdmn.visual.alignment: col */
 
