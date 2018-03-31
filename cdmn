@@ -252,13 +252,37 @@ package cdmn::proc {
     }
 
     sub mounts {
+        local *_r = sub {
+            my $x = readlink "$_[0]";
+            return () if ! $x;
+            my ($y) = $x =~ m/(\/.*$)/i;
+
+            opendir(my $dh, "/sys/block/${y}/slaves/");
+            my @r = grep { $_ ne '.' && $_ ne '..' } readdir $dh;
+
+            if ($r[0] =~ /dm-/) {
+                opendir($dh, "/sys/block/$r[0]/slaves/");
+                @r = grep { $_ ne '.' && $_ ne '..' } readdir $dh;
+                closedir $dh;
+            }
+            return @r
+        };
+
+
         open( my $f, '<', PROC_MOUNTS );
         my @mounts;
         my @m;
         my %mounts;
         for (<$f>) {
             @m = /(\A\/dev\S*)\s+([a-zA-Z0-9-_.\/]+)/;    #TODO this regex is too simple
-            push @mounts, @m if @m and !exists $mounts{ $m[0] };
+            if (@m && $m[0] =~ /mapper/) {
+                for(_r($m[0])) {
+                    $m[0]=$_;
+                    push @mounts, @m if @m and !exists $mounts{ $m[0] };
+                }
+            } else {
+                    push @mounts, @m if @m and !exists $mounts{ $m[0] };
+            }
             %mounts = (@mounts);
         }
         return \%mounts;
@@ -345,9 +369,8 @@ package cdmn::proc {
 
     sub disk_mounts {
         my @mounts = keys %{ mounts() };
-        my @disks  = ( map { $_, 0 } @{ disks() } );
+        my %disks  = ( map { $_, 0 } @{ disks() } );
         my %dm     = %{ dm_disks() };
-        my %disks  = @disks;
 
         for my $m (@mounts) {
             for my $k ( keys %disks ) {
@@ -360,11 +383,7 @@ package cdmn::proc {
             }
         }
 
-        @disks = ();
-        while ( my ( $k, $v ) = each %disks ) {
-            push @disks, $k if $v;
-        }
-        return \@disks;
+        return [grep { $disks{$_} } keys %disks];
     }
 
     sub cpu_usages {
@@ -617,6 +636,7 @@ package cdmn::resources {
         padding
         visual_style
         visual_align
+		style
 
         resources
         defaults
@@ -680,13 +700,14 @@ package cdmn::resources {
 
         local *_set_boolean = sub {
             my $n = $t->x_resource_boolean(shift);
-            return $n ? $n : shift;
+            return shift if $n eq "" || ! defined $n;
+            return $n;
         };
 
         local *_set_value = sub {
             my $n = $t->x_resource("$_[0]");
             my @r;
-            @r = grep( /$n/, @{ $_[1] } ) if $n;
+            @r = grep( /$n/, @{ $_[1] } ) if $n; #TODO use ($r)
             return ( @r ? shift @r : $_[2] );
         };
 
@@ -759,7 +780,7 @@ package cdmn::resources {
         $s->set('padding', _set_number( '%.padding',  2 ) );     #Padding between visuals
         $s->{x}                = _set_number( '%.x',               -1 );    #positive from left, negativ from right
         $s->{y}                = _set_number( '%.y',               0 );     #positive from top, negativ from bottom
-        $s->{disk_mounts_only} = _set_number( '%.disk.mountsonly', 1 );     #TODO rename
+        $s->{disk_mounts_only} = _set_boolean( '%.disk.mountsonly', 1 );     #TODO rename
         $s->{refresh}          = _set_number( '%.refresh',         1 );
         $s->{sensitivity}      = _set_number( '%.sensitivity',     1 );     #percentage
 
@@ -775,12 +796,14 @@ package cdmn::resources {
         $s->set_gauges( 'memory', ["MemAvailable:"] );
 
         $s->set( 'gauges_colors', _set_list( '%.gauges.colors', '-1,-2' ) );    #TODO no negative colors
+		$s->set_visual_style( 'global', _set_value( '%.style', [STYLES], CDMN->STYLE_BAR ) );
+		$s->set_graph_width( 'global', _set_number( '%.graph.width', 0 ) );
 
         for (DEFAULT_ORDER) {
             $s->set_colors( $_, _set_list("%.$_.colors") );
-            $s->set_graph_width( $_, _set_number( "%.$_.graph.width", 0 ) );
+            $s->set_graph_width( $_, _set_number( "%.$_.graph.width", $s->get_graph_width('global') ) );
             $s->set_graph_expand( $_, _set_boolean( "%.$_.graph.expand", 0 ) );
-            $s->set_visual_style( $_, _set_value( "%.$_.visual.style", [STYLES], CDMN->STYLE_BAR ) );
+            $s->set_visual_style( $_, _set_value( "%.$_.style", [STYLES], $s->get_visual_style('global') ) );
             $s->set_invert( $_, _set_boolean( "%.$_.invert", 0 ) );
             $s->set_detail( $_, _set_boolean( "%.$_.detail", 0) );
         }
@@ -1041,14 +1064,14 @@ package cdmn::resources {
         $c{memory}   = 1;
         $c{network}  = @{ $s->get_gauges('networks') };
         $c{battery}  = @{ $s->get_gauges('batteries') };
-        $c{mount}    = @{  $s->get_gauges('mounts') };
+        $c{mount}    = @{ $s->get_gauges('mounts') };
         exists $c{ $_[0] } ? $c{ $_[0] } : 0;
     }
 
     sub gauges {
         my $s = shift;
         my %g;
-        for(DEFAULT_ORDER) {
+        for ( @{ $s->get('gauges_order') } ) {
             ( my $t = $_ ) =~ s/y$/ie/;
             $g{$_} = ( $s->resources($_)->{detail} ? $s->get_gauges("${t}s") : ["simple"] ) if $s->has_content($_);
         }
@@ -2533,7 +2556,6 @@ sub on_start {
             };
 
             redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok || XR->set_batteries->ok || XR->set_nics->ok;
-
             #use subs because we only want to get values when we need them!
             my %usage_of;
             $usage_of{cpu}      = sub { _filter( cdmn::proc::cpu_usages(), XR->get_gauges('cpus') ) };
