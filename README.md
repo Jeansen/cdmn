@@ -1,4 +1,3 @@
-[![Join the chat at https://gitter.im/cdmn-dev/Lobby](https://badges.gitter.im/cdmn-dev/Lobby.svg)](https://gitter.im/cdmn-dev/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 ![](https://rawgit.com/Jeansen/assets/master/project-status.svg)
 ![](https://rawgit.com/Jeansen/assets/master/version.svg)
 [![](https://rawgit.com/Jeansen/assets/master/license.svg)](LICENSE)
@@ -7,7 +6,8 @@
 
 # cdmn
 
-_cdmn_ (**c**pu, **d**isk, **m**emory, **n**etwork) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which extends urxvt to show the utilization of different system resources.
+_cdmn_ (**c**pu, **d**isk, **m**emory, **n**etwork) is a Perl extension for [urxvt](https://en.wikipedia.org/wiki/Rxvt-unicode) which 
+extends urxvt to show the utilization of different system resources.
 
 Originally I planned to have some LED-like indicators but soon decided to make this extension more verbose and 
 changed the simple LED look to animated bars. With time, increasing knowledge and a lot of trial and error, I 
@@ -29,14 +29,15 @@ following commands:
 
     cd /tmp
     git clone https://github.com/Jeansen/cdmn.git
-    /tmp/cdmn/resources/test/run.sh -e /tmp/cdmn/cdmn -x /tmp/cdmn/resources/test/Xresources_Debug
+    /tmp/cdmn/resources/test/run.sh -e /tmp/cdmn/cdmn -x /tmp/cdmn/resources/test/Xresources_demo
 
 If you do not see anything after the docker image finished downloading or the created window is very small you might 
 need to comment out a font setting. Simply prepend a `!` to the line starting with `URxvt*font:` in 
-`tmp/cdmn/resources/test/Xresources` and try again.
+`tmp/cdmn/resources/test/Xresources_demo` and try again.
 
-There are some more demo files you can choose from. Just have a look in the `resources/test` folder. Again, if 
-something does not work, try the tip above.
+To simulate some cpud,disk and memory load play around with the following command:
+
+    stress-ng --cpu 4 --io 3 --vm 2 --vm-bytes 1G --timeout 5s
 
 # Installation
 
@@ -78,8 +79,8 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 | Keysym | Function                                                                     |
 | ------ | ---------------------------------------------------------------------------- |
 | Meta-l | Show/Hide left labels                                                        |
-| Meta-o | Show/Hide cpations in overlay mode                                           |
-| Meta-h | Show/Hide cpations in normal mode <br> Toggle between overlay to normal mode |
+| Meta-o | Show/Hide captions in overlay mode                                           |
+| Meta-h | Show/Hide captions in normal mode <br> Toggle between overlay to normal mode |
 | Meta-p | Show/Hide sidebar                                                            |
 | Meta-k | Show next pane                                                               |
 | Meta-j | Show previous pane                                                           |
@@ -167,9 +168,15 @@ Starting with the layout, you can define the position, order, initial visibility
 
 More fine-grained settings are possible with the following resources:
 
-| Resource                                                                                                                                                                                               | Function                                 | Default |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- | ------- |
-| `URxvt.cdmn.gauges.disks`<br>`URxvt.cdmn.disk.read`<br>`URxvt.cdmn.disk.write`<br>`URxvt.cdmn.gauges.batteries`<br>`URxvt.cdmn.gauges.cores`<br>`URxvt.cdmn.network.rx`<br>`URxvt.cdmn.network.tx`<br> | List of device names to show gauges for. | not set |
+    URxvt.cdmn.gauges.disks
+    URxvt.cdmn.disk.read
+    URxvt.cdmn.disk.write
+    URxvt.cdmn.gauges.batteries
+    URxvt.cdmn.gauges.cores
+    URxvt.cdmn.network.rx
+    URxvt.cdmn.network.tx
+
+Each of the above resources expects a list of device names to show gauges for.
 
 By default if you do not specify anything _cdmn_ will assume you would like to see everything. That is, if you do specify 
 valid values for `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx` then you will only see what you specified.
@@ -179,25 +186,26 @@ The only exceptions to this rule are `URxvt.cdmn.disk.read` and `URxvt.cdmn.disk
 utilization. Of course you could leave out `URxvt.cdmn.gauges.disks` and only provide values for disks you would like 
 to monitor in detail.
 
-Also note, that the additinal gauges are divisions of `URxvt.cdmn.disk.read`. If you were to set all three settings to 
+Also note, that the additional gauges are divisions of `URxvt.cdmn.disk.read`. If you were to set all three settings to 
 a value of `sda` and copied a large file from one folder to another on the same disk (sda), you would see three gauges. 
-One with about 100 percent for the the combinded read and write utilization and two others with about 50 percent each 
+One with about 100 percent for the combined read and write utilization and two others with about 50 percent each 
 because half of the time was spent reading in data and the other half of the time was spent writing data.
 
 ## Visual styles
 
-Each available guage (network, disk, cpu, cpu_temp, memory, battery, mount) has the following settings that you can use 
+Each available gauge (network, disk, cpu, cpu_temp, memory, battery, mount) has the following settings that you can use 
 to adapt its visual style.
 
 | Resource                          | Function                                                                                     | Default (Other) |
 | --------------------------------- | -------------------------------------------------------------------------------------------- | --------------- |
 | `URxvt.cdmn.<guage>.style`        | The kind of gauges you prefer. Either a bar that can grow and shrink or simple flashing LED. | bar (led)       |
 | `URxvt.cdmn.<guage>.graph.width`  | Width of graph in samplings, for example 5.                                                  | not set         |
-| `URxvt.cdmn.<guage>.graph.expand` | If graph width should take up as much space possible.                                        | not set         |
+| `URxvt.cdmn.<guage>.graph.expand` | If graph width should take up as much space as possible.                                     | not set         |
 | `URxvt.cdmn.<guage>.detail`       | How much detail, e.g. a gauge for every logical core or just one gauge.                      | true (false)    |
 | `URxvt.cdmn.<guage>.invert`       | Invert colors                                                                                | true (false)    |
+| `URxvt.cdmn.<guage>.colors`       | The colors to be used apart from any global setting                                          | true (false)    |
 
-If you specifiy `URxvt.cdmn.<guage>.graph.width` and `URxvt.cdmn.<guage>.graph.expand`, the latter one takes precedence.
+If you specify `URxvt.cdmn.<guage>.graph.width` and `URxvt.cdmn.<guage>.graph.expand`, the latter one takes precedence.
 
 You can further define the visual representation and orientation with the following settings.
 
@@ -215,13 +223,13 @@ this case 0 which is black.
 
 You can also set (and overwrite) colors individually for each gauge with the following resources:
 
-    URxvt.cdmn.colors.network
-    URxvt.cdmn.colors.disk
-    URxvt.cdmn.colors.cpu
-    URxvt.cdmn.colors.cpu_temp
-    URxvt.cdmn.colors.memory 
-    URxvt.cdmn.colors.battery
-    URxvt.cdmn.colors.mount
+    URxvt.cdmn.network.colors
+    URxvt.cdmn.disk.colors
+    URxvt.cdmn.cpu.colors
+    URxvt.cdmn.cpu_temp.colors
+    URxvt.cdmn.memory.colors 
+    URxvt.cdmn.battery.colors
+    URxvt.cdmn.mount.colors
 
 If you only define one color it will be interpreted as a foreground color. `URxvt.cdmn.gauges.bg` (either your value or 
 the implicit default -2) will be used for the background color.
@@ -261,9 +269,9 @@ Finally there are even more settings ...
 
 | Resource                     | Function                                                       | Default (Other) |
 | ---------------------------- | -------------------------------------------------------------- | --------------- |
-| `URxvt.cdmn.disk.mountsonly` | Only show disk gauges for disks with at least one mount point. | 0 (1)           |
+| `URxvt.cdmn.disk.mountsonly` | Only show disk gauges for disks with at least one mount point. | true (false)           |
 
-There is an initial .Xresouces file inthde resources folder with some minimal necessary settings, including some 
+There is an initial .Xresouces file in the resources folder with some minimal necessary settings, including some 
 color overwrites to make it look like the example screenshots. Make sure you adapt the line `URxvt*perl-lib: 
 /home/<USERNAME>/.urxvt/` accordingly.
 
@@ -304,7 +312,7 @@ For instance, if you set `URxvt.cdmn.sidebar.position` to `left` or `right`, onl
 will be honored whereas `URxvt.cdmn.sidebar.height` will be fixed at 100%. Similarly, if you set `URxvt.cdmn.sidebar.position` 
 to `top` or `bottom` only your setting for `URxvt.cdmn.sidebar.height` will be honored whereas `URxvt.cdmn.sidebar.width` 
 will be fixed at 100%. Finally, `center` will set both, width and height, to 100% and ignore any of your settings for
-width and height. In addition you can decide if you would like to have a border when you position the sidbar left or right.
+width and height. In addition you can decide if you would like to have a border when you position the sidebar left or right.
 
 For the graphs shown on each pane you can set the symbols to use. Generally, there are two symbols. One symbols serves as
 the background and the other serves as the indicator. But you can also leave out the second symbols if you want to have a
@@ -379,7 +387,7 @@ If you prefer the led style you might want to have more indicators.
 | `17,18,19,20,21`      | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_blue_led.png)  |
 | `236,241,246,251,231` | ![](https://rawgit.com/Jeansen/assets/master/examples/colors_white_led.png) |
 
-As described in the section on [visual styles](#visual-styles---gauges-colors) the first color always defines the the 
+As described in the section on [visual styles](#visual-styles---gauges-colors) the first color always defines the 
 background color.
 
 # Please note
