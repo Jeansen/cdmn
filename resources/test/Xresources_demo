@@ -35,3 +35,4 @@ URxvt.cdmn.label.padding: 1
 URxvt.cdmn.style: bar
 URxvt.cdmn.disk.mountsonly: false
 URxvt.cdmn.cpu.graph.width: 5
+URxvt.cdmn.cpu_temp.detail: true

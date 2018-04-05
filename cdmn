@@ -151,14 +151,14 @@ package cdmn::proc {
                     @dir = readdir $dh;
                     my %cores = map { /(temp\d)/ ? ( ( $_ =~ /(temp\d)/ ), "" ) : () } @dir;
                     for ( keys %cores ) {
-                        open( $f, '<', $p . "/" . $_ . "_input" );
-                        chomp( my $cv = <$f> );
-                        open( $f, '<', $p . "/" . $_ . "_crit" );
-                        chomp( my $mv = <$f> );
                         open( $f, '<', $p . "/" . $_ . "_label" );
                         chomp( my $l = <$f> );
-                        last if $l !~ /\ACore/;
-                        $results{$l} = $cv / $mv * 100;
+                        next if $l !~ /\ACore/;
+                        open( $f, '<', $p . "/" . $_ . "_input" );
+                        chomp( my $iv = <$f> );
+                        open( $f, '<', $p . "/" . $_ . "_crit" );
+                        chomp( my $cv = <$f> );
+                        $results{$l} = $iv / $cv * 100;
                     }
                     last;
                 }
@@ -181,7 +181,7 @@ package cdmn::proc {
                 opendir( $dh, $p );
                 @dir = readdir $dh;
                 my %cores = map { /(temp\d)/ ? ( ( $_ =~ /(temp\d)/ ), "" ) : () } @dir;
-                for ( keys %cores ) {
+                for ( keys %cores ) { #simulate set by only using keys
                     open( $f, '<', $p . "/" . $_ . "_label" );
                     chomp( my $l = <$f> );
                     push @results, $l if $l =~ /\ACore/;
@@ -736,6 +736,7 @@ package cdmn::resources {
         local *_set_cores = sub {
             my $cpus = cdmn::proc::cpu_count() - 1;
             $s->set_gauges( 'cpus', [ map "cpu" . $_, 0 .. $cpus ] );
+            $s->set_gauges( 'cpu_temps', cdmn::proc::cores() ); #TODO
             $s;
         };
 
@@ -834,6 +835,7 @@ package cdmn::resources {
         $s->set_disks;
         $s->set_batteries;
         $s->set_nics;
+        # $s->set_cpu_temps; #TODO
 
         ## no critic
         eval qq/_set_$_/ for qw/cores order colors panes mounts/;
@@ -1077,8 +1079,10 @@ package cdmn::resources {
         }
         return %g;
     }
-
-    for my $h (qw(batteries cpu_temps)) {
+    
+    #TODO Sort out and refactor as wrapper
+    for my $h (qw(batteries)) {
+    # for my $h (qw(batteries cpu_temps)) {
         ## no critic
         eval qq{
             sub set_$h {
@@ -1868,7 +1872,8 @@ package cdmn::visuals::container {
         if ( $s->{visible} && $s->{gauges}{$name} ) {
             if ( !$s->{detail}{$name} and !$s->{graph_length}{$name} ) {
                 $total += $_ for values %$usage;
-                $total /= scalar keys %$usage;
+                my $size = scalar keys %$usage;
+                $total /= $size if $size > 0;
                 $s->{gauges}{$name}->set( 'simple', $total, $invert );
             }
             else {
