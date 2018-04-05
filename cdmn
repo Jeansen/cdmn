@@ -1228,23 +1228,25 @@ package cdmn::sidebar {
             my @r   = @{ +shift };
 
             local *_strlen = sub {
-                length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 );
+                length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 ); #TODO magic numbers
             };
+
+            return ( @l, $c, @r ) if _strlen() < $len;  
 
             while () {
                 if ( @l > @r ) {
-                    shift @l if _strlen() gt $len;
+                    shift @l;
                 }
                 elsif ( @r > @l ) {
-                    pop @r if _strlen() gt $len;
+                    pop @r;
                 }
                 else {
-                    shift @l if _strlen() gt $len;
-                    pop @r   if _strlen() gt $len;
+                    shift @l;
+                    pop @r;
                 }
 
                 #use () with le, or use <, otherwise it hangs!
-                return ( @l, $c, @r ) if ( _strlen() ) le $len || ( @l eq 0 and @r eq 0 );
+                return ( @l, $c, @r ) if _strlen() le $len || ( @l eq 0 and @r eq 0 );
             }
         };
 
