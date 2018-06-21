@@ -289,7 +289,7 @@ package cdmn::proc {
     }
 
     sub fs_usage {
-        my %r = map { $_ => df($_)->{per} } ( sort values %{ mounts() } );
+        my %r = map { $_ => df($_)->{per} } grep {defined df($_)} ( sort values %{ mounts() } ); #warn if mounts inaccessible
         \%r;
     }
 
@@ -361,7 +361,7 @@ package cdmn::proc {
             chomp( my $d = <$f> );
 
             opendir( my $dh2, SYSFS_BLOCK . "$block/slaves" );
-            $block{$d} = [ map {/(sd[a-z]|nvme\dn|mmcblk)/} readdir $dh2 ];
+            $block{$d} = [ map {/(sd\w|nvme\dn|mmcblk)/} readdir $dh2 ];
         }
         closedir $dh;
         return \%block;
@@ -439,7 +439,7 @@ package cdmn::proc {
 
         open( my $f, '<', PROC_DISKSTATS );
         for (<$f>) {
-            if ( !/\bsd(a|b|c)|nvme\dn\d\b|mmcblk\d\b/ ) {
+            if ( !/\bsd\w|nvme\dn\d\b|mmcblk\d\b/ ) {
                 next;
             }
             my @sda = split /\s+/, $_;
