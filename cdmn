@@ -650,6 +650,7 @@ package cdmn::resources {
         graph_expand
 
         keysyms
+        term
     );
 
     use constant {
@@ -680,6 +681,7 @@ package cdmn::resources {
     sub init {
         my $s = shift;
         my $t = shift;
+        $s->{term} = $t;
 
         local *_set_list = sub {
             my $r = $t->x_resource("$_[0]");
@@ -986,8 +988,20 @@ package cdmn::resources {
     }
 
     sub set_keysym {
-        my $s = shift;
-        $s->{keysyms}{ $_[0] } = $_[1];
+        my ($s, $action, $keysym) = @_;
+		my @key = ( reverse split(/-([^-]+)$/, $keysym) );
+        my @mods = ( split(/-/, $key[1]) );
+
+        my %mod_masks;
+        $mod_masks{$_} = $s->{term}->ModMetaMask for qw/m meta/;
+        $mod_masks{$_} = urxvt::ControlMask for qw/c control/;
+        $mod_masks{$_} = urxvt::ShiftMask for qw/s shift/;
+
+        my $mask = 0;
+        $mask += $mod_masks{lc $_} for @mods;
+
+        $s->{keysyms}{ $action } = $keysym;
+        $s->{keysyms}{lc "$key[0]-${mask}" } = $action;
     }
 
     #TODO I do not like it, have to think of something else
@@ -1591,10 +1605,10 @@ package cdmn::term {
         $s;
     }
 
-    sub on_user_command {
-        (shift)->{term}{termclass}{parent}->user_command(@_);
-        1;
-    }
+    # sub on_user_command {
+    #     (shift)->{term}{termclass}{parent}->user_command(@_);
+    #     1;
+    # }
 
     sub on_init {
         my $s = shift;
@@ -1616,6 +1630,10 @@ package cdmn::term {
             1;
         }
         ();
+    }
+
+    sub on_key_press {
+        return (shift)->{term}{termclass}{parent}->key_press(@_);
     }
 
     sub on_refresh_begin {
@@ -2425,6 +2443,34 @@ sub user_command {
     1;
 }
 
+
+sub key_press {
+	my ($s, $event, $keysym, $string) =  @_;
+    my @sidebar_actions = (
+        CDMN->ACTION_NEXT_PANE,
+        CDMN->ACTION_PREV_PANE,
+        CDMN->ACTION_SCROLL_UP,
+        CDMN->ACTION_SCROLL_DOWN
+    );
+
+	my $shift_mask = urxvt::ShiftMask & $event->{state};
+	my $control_mask = urxvt::ControlMask & $event->{state};
+	my $meta_mask = $s->ModMetaMask & $event->{state};
+
+	$keysym = lc ($s->XKeysymToString($keysym) .- ($shift_mask + $control_mask + $meta_mask));
+
+    if (exists XR->{'keysyms'}{$keysym}) {
+        if ( ! $s->{xterms}{sidebar}{visible} and grep {XR->{'keysyms'}{$keysym} eq $_} @sidebar_actions ) {
+            $s->{xterms}{main}{term}->tt_write($string);
+        } else {
+            $s->user_command(XR->{'keysyms'}{$keysym});
+        }
+        return 1;
+    }
+
+    ();
+}
+
 # Before every terminal update, check if the state of some devices
 # or the terminal size has changed and recalculate accordingly.
 # The resource 'refresh' has direct impact on how often his method
@@ -2509,7 +2555,6 @@ sub on_tt_write {
 
 sub on_init {
     my ($s) = @_;
-    XR->init($s);
     @$s{qw/width height dwidth dheight/} = (qw/0 0 0 0/);
     ();
 }
@@ -2517,6 +2562,7 @@ sub on_init {
 sub on_start {
     my ($s) = @_;
 
+    XR->init($s);
     $s->{xterms}{main} = cdmn::term->new(
         parent  => $s,
         is_root => 1,
