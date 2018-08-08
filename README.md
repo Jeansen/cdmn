@@ -114,7 +114,18 @@ The sidebar is in heavy development at the moment. Stay tuned but do not expect 
 
 # How to customize cdmn
 
-Here are some settings, that already work with more to come:
+Following is a list of gauges you can customize to your liking:
+
+| Gauge name | Description                                           |
+| ---------- | ----------------------------------------------------- |
+| disk       | Disk utilization                                      |
+| cpu        | CPU utilization                                       |
+| memory     | Available/Used memory                                 |
+| network    | Network utilization                                   |
+| cpu_temp   | CPU temperature                                       |
+| battery    | Battery status                                        |
+| mount      | Used/remaining space for mount points                 |
+| hidpp      | Battery status of HID++ devices (Mice, Keyboard, ...) |
 
 ## Labels
 
@@ -130,6 +141,7 @@ corresponding gauges:
 | `URxvt.cdmn.label.cpu_temp` | TEMP    |
 | `URxvt.cdmn.label.battery`  | BAT     |
 | `URxvt.cdmn.label.mount`    | MOUNT   |
+| `URxvt.cdmn.label.hidpp`    | HID     |
 
 In addition you can set colors for different parts. All colors default to the terminal foreground (-2) or background 
 (-1). Normally you will not need to use these values. After all, they are the defaults. But you might want to 
@@ -162,7 +174,7 @@ Starting with the layout, you can define the position, order, initial visibility
 | `URxvt.label.padding`       | How much space (in characters) you would like to have between a label and its gauges.                                           | 1                    |
 | `URxvt.cdmn.x`              | Horizontal position (by character) where values >= 0 will result in a left alignment and negative numbers in a right alignment. | -1                   |
 | `URxvt.cdmn.y`              | Vertical position (by row) where 0 will be the first line and -1 the last.                                                      | 0                    |
-| `URxvt.cdmn.gauges.order`   | List of gauges to show and their order. This list must contain existing labels.                                                 | DISK,CPU,MEM,NETWORK |
+| `URxvt.cdmn.gauges.order`   | List of gauges to show and their order. This list must contain existing labels.                                                 | CPU,DISK,MEM,NETWORK |
 | `URxvt.cdmn.showing`        | Initially show gauges.                                                                                                          | 1                    |
 | `URxvt.cdmn.showing.labels` | Initially show labels.                                                                                                          | 1                    |
 
@@ -193,7 +205,7 @@ because half of the time was spent reading in data and the other half of the tim
 
 ## Visual styles
 
-Each available gauge (network, disk, cpu, cpu_temp, memory, battery, mount) has the following settings that you can use 
+Each [available gauge](#how-to-customize-cdmn ) has the following settings that you can use 
 to adapt its visual style.
 
 | Resource                          | Function                                                                                     | Default (Other) |
@@ -269,7 +281,7 @@ Finally there are even more settings ...
 
 | Resource                     | Function                                                       | Default (Other) |
 | ---------------------------- | -------------------------------------------------------------- | --------------- |
-| `URxvt.cdmn.disk.mountsonly` | Only show disk gauges for disks with at least one mount point. | true (false)           |
+| `URxvt.cdmn.disk.mountsonly` | Only show disk gauges for disks with at least one mount point. | true (false)    |
 
 There is an initial .Xresouces file in the resources folder with some minimal necessary settings, including some 
 color overwrites to make it look like the example screenshots. Make sure you adapt the line `URxvt*perl-lib: 
