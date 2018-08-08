@@ -98,6 +98,7 @@ package cdmn::constants {
         NETWORK  => 'network',
         CPU_TEMP => 'cpu_temp',
         BATTERY  => 'battery',
+        HIDPP  => 'hidpp',
         MOUNT    => 'mount',
     };
 
@@ -328,13 +329,49 @@ package cdmn::proc {
         my @dir = readdir $dh;
         for (@dir) {
             my $bat = $_;
-            next if (/\A\.\.?\z/);
-            next if (/\AAC/);
-            next if (/\Ahid/);
+            next if /\A\.\.?\z/;
+            next if /\AAC/;
+            next if /\Ahid/;
             push @bats, $bat;
         }
         closedir $dh;
         return \@bats;
+    }
+
+    sub hidpps {
+        my @bats;
+        opendir( my $dh, SYSFS_BAT );
+        my @dir = readdir $dh;
+        for (@dir) {
+            my $bat = $_;
+            next if ! /\Ahidpp_battery_/;
+            open( my $f, '<', SYSFS_BAT . "/$bat/online" );
+            chomp( my $full = <$f> );
+            next if ! $full;
+            push @bats, $bat;
+        }
+        closedir $dh;
+        return \@bats;
+    }
+    
+    sub hidpp_usages {
+        my %results;
+        my @bats = @{ hidpps() };
+        for (@bats) {
+            my $f;
+            my $bat = $_;
+            my $path = SYSFS_BAT . "/$bat"; 
+            open( $f, '<', "$path/capacity" ) || open( $f, '<', "$path/capacity_level" );
+            chomp( my $full = <$f> );
+            $full = 100 if $full =~ /Full/i; 
+            $full = 80 if $full =~ /High/i; 
+            $full = 60 if $full =~ /Normal/i; 
+            $full = 30 if $full =~ /Low/i; 
+            $full = 10 if $full =~ /Critical/i; 
+            $full = 0 if $full =~ /[^0-9]/; #Maybe charging? Could be Unknown.
+            $results{$bat} = $full;
+        }
+        return \%results;
     }
 
     sub disks {
@@ -664,7 +701,7 @@ package cdmn::resources {
         PROC => 'cdmn::proc',
     };
 
-    use constant DEFAULT_ORDER     => (qw/ cpu cpu_temp disk memory network battery mount /);
+    use constant DEFAULT_ORDER     => (qw/ cpu cpu_temp disk memory network hidpp battery mount /);
     use constant STYLES            => ( CDMN->STYLE_BAR, CDMN->STYLE_LED );
     use constant VISUAL_ALIGNMENTS => ( CDMN->VISUAL_ALIGN_COL, CDMN->VISUAL_ALIGN_ROW );
     use constant TBLRC             => ( CDMN->TOP, CDMN->LEFT, CDMN->RIGHT, CDMN->BOTTOM, CDMN->CENTER );
@@ -765,6 +802,7 @@ package cdmn::resources {
         $s->set_label( 'cpu_temp', $t->x_resource('%.label.cpu_temp') // 'TEMP' );
         $s->set_label( 'memory',   $t->x_resource('%.label.memory')   // 'MEM' );
         $s->set_label( 'battery',  $t->x_resource('%.label.battery')  // 'BAT' );
+        $s->set_label( 'hidpp',  $t->x_resource('%.label.hidpp')  // 'HID' );
         $s->set_label( 'mount',    $t->x_resource('%.label.mount')    // 'MOUNT' );
         $s->set_label( 'battery_AC', $s->get_label('battery') . "(⌁)" );
 
@@ -795,6 +833,7 @@ package cdmn::resources {
         $s->set_gauges( 'network_tx',  _set_list('%.network.tx') );
         $s->set_gauges( 'mounts',      _set_list('%.gauges.mounts') );
         $s->set_gauges( 'batteries',   _set_list('%.gauges.batteries') );
+        $s->set_gauges( 'hidpps',   _set_list('%.gauges.hidpps') );
         $s->set_gauges( 'cpu_temps',   _set_list('%.gauges.cores') );
         $s->set_gauges( 'memory', ["MemAvailable:"] );
 
@@ -836,6 +875,7 @@ package cdmn::resources {
 
         $s->set_disks;
         $s->set_batteries;
+        $s->set_hidpps;
         $s->set_nics;
 
         # $s->set_cpu_temps; #TODO
@@ -858,6 +898,13 @@ package cdmn::resources {
                 visual  => $s->get_visual_style($_),
             );
         }
+    }
+
+    sub set_hidpps {
+        my $s = shift;
+        my $ov = $s->get_gauges('hidpps') ? scalar @{$s->get_gauges('hidpps')} : 0;
+        $s->set_gauges('hidpps', cdmn::proc::hidpps);
+        $ov != scalar @{$s->get_gauges('hidpps')} ? $s->{ok} = 1 && return $s : Null->new;
     }
 
     #TODO expand or delete
@@ -1015,6 +1062,7 @@ package cdmn::resources {
             $s->{labels}{network}  => cdmn::constants::NETWORK,
             $s->{labels}{cpu_temp} => cdmn::constants::CPU_TEMP,
             $s->{labels}{battery}  => cdmn::constants::BATTERY,
+            $s->{labels}{hidpp}  => cdmn::constants::HIDPP,
             $s->{labels}{mount}    => cdmn::constants::MOUNT,
         );
 
@@ -1081,6 +1129,7 @@ package cdmn::resources {
         $c{memory}   = 1;
         $c{network}  = @{ $s->get_gauges('networks') };
         $c{battery}  = @{ $s->get_gauges('batteries') };
+        $c{hidpp}  = @{ $s->get_gauges('hidpps') };
         $c{mount}    = @{ $s->get_gauges('mounts') };
         exists $c{ $_[0] } ? $c{ $_[0] } : 0;
     }
@@ -1320,10 +1369,10 @@ package cdmn::sidebar {
             push @content, _overlay($_) if $s->{label_position} eq TOP;
 
             my $w = $s->{term}->ncol - 8;                        #TODO 2 border,space + 4 number% + 1 space
-            my $c = floor( $w * $data{"$title"}->{$_} / 100 );
+            my $c = $data{"$title"}->{$_} ? floor( $w * $data{"$title"}->{$_} / 100 ) : 0;
             $c = 0 if $c < 0;
             my $f = $c <= $w ? $w - $c : 0;                      #should only be necessary on startup
-            push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . floor( $data{$title}->{$_} ) . "%" );
+            push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . $c . "%" );
             push @content, _overlay($_) if $s->{label_position} eq BOTTOM;
         }
 
@@ -2480,17 +2529,23 @@ sub key_press {
 sub on_refresh_begin {
     my ($s) = @_;
     my $nics_active = cdmn::proc->network_list;
+    my $hidpps_active = cdmn::proc->hidpps;
+    
+    state $hidpps = 0; 
     state $onAC = 0;
     state $nics = 0;
     if (   $s->{w_size} != $s->{term}->ncol
         || $s->{y_size} != $s->{term}->nrow
         || cdmn::proc::ac_online() != $onAC
-        || $nics != scalar @$nics_active )
+        || $nics != scalar @$nics_active 
+        || $hidpps != scalar @$hidpps_active )
     {
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
+        $hidpps = scalar @$hidpps_active;
 
         XR->set_nics;
+        XR->set_hidpps;
         redraw( $s, XR->{showing_labels} );
         refresh_bounds( $s, XR->{visual_align} );
         $s->{w_size} = $s->{term}->ncol;
@@ -2511,7 +2566,7 @@ sub on_refresh_end {
 sub on_configure_notify {
     my ( $s, $e ) = @_;
 
-    #NOTE this is a hack for saving the real height and width. Otherwise there are some (currently 4) pixels missing ;(
+    #NOTE this is a hack for saving the real height and width. Otherwise there are (currently 4) pixels missing ;(
     $s->{width}   = $e->{width};
     $s->{height}  = $e->{height};
     $s->{dwidth}  = $e->{width} - $s->width;
@@ -2607,7 +2662,7 @@ sub on_start {
             my %r;
 
             local *_filter = sub {
-                map { $_ => ${ $_[0] }{$_} } @{ $_[1] };
+                map { $_ => ${ $_[0] }{$_} } @{ $_[1] }; #TODO should not return undefined in results
             };
 
             redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok || XR->set_batteries->ok || XR->set_nics->ok;
@@ -2618,6 +2673,7 @@ sub on_start {
             $usage_of{memory}   = sub { %{ cdmn::proc::memory_usages() } };
             $usage_of{cpu_temp} = sub { %{ cdmn::proc::cpu_temp_usages() } };
             $usage_of{battery}  = sub { %{ cdmn::proc::battery_usages() } };
+            $usage_of{hidpp}    = sub { %{ cdmn::proc::hidpp_usages() } };
             $usage_of{disk}     = sub { _filter( cdmn::proc::disk_usages(), XR->get_gauges('disks') ) };
             $usage_of{network}  = sub { _filter( cdmn::proc::network_usages(), XR->get_gauges('networks') ) };
             $usage_of{mount}    = sub { %{ cdmn::proc::fs_usage() } };
