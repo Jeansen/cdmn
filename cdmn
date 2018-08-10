@@ -1841,6 +1841,7 @@ package cdmn::visuals::container {
         $xOff += $visual->{width} + $s->{padding}  if $s->{align} eq CDMN->VISUAL_ALIGN_ROW;
         $yOff += $visual->{height} + $s->{padding} if $s->{align} eq CDMN->VISUAL_ALIGN_COL;
         $s->{gauges}{ $arg{name} } = $visual;
+
         $s;
     }
 
@@ -2098,10 +2099,11 @@ package cdmn::visuals::visual {
         my ( $s, $max ) = @_;
         my $l = length $s->{label};
 
-        $s->{width} -= $s->{width_add};
-        $s->{width_add} = $max - @{ $s->{gauges} } if $s->{label_pos} eq CDMN->LEFT;
-        $s->{width_add} = $l > 0 ? $max - $l : 0 if $s->{label_pos} eq CDMN->RIGHT;
-        $s->{width} += $s->{width_add};
+        if($max gt @{ $s->{gauges} }){
+            $s->{width_add} = $max - @{ $s->{gauges} } if $s->{label_pos} eq CDMN->LEFT;
+            $s->{width_add} = $l > 0 ? $max - $l : 0 if $s->{label_pos} eq CDMN->RIGHT;
+            $s->{width} += $s->{width_add};
+        }
         $s;
     }
 
