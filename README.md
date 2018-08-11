@@ -142,6 +142,7 @@ corresponding gauges:
 | `URxvt.cdmn.label.battery`  | BAT     |
 | `URxvt.cdmn.label.mount`    | MOUNT   |
 | `URxvt.cdmn.label.hidpp`    | HID     |
+| `URxvt.cdmn.label.swap`     | SWAP    |
 
 In addition you can set colors for different parts. All colors default to the terminal foreground (-2) or background 
 (-1). Normally you will not need to use these values. After all, they are the defaults. But you might want to 
@@ -205,7 +206,7 @@ because half of the time was spent reading in data and the other half of the tim
 
 ## Visual styles
 
-Each [available gauge](#how-to-customize-cdmn ) has the following settings that you can use 
+Each [available gauge](#how-to-customize-cdmn) has the following settings that you can use 
 to adapt its visual style.
 
 | Resource                          | Function                                                                                     | Default (Other) |

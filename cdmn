@@ -99,6 +99,7 @@ package cdmn::constants {
         CPU_TEMP => 'cpu_temp',
         BATTERY  => 'battery',
         HIDPP  => 'hidpp',
+        SWAP  => 'swap',
         MOUNT    => 'mount',
     };
 
@@ -117,6 +118,7 @@ package cdmn::proc {
         PROC_DISKSTATS  => '/proc/diskstats',
         PROC_MEMINFO    => '/proc/meminfo',
         PROC_NET_ROUTE  => '/proc/net/route',
+        PROC_SWAPS  => '/proc/swaps',
 
         SPEED     => 'speed',
         OPERSTATE => 'operstate',
@@ -336,6 +338,34 @@ package cdmn::proc {
         }
         closedir $dh;
         return \@bats;
+    }
+
+    sub swaps {
+        my @r;
+
+        open( my $f, '<', PROC_SWAPS );
+        for (<$f>) {
+            next if ! /\A\//;
+
+            my @swaps = split /\s+/, $_;
+            my $name = shift @swaps;
+            push @r, $name;
+        }
+        return \@r;
+    }
+
+    sub swap_usages {
+        my %results;
+
+        open( my $f, '<', PROC_SWAPS );
+        for (<$f>) {
+            next if ( !/\A\// );
+
+            my @swaps = split /\s+/, $_;
+            my ($name, $type, $size, $used, $prio) = (@swaps);
+            $results{$name} = $used / $size * 100;
+        }
+        return \%results;
     }
 
     sub hidpps {
@@ -701,7 +731,7 @@ package cdmn::resources {
         PROC => 'cdmn::proc',
     };
 
-    use constant DEFAULT_ORDER     => (qw/ cpu cpu_temp disk memory network hidpp battery mount /);
+    use constant DEFAULT_ORDER     => (qw/ cpu cpu_temp disk memory swap network hidpp battery mount /);
     use constant STYLES            => ( CDMN->STYLE_BAR, CDMN->STYLE_LED );
     use constant VISUAL_ALIGNMENTS => ( CDMN->VISUAL_ALIGN_COL, CDMN->VISUAL_ALIGN_ROW );
     use constant TBLRC             => ( CDMN->TOP, CDMN->LEFT, CDMN->RIGHT, CDMN->BOTTOM, CDMN->CENTER );
@@ -803,6 +833,7 @@ package cdmn::resources {
         $s->set_label( 'memory',   $t->x_resource('%.label.memory')   // 'MEM' );
         $s->set_label( 'battery',  $t->x_resource('%.label.battery')  // 'BAT' );
         $s->set_label( 'hidpp',  $t->x_resource('%.label.hidpp')  // 'HID' );
+        $s->set_label( 'swap',  $t->x_resource('%.label.swap')  // 'SWAP' );
         $s->set_label( 'mount',    $t->x_resource('%.label.mount')    // 'MOUNT' );
         $s->set_label( 'battery_AC', $s->get_label('battery') . "(⌁)" );
 
@@ -834,6 +865,7 @@ package cdmn::resources {
         $s->set_gauges( 'mounts',      _set_list('%.gauges.mounts') );
         $s->set_gauges( 'batteries',   _set_list('%.gauges.batteries') );
         $s->set_gauges( 'hidpps',   _set_list('%.gauges.hidpps') );
+        $s->set_gauges( 'swaps',   _set_list('%.gauges.swaps') );
         $s->set_gauges( 'cpu_temps',   _set_list('%.gauges.cores') );
         $s->set_gauges( 'memory', ["MemAvailable:"] );
 
@@ -876,6 +908,7 @@ package cdmn::resources {
         $s->set_disks;
         $s->set_batteries;
         $s->set_hidpps;
+        $s->set_swaps;
         $s->set_nics;
 
         # $s->set_cpu_temps; #TODO
@@ -905,6 +938,13 @@ package cdmn::resources {
         my $ov = $s->get_gauges('hidpps') ? scalar @{$s->get_gauges('hidpps')} : 0;
         $s->set_gauges('hidpps', cdmn::proc::hidpps);
         $ov != scalar @{$s->get_gauges('hidpps')} ? $s->{ok} = 1 && return $s : Null->new;
+    }
+
+    sub set_swaps {
+        my $s = shift;
+        my $ov = $s->get_gauges('swaps') ? scalar @{$s->get_gauges('swaps')} : 0;
+        $s->set_gauges('swaps', cdmn::proc::swaps);
+        $ov != scalar @{$s->get_gauges('swaps')} ? $s->{ok} = 1 && return $s : Null->new;
     }
 
     #TODO expand or delete
@@ -1063,6 +1103,7 @@ package cdmn::resources {
             $s->{labels}{cpu_temp} => cdmn::constants::CPU_TEMP,
             $s->{labels}{battery}  => cdmn::constants::BATTERY,
             $s->{labels}{hidpp}  => cdmn::constants::HIDPP,
+            $s->{labels}{swap}  => cdmn::constants::SWAP,
             $s->{labels}{mount}    => cdmn::constants::MOUNT,
         );
 
@@ -1130,6 +1171,7 @@ package cdmn::resources {
         $c{network}  = @{ $s->get_gauges('networks') };
         $c{battery}  = @{ $s->get_gauges('batteries') };
         $c{hidpp}  = @{ $s->get_gauges('hidpps') };
+        $c{swap}  = @{ $s->get_gauges('swaps') };
         $c{mount}    = @{ $s->get_gauges('mounts') };
         exists $c{ $_[0] } ? $c{ $_[0] } : 0;
     }
@@ -2534,22 +2576,27 @@ sub on_refresh_begin {
     my ($s) = @_;
     my $nics_active = cdmn::proc->network_list;
     my $hidpps_active = cdmn::proc->hidpps;
+    my $swaps_active = cdmn::proc->swaps;
     
     state $hidpps = 0; 
+    state $swaps = 0; 
     state $onAC = 0;
     state $nics = 0;
     if (   $s->{w_size} != $s->{term}->ncol
         || $s->{y_size} != $s->{term}->nrow
         || cdmn::proc::ac_online() != $onAC
         || $nics != scalar @$nics_active 
-        || $hidpps != scalar @$hidpps_active )
+        || $hidpps != scalar @$hidpps_active
+        || $swaps != scalar @$swaps_active )
     {
         $onAC = !$onAC;
         $nics = scalar @$nics_active;
         $hidpps = scalar @$hidpps_active;
+        $swaps = scalar @$swaps_active;
 
         XR->set_nics;
         XR->set_hidpps;
+        XR->set_swaps;
         redraw( $s, XR->{showing_labels} );
         refresh_bounds( $s, XR->{visual_align} );
         $s->{w_size} = $s->{term}->ncol;
@@ -2678,6 +2725,7 @@ sub on_start {
             $usage_of{cpu_temp} = sub { %{ cdmn::proc::cpu_temp_usages() } };
             $usage_of{battery}  = sub { %{ cdmn::proc::battery_usages() } };
             $usage_of{hidpp}    = sub { %{ cdmn::proc::hidpp_usages() } };
+            $usage_of{swap}    = sub { %{ cdmn::proc::swap_usages() } };
             $usage_of{disk}     = sub { _filter( cdmn::proc::disk_usages(), XR->get_gauges('disks') ) };
             $usage_of{network}  = sub { _filter( cdmn::proc::network_usages(), XR->get_gauges('networks') ) };
             $usage_of{mount}    = sub { %{ cdmn::proc::fs_usage() } };
