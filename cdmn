@@ -34,8 +34,8 @@ binmode STDOUT, ":encoding(UTF-8)";
 
 package Null {
     my $null = bless {}, __PACKAGE__;
-    sub AUTOLOAD {$null}
-    sub ok       {0}
+    sub AUTOLOAD { $null }
+    sub ok       { 0 }
 }
 
 package cdmn::math {
@@ -98,8 +98,8 @@ package cdmn::constants {
         NETWORK  => 'network',
         CPU_TEMP => 'cpu_temp',
         BATTERY  => 'battery',
-        HIDPP  => 'hidpp',
-        SWAP  => 'swap',
+        HIDPP    => 'hidpp',
+        SWAP     => 'swap',
         MOUNT    => 'mount',
     };
 
@@ -118,7 +118,7 @@ package cdmn::proc {
         PROC_DISKSTATS  => '/proc/diskstats',
         PROC_MEMINFO    => '/proc/meminfo',
         PROC_NET_ROUTE  => '/proc/net/route',
-        PROC_SWAPS  => '/proc/swaps',
+        PROC_SWAPS      => '/proc/swaps',
 
         SPEED     => 'speed',
         OPERSTATE => 'operstate',
@@ -142,25 +142,25 @@ package cdmn::proc {
     sub cpu_temp_usages {
         my %results;
         if ( -e SYSFS_HWMON ) {
-            opendir( my $dh, SYSFS_HWMON );
+            opendir ( my $dh, SYSFS_HWMON );
             my @dir = readdir $dh;
             for (@dir) {
                 next if $_ =~ /\A\.\.?\z/;
                 my $p = SYSFS_HWMON . $_;
-                open( my $f, '<', $p . "/name" ) || last;
-                chomp( my $state = <$f> );
+                open ( my $f, '<', $p . "/name" ) || last;
+                chomp ( my $state = <$f> );
                 if ( $state eq 'coretemp' ) {
-                    opendir( $dh, $p );
+                    opendir ( $dh, $p );
                     @dir = readdir $dh;
                     my %cores = map { /(temp\d)/ ? ( ( $_ =~ /(temp\d)/ ), "" ) : () } @dir;
                     for ( keys %cores ) {
-                        open( $f, '<', $p . "/" . $_ . "_label" );
-                        chomp( my $l = <$f> );
+                        open ( $f, '<', $p . "/" . $_ . "_label" );
+                        chomp ( my $l = <$f> );
                         next if $l !~ /\ACore/;
-                        open( $f, '<', $p . "/" . $_ . "_input" );
-                        chomp( my $iv = <$f> );
-                        open( $f, '<', $p . "/" . $_ . "_crit" );
-                        chomp( my $cv = <$f> );
+                        open ( $f, '<', $p . "/" . $_ . "_input" );
+                        chomp ( my $iv = <$f> );
+                        open ( $f, '<', $p . "/" . $_ . "_crit" );
+                        chomp ( my $cv = <$f> );
                         $results{$l} = $iv / $cv * 100;
                     }
                     last;
@@ -173,20 +173,20 @@ package cdmn::proc {
 
     sub cores {
         my @results;
-        opendir( my $dh, SYSFS_HWMON );
+        opendir ( my $dh, SYSFS_HWMON );
         my @dir = readdir $dh;
         for (@dir) {
             next if $_ =~ /\A\.\.?\z/;
             my $p = SYSFS_HWMON . $_;
-            open( my $f, '<', $p . "/name" );
-            chomp( my $state = <$f> );
+            open ( my $f, '<', $p . "/name" );
+            chomp ( my $state = <$f> );
             if ( $state eq 'coretemp' ) {
-                opendir( $dh, $p );
+                opendir ( $dh, $p );
                 @dir = readdir $dh;
                 my %cores = map { /(temp\d)/ ? ( ( $_ =~ /(temp\d)/ ), "" ) : () } @dir;
                 for ( keys %cores ) {    #simulate set by only using keys
-                    open( $f, '<', $p . "/" . $_ . "_label" );
-                    chomp( my $l = <$f> );
+                    open ( $f, '<', $p . "/" . $_ . "_label" );
+                    chomp ( my $l = <$f> );
                     push @results, $l if $l =~ /\ACore/;
                 }
                 last;
@@ -204,12 +204,12 @@ package cdmn::proc {
     }
 
     sub ac_online {
-        opendir( my $dh, SYSFS_BAT );
+        opendir ( my $dh, SYSFS_BAT );
         my @dir = readdir $dh;
         for (@dir) {
             if (/AC/) {
-                open( my $f, '<', SYSFS_BAT . $_ . "/online" );
-                chomp( my $state = <$f> );
+                open ( my $f, '<', SYSFS_BAT . $_ . "/online" );
+                chomp ( my $state = <$f> );
                 closedir $dh;
                 return $state;
             }
@@ -219,7 +219,7 @@ package cdmn::proc {
     }
 
     sub has_wifi {
-        opendir( my $dh, sysfs_net(shift) );
+        opendir ( my $dh, sysfs_net(shift) );
         my @dir = readdir $dh;
         for (@dir) { return 1 if (/wireless/); }
         closedir $dh;
@@ -227,8 +227,8 @@ package cdmn::proc {
     }
 
     sub network_down {
-        open( my $f, '<', sysfs_net( shift, OPERSTATE ) );
-        chomp( my $state = <$f> );
+        open ( my $f, '<', sysfs_net( shift, OPERSTATE ) );
+        chomp ( my $state = <$f> );
 
         # RFC2863 operational states: unknown notpresent down up lowerlayerdown testing dormant
         return 1 if $state =~ 'down|unknown|dormant';
@@ -237,14 +237,14 @@ package cdmn::proc {
 
     sub network_list {
         my @ifs;
-        opendir( my $dh, SYSFS_NET );
+        opendir ( my $dh, SYSFS_NET );
         my @dir = readdir $dh;
         for (@dir) {
             my $if = $_;
             next if (/\A\.\.?$|\Aveth/);
             if ( !has_wifi($if) ) {
-                open( my $f, '<', sysfs_net( $if, SPEED ) );
-                chomp( my @lines = <$f> );
+                open ( my $f, '<', sysfs_net( $if, SPEED ) );
+                chomp ( my @lines = <$f> );
                 next if scalar @lines eq 0;
             }
             next if network_down($if);
@@ -260,18 +260,18 @@ package cdmn::proc {
             return () if !$x;
             my ($y) = $x =~ m/(\/.*$)/i;
 
-            opendir( my $dh, "/sys/block/${y}/slaves/" );
+            opendir ( my $dh, "/sys/block/${y}/slaves/" );
             my @r = grep { $_ ne '.' && $_ ne '..' } readdir $dh;
 
             if ( $r[0] =~ /dm-/ ) {
-                opendir( $dh, "/sys/block/$r[0]/slaves/" );
+                opendir ( $dh, "/sys/block/$r[0]/slaves/" );
                 @r = grep { $_ ne '.' && $_ ne '..' } readdir $dh;
                 closedir $dh;
             }
             return @r;
         };
 
-        open( my $f, '<', PROC_MOUNTS );
+        open ( my $f, '<', PROC_MOUNTS );
         my @mounts;
         my @m;
         my %mounts;
@@ -299,7 +299,7 @@ package cdmn::proc {
     sub battery_usages {
         local *sysfs_bat = sub {
             my $path = SYSFS_BAT . "/$_[0]";
-            opendir( my $dh, $path );
+            opendir ( my $dh, $path );
             if ( $_[1] ) {
                 my @dir = readdir $dh;
                 for (@dir) {
@@ -315,10 +315,10 @@ package cdmn::proc {
         my @bats = @{ batteries() };
         for (@bats) {
             my $bat = $_;
-            open( my $f, '<', sysfs_bat( $bat, BAT_FULL ) );
-            chomp( my $full = <$f> );
-            open( $f, '<', sysfs_bat( $bat, BAT_NOW ) );
-            chomp( my $now = <$f> );
+            open ( my $f, '<', sysfs_bat( $bat, BAT_FULL ) );
+            chomp ( my $full = <$f> );
+            open ( $f, '<', sysfs_bat( $bat, BAT_NOW ) );
+            chomp ( my $now = <$f> );
 
             $results{$bat} = $now / $full * 100;
         }
@@ -327,7 +327,7 @@ package cdmn::proc {
 
     sub batteries {
         my @bats;
-        opendir( my $dh, SYSFS_BAT );
+        opendir ( my $dh, SYSFS_BAT );
         my @dir = readdir $dh;
         for (@dir) {
             my $bat = $_;
@@ -343,9 +343,9 @@ package cdmn::proc {
     sub swaps {
         my @r;
 
-        open( my $f, '<', PROC_SWAPS );
+        open ( my $f, '<', PROC_SWAPS );
         for (<$f>) {
-            next if ! /\A\//;
+            next if !/\A\//;
 
             my @swaps = split /\s+/, $_;
             my $name = shift @swaps;
@@ -357,12 +357,12 @@ package cdmn::proc {
     sub swap_usages {
         my %results;
 
-        open( my $f, '<', PROC_SWAPS );
+        open ( my $f, '<', PROC_SWAPS );
         for (<$f>) {
             next if ( !/\A\// );
 
             my @swaps = split /\s+/, $_;
-            my ($name, $type, $size, $used, $prio) = (@swaps);
+            my ( $name, $type, $size, $used, $prio ) = (@swaps);
             $results{$name} = $used / $size * 100;
         }
         return \%results;
@@ -370,42 +370,42 @@ package cdmn::proc {
 
     sub hidpps {
         my @bats;
-        opendir( my $dh, SYSFS_BAT );
+        opendir ( my $dh, SYSFS_BAT );
         my @dir = readdir $dh;
         for (@dir) {
             my $bat = $_;
-            next if ! /\Ahidpp_battery_/;
-            open( my $f, '<', SYSFS_BAT . "/$bat/online" );
-            chomp( my $full = <$f> );
-            next if ! $full;
+            next if !/\Ahidpp_battery_/;
+            open ( my $f, '<', SYSFS_BAT . "/$bat/online" );
+            chomp ( my $full = <$f> );
+            next if !$full;
             push @bats, $bat;
         }
         closedir $dh;
         return \@bats;
     }
-    
+
     sub hidpp_usages {
         my %results;
         my @bats = @{ hidpps() };
         for (@bats) {
             my $f;
-            my $bat = $_;
-            my $path = SYSFS_BAT . "/$bat"; 
-            open( $f, '<', "$path/capacity" ) || open( $f, '<', "$path/capacity_level" );
-            chomp( my $full = <$f> );
-            $full = 100 if $full =~ /Full/i; 
-            $full = 80 if $full =~ /High/i; 
-            $full = 60 if $full =~ /Normal/i; 
-            $full = 30 if $full =~ /Low/i; 
-            $full = 10 if $full =~ /Critical/i; 
-            $full = 0 if $full =~ /[^0-9]/; #Maybe charging? Could be Unknown.
+            my $bat  = $_;
+            my $path = SYSFS_BAT . "/$bat";
+            open ( $f, '<', "$path/capacity" ) || open ( $f, '<', "$path/capacity_level" );
+            chomp ( my $full = <$f> );
+            $full = 100 if $full =~ /Full/i;
+            $full = 80  if $full =~ /High/i;
+            $full = 60  if $full =~ /Normal/i;
+            $full = 30  if $full =~ /Low/i;
+            $full = 10  if $full =~ /Critical/i;
+            $full = 0   if $full =~ /[^0-9]/;      #Maybe charging? Could be Unknown.
             $results{$bat} = $full;
         }
         return \%results;
     }
 
     sub disks {
-        opendir( my $dh, SYSFS_BLOCK );
+        opendir ( my $dh, SYSFS_BLOCK );
         my @disks;
         my @dir = readdir $dh;
         for (@dir) {
@@ -418,17 +418,17 @@ package cdmn::proc {
     }
 
     sub dm_disks {
-        opendir( my $dh, SYSFS_BLOCK );
+        opendir ( my $dh, SYSFS_BLOCK );
         my %block;
         my @dir = readdir $dh;
         for (@dir) {
             my $block = $_;
             next if !(/\Adm-/);
-            open( my $f, '<', SYSFS_BLOCK . "$block/dm/name" );
-            chomp( my $d = <$f> );
+            open ( my $f, '<', SYSFS_BLOCK . "$block/dm/name" );
+            chomp ( my $d = <$f> );
 
-            opendir( my $dh2, SYSFS_BLOCK . "$block/slaves" );
-            $block{$d} = [ map {/(sd\w|nvme\dn|mmcblk)/} readdir $dh2 ];
+            opendir ( my $dh2, SYSFS_BLOCK . "$block/slaves" );
+            $block{$d} = [ map { /(sd\w|nvme\dn|mmcblk)/ } readdir $dh2 ];
         }
         closedir $dh;
         return \%block;
@@ -458,7 +458,7 @@ package cdmn::proc {
         my $diff_usage = 0;
         my %results;
 
-        open( my $f, '<', PROC_STAT );
+        open ( my $f, '<', PROC_STAT );
         for (<$f>) {
             next if ( !/\Acpu[0-9]*\s+[0-9]+/ );
 
@@ -487,7 +487,7 @@ package cdmn::proc {
     }
 
     sub cpu_count {
-        open( my $f, '<', SYSFS_CPU_PRESENT );
+        open ( my $f, '<', SYSFS_CPU_PRESENT );
         {
             local $/;
             my $cpus = <$f>;
@@ -504,7 +504,7 @@ package cdmn::proc {
         my $refresh = $ct - $t;
         $t = $ct;
 
-        open( my $f, '<', PROC_DISKSTATS );
+        open ( my $f, '<', PROC_DISKSTATS );
         for (<$f>) {
             if ( !/\bsd\w|nvme\dn\d\b|mmcblk\d\b/ ) {
                 next;
@@ -547,7 +547,7 @@ package cdmn::proc {
         my $available = 0;
         my %results;
 
-        open( my $f, '<', PROC_MEMINFO );
+        open ( my $f, '<', PROC_MEMINFO );
         for (<$f>) {
             if (/\AMemTotal:\s+[0-9]+/) {
                 @sda = split /\s+/, $_;
@@ -575,7 +575,7 @@ package cdmn::proc {
         local *_set = sub {
             my $nic       = shift;
             my $direction = shift;
-            open( my $f, '<', sysfs_net( $nic, $direction ) );
+            open ( my $f, '<', sysfs_net( $nic, $direction ) );
             {
                 local $/;
                 $bytes = <$f>;
@@ -600,7 +600,7 @@ package cdmn::proc {
     }
 
     sub network_default {
-        open( my $fh, '<', PROC_NET_ROUTE );
+        open ( my $fh, '<', PROC_NET_ROUTE );
 
         my $if = <$fh>;
         $if = <$fh>;
@@ -627,7 +627,7 @@ package cdmn::proc {
             }
         }
         else {
-            open( my $fh, '<', sysfs_net( $if, SPEED ) );
+            open ( my $fh, '<', sysfs_net( $if, SPEED ) );
             $speed = <$fh>;
         }
         $speed *= 1000000 / 8;
@@ -667,7 +667,8 @@ package cdmn::resources::single {
 
         (%$s) = validate(
             @_,
-            {   name    => 1,
+            {
+                name    => 1,
                 padding => 1,
                 fg      => 1,
                 bg      => 1,
@@ -753,8 +754,8 @@ package cdmn::resources {
         local *_set_list = sub {
             my $r = $t->x_resource("$_[0]");
             $r = $t->locale_decode($r) if $r;
-            return [ split( /[,[:space:]]+/, $r ) ]    if $r;
-            return [ split( /[,[:space:]]+/, $_[1] ) ] if $_[1];
+            return [ split ( /[,[:space:]]+/, $r ) ]    if $r;
+            return [ split ( /[,[:space:]]+/, $_[1] ) ] if $_[1];
             [ () ];
         };
 
@@ -776,7 +777,7 @@ package cdmn::resources {
         local *_set_value = sub {
             my $n = $t->x_resource("$_[0]");
             my @r;
-            @r = grep( /$n/, @{ $_[1] } ) if $n;    #TODO use ($r)
+            @r = grep ( /$n/, @{ $_[1] } ) if $n;    #TODO use ($r)
             return ( @r ? shift @r : $_[2] );
         };
 
@@ -795,7 +796,8 @@ package cdmn::resources {
                 # We have to add 2 because urxvt uses 0 and 1 for references to the terminals fg and bg colors.
                 $s->set_colors(
                     $_,
-                    [   map { $_ + 2 }
+                    [
+                        map { $_ + 2 }
                         grep ( looks_like_number($_), ( @{ $s->get_colors($_) } ? @{ $s->get_colors($_) } : @{ $s->get('gauges_colors') } ) )
                     ]
                 );
@@ -832,8 +834,8 @@ package cdmn::resources {
         $s->set_label( 'cpu_temp', $t->x_resource('%.label.cpu_temp') // 'TEMP' );
         $s->set_label( 'memory',   $t->x_resource('%.label.memory')   // 'MEM' );
         $s->set_label( 'battery',  $t->x_resource('%.label.battery')  // 'BAT' );
-        $s->set_label( 'hidpp',  $t->x_resource('%.label.hidpp')  // 'HID' );
-        $s->set_label( 'swap',  $t->x_resource('%.label.swap')  // 'SWAP' );
+        $s->set_label( 'hidpp',    $t->x_resource('%.label.hidpp')    // 'HID' );
+        $s->set_label( 'swap',     $t->x_resource('%.label.swap')     // 'SWAP' );
         $s->set_label( 'mount',    $t->x_resource('%.label.mount')    // 'MOUNT' );
         $s->set_label( 'battery_AC', $s->get_label('battery') . "(⌁)" );
 
@@ -864,8 +866,8 @@ package cdmn::resources {
         $s->set_gauges( 'network_tx',  _set_list('%.network.tx') );
         $s->set_gauges( 'mounts',      _set_list('%.gauges.mounts') );
         $s->set_gauges( 'batteries',   _set_list('%.gauges.batteries') );
-        $s->set_gauges( 'hidpps',   _set_list('%.gauges.hidpps') );
-        $s->set_gauges( 'swaps',   _set_list('%.gauges.swaps') );
+        $s->set_gauges( 'hidpps',      _set_list('%.gauges.hidpps') );
+        $s->set_gauges( 'swaps',       _set_list('%.gauges.swaps') );
         $s->set_gauges( 'cpu_temps',   _set_list('%.gauges.cores') );
         $s->set_gauges( 'memory', ["MemAvailable:"] );
 
@@ -935,16 +937,16 @@ package cdmn::resources {
 
     sub set_hidpps {
         my $s = shift;
-        my $ov = $s->get_gauges('hidpps') ? scalar @{$s->get_gauges('hidpps')} : 0;
-        $s->set_gauges('hidpps', cdmn::proc::hidpps);
-        $ov != scalar @{$s->get_gauges('hidpps')} ? $s->{ok} = 1 && return $s : Null->new;
+        my $ov = $s->get_gauges('hidpps') ? scalar @{ $s->get_gauges('hidpps') } : 0;
+        $s->set_gauges( 'hidpps', cdmn::proc::hidpps );
+        $ov != scalar @{ $s->get_gauges('hidpps') } ? $s->{ok} = 1 && return $s : Null->new;
     }
 
     sub set_swaps {
         my $s = shift;
-        my $ov = $s->get_gauges('swaps') ? scalar @{$s->get_gauges('swaps')} : 0;
-        $s->set_gauges('swaps', cdmn::proc::swaps);
-        $ov != scalar @{$s->get_gauges('swaps')} ? $s->{ok} = 1 && return $s : Null->new;
+        my $ov = $s->get_gauges('swaps') ? scalar @{ $s->get_gauges('swaps') } : 0;
+        $s->set_gauges( 'swaps', cdmn::proc::swaps );
+        $ov != scalar @{ $s->get_gauges('swaps') } ? $s->{ok} = 1 && return $s : Null->new;
     }
 
     #TODO expand or delete
@@ -1077,8 +1079,8 @@ package cdmn::resources {
 
     sub set_keysym {
         my ( $s, $action, $keysym ) = @_;
-        my @key = ( reverse split( /-([^-]+)$/, $keysym ) );
-        my @mods = ( split( /-/, $key[1] ) );
+        my @key = ( reverse split ( /-([^-]+)$/, $keysym ) );
+        my @mods = ( split ( /-/, $key[1] ) );
 
         my %mod_masks;
         $mod_masks{$_} = $s->{term}->ModMetaMask for qw/m meta/;
@@ -1102,8 +1104,8 @@ package cdmn::resources {
             $s->{labels}{network}  => cdmn::constants::NETWORK,
             $s->{labels}{cpu_temp} => cdmn::constants::CPU_TEMP,
             $s->{labels}{battery}  => cdmn::constants::BATTERY,
-            $s->{labels}{hidpp}  => cdmn::constants::HIDPP,
-            $s->{labels}{swap}  => cdmn::constants::SWAP,
+            $s->{labels}{hidpp}    => cdmn::constants::HIDPP,
+            $s->{labels}{swap}     => cdmn::constants::SWAP,
             $s->{labels}{mount}    => cdmn::constants::MOUNT,
         );
 
@@ -1136,15 +1138,15 @@ package cdmn::resources {
             ? MATH->cut_set( PROC->disk_mounts, $s->get_gauges('disks') )
             : MATH->cut_set( PROC->disks,       $s->get_gauges('disks') ) );
 
-        my $rw
-            = $s->{disk_mounts_only}
+        my $rw =
+            $s->{disk_mounts_only}
             ? MATH->cut_set( PROC->disk_mounts, $s->get_gauges('disks_read') )
             : MATH->cut_set( PROC->disks,       $s->get_gauges('disks_read') );
 
         my @r = map { $_ . POSTFIX_READ } @$rw;
 
-        $rw
-            = $s->{disk_mounts_only}
+        $rw =
+            $s->{disk_mounts_only}
             ? MATH->cut_set( PROC->disk_mounts, $s->get_gauges('disks_write') )
             : MATH->cut_set( PROC->disks,       $s->get_gauges('disks_write') );
 
@@ -1170,8 +1172,8 @@ package cdmn::resources {
         $c{memory}   = 1;
         $c{network}  = @{ $s->get_gauges('networks') };
         $c{battery}  = @{ $s->get_gauges('batteries') };
-        $c{hidpp}  = @{ $s->get_gauges('hidpps') };
-        $c{swap}  = @{ $s->get_gauges('swaps') };
+        $c{hidpp}    = @{ $s->get_gauges('hidpps') };
+        $c{swap}     = @{ $s->get_gauges('swaps') };
         $c{mount}    = @{ $s->get_gauges('mounts') };
         exists $c{ $_[0] } ? $c{ $_[0] } : 0;
     }
@@ -1310,7 +1312,8 @@ package cdmn::sidebar {
         local *_overlay = sub {
             state $i = 0;
             cdmn::visuals::overlay->new(
-                {   term      => $s->{term},
+                {
+                    term      => $s->{term},
                     x         => $s->{border_position} eq LEFT ? 1 : 2,
                     y         => $i++,                                                  #TODO
                     width     => $s->{term}->ncol - ( $s->{border_visible} ? 3 : 2 ),
@@ -1323,7 +1326,7 @@ package cdmn::sidebar {
 
         local *_center = sub {
             my $header = shift;
-            my $n = $s->{term}->ncol - ( length($header) );
+            my $n = $s->{term}->ncol - ( length ($header) );
             $n = $n % 2 ? ceil( $n / 2 ) : $n / 2;
             " " x $n . $header if $n > 0;
         };
@@ -1335,7 +1338,7 @@ package cdmn::sidebar {
             my @r   = @{ +shift };
 
             local *_strlen = sub {
-                length( join( "", @l ) . $c . join( "", @r ) ) + ( ( @l + @r + 2 ) * 3 );    #TODO magic numbers
+                length ( join ( "", @l ) . $c . join ( "", @r ) ) + ( ( @l + @r + 2 ) * 3 );    #TODO magic numbers
             };
 
             return ( @l, $c, @r ) if _strlen() < $len;
@@ -1369,7 +1372,7 @@ package cdmn::sidebar {
         local *_splice = sub {
             my $t = shift;
             my @h = @{ +shift };
-            [ splice( @h, 0, $t ) ], shift @h, [ ( splice( @h, 0 ) ) ];
+            [ splice ( @h, 0, $t ) ], shift @h, [ ( splice ( @h, 0 ) ) ];
         };
 
         # BORDER
@@ -1410,10 +1413,10 @@ package cdmn::sidebar {
         for (@slctn) {
             push @content, _overlay($_) if $s->{label_position} eq TOP;
 
-            my $w = $s->{term}->ncol - 8;                        #TODO 2 border,space + 4 number% + 1 space
+            my $w = $s->{term}->ncol - 8;                                                    #TODO 2 border,space + 4 number% + 1 space
             my $c = $data{"$title"}->{$_} ? floor( $w * $data{"$title"}->{$_} / 100 ) : 0;
             $c = 0 if $c < 0;
-            my $f = $c <= $w ? $w - $c : 0;                      #should only be necessary on startup
+            my $f = $c <= $w ? $w - $c : 0;                                                  #should only be necessary on startup
             push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . $c . "%" );
             push @content, _overlay($_) if $s->{label_position} eq BOTTOM;
         }
@@ -1445,10 +1448,10 @@ package cdmn::sidebar {
 
         if ( $cntlen > 0 ) {
             if ( $sup > 0 && $delta > 0 ) {
-                @content = splice( @content, $sup * $lp );
+                @content = splice ( @content, $sup * $lp );
                 $_->{y} -= 2 for @content;
             }
-            @content = splice( @content, 0, -$sdown * $lp ) if $sdown > 0;
+            @content = splice ( @content, 0, -$sdown * $lp ) if $sdown > 0;
         }
 
         _down() if $sdown gt 0 && $delta > 0 && @content > 0;
@@ -1487,7 +1490,8 @@ package cdmn::sidebar {
 
         (%$s) = validate(
             @_,
-            {   parent          => 1,
+            {
+                parent          => 1,
                 x               => { default => 0 },
                 y               => { default => 0 },
                 width           => { default => 0 },
@@ -1658,7 +1662,8 @@ package cdmn::term {
 
         (%$s) = validate(
             @_,
-            {   parent   => 1,
+            {
+                parent   => 1,
                 bg_color => 0,
                 is_root  => 1,
                 x        => { default => 1 },
@@ -1689,12 +1694,12 @@ package cdmn::term {
         $environ->{SHELL} = 'sh' if !$s->{is_root};
 
         my @options = ( '-depth' => 32 );
-        unshift( @options, '+sb' ) if $s->{bare};
-        push( @options, '-bg' => $s->{bg_color} ) if $s->{bg_color};
+        unshift ( @options, '+sb' ) if $s->{bare};
+        push ( @options, '-bg' => $s->{bg_color} ) if $s->{bg_color};
         $s->{term} = new urxvt::term( $environ, $urxvt::RXVTNAME, -embed => $s->{parent}->parent, @options );    #TODO only 16 colors?
 
         $s->bounds( @$s{qw/x y w h/} );
-        $s->{is_root} ? $root = $s : push( @terminals, $s );
+        $s->{is_root} ? $root = $s : push ( @terminals, $s );
 
         $s;
     }
@@ -1802,7 +1807,8 @@ package cdmn::visuals::container {
 
         (%$s) = validate(
             @_,
-            {   term        => 1,
+            {
+                term        => 1,
                 rendition   => 1,
                 x           => 1,
                 y           => 1,
@@ -1823,7 +1829,8 @@ package cdmn::visuals::container {
         my $s = shift;
         my (%arg) = validate(
             @_,
-            {   label         => 1,
+            {
+                label         => 1,
                 padding       => 1,
                 gauges        => 1,
                 label_bg      => 1,
@@ -1965,7 +1972,7 @@ package cdmn::visuals::container {
             for ( keys %$usage ) {
                 $s->{graph_data}{$name}{$_} = [ (0) x $graph_count ] if !$s->{graph_data}{$name}{$_};
                 shift @{ $s->{graph_data}{$name}{$_} };
-                push( @{ $s->{graph_data}{$name}{$_} }, $usage->{$_} );
+                push ( @{ $s->{graph_data}{$name}{$_} }, $usage->{$_} );
                 $total += $usage->{$_};
             }
             $total /= scalar keys %$usage;
@@ -2112,7 +2119,8 @@ package cdmn::visuals::visual {
 
         (%$s) = validate(
             @_,
-            {   term          => 1,
+            {
+                term          => 1,
                 rendition     => 1,
                 x             => 1,
                 y             => 1,
@@ -2141,7 +2149,7 @@ package cdmn::visuals::visual {
         my ( $s, $max ) = @_;
         my $l = length $s->{label};
 
-        if($max gt @{ $s->{gauges} }){
+        if ( $max gt @{ $s->{gauges} } ) {
             $s->{width_add} = $max - @{ $s->{gauges} } if $s->{label_pos} eq CDMN->LEFT;
             $s->{width_add} = $l > 0 ? $max - $l : 0 if $s->{label_pos} eq CDMN->RIGHT;
             $s->{width} += $s->{width_add};
@@ -2277,7 +2285,8 @@ package cdmn::visuals::overlay {
 
         (%$s) = validate(
             @_,
-            {   term      => 1,
+            {
+                term      => 1,
                 rendition => 1,
                 x         => 1,
                 y         => 1,
@@ -2354,8 +2363,8 @@ sub calc_bounds {
     my ( $h, $w, $x, $y ) = ( $s->{height}, $s->{width}, $s->{x}, $s->{y} );
 
     if ( $t eq CDMN->VISUAL_ALIGN_ROW ) {
-        $y = XR->{y} >= 0 ? $s->fheight * (abs(XR->{y})+1): -1;
-        $h = $s->{height} - $s->fheight * (abs(XR->{y}));
+        $y = XR->{y} >= 0 ? $s->fheight * ( abs ( XR->{y} ) + 1 ) : -1;
+        $h = $s->{height} - $s->fheight * ( abs ( XR->{y} ) );
     }
     if ( $t eq CDMN->VISUAL_ALIGN_COL ) {
         $w = $s->{width} - ${ $s->{captions}[0] }->{width};
@@ -2476,7 +2485,7 @@ $user_command{ CDMN->ACTION_TOGGLE } = sub {
     my ( $h, $w, $x, $y ) = calc_bounds( $s, XR->{visual_align} );
 
     if ( $s->{xterms}{main}{maximized} ) {
-        $s->{xterms}{main}->bounds( $x, $y + 1, $w, $h) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_ROW;
+        $s->{xterms}{main}->bounds( $x, $y + 1, $w, $h ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_ROW;
         $s->{xterms}{main}->bounds( XR->{x} >= 0 ? $s->{width} - $w : 0, 0, $w, $h ) if XR->{visual_align} eq CDMN->VISUAL_ALIGN_COL;
         $s->{xterms}{main}{maximized} = 0;
         ${ $s->{captions}->[0] }->hide;
@@ -2553,7 +2562,7 @@ sub key_press {
     my $control_mask = urxvt::ControlMask & $event->{state};
     my $meta_mask    = $s->ModMetaMask & $event->{state};
 
-    $keysym = lc( $s->XKeysymToString($keysym) . -( $shift_mask + $control_mask + $meta_mask ) );
+    $keysym = lc ( $s->XKeysymToString($keysym) . -( $shift_mask + $control_mask + $meta_mask ) );
 
     if ( exists XR->{'keysyms'}{$keysym} ) {
         if ( !$s->{xterms}{sidebar}{visible} and grep { XR->{'keysyms'}{$keysym} eq $_ } @sidebar_actions ) {
@@ -2573,26 +2582,26 @@ sub key_press {
 # The resource 'refresh' has direct impact on how often his method
 # will be called.
 sub on_refresh_begin {
-    my ($s) = @_;
-    my $nics_active = cdmn::proc->network_list;
+    my ($s)           = @_;
+    my $nics_active   = cdmn::proc->network_list;
     my $hidpps_active = cdmn::proc->hidpps;
-    my $swaps_active = cdmn::proc->swaps;
-    
-    state $hidpps = 0; 
-    state $swaps = 0; 
-    state $onAC = 0;
-    state $nics = 0;
+    my $swaps_active  = cdmn::proc->swaps;
+
+    state $hidpps = 0;
+    state $swaps  = 0;
+    state $onAC   = 0;
+    state $nics   = 0;
     if (   $s->{w_size} != $s->{term}->ncol
         || $s->{y_size} != $s->{term}->nrow
         || cdmn::proc::ac_online() != $onAC
-        || $nics != scalar @$nics_active 
+        || $nics != scalar @$nics_active
         || $hidpps != scalar @$hidpps_active
         || $swaps != scalar @$swaps_active )
     {
-        $onAC = !$onAC;
-        $nics = scalar @$nics_active;
+        $onAC   = !$onAC;
+        $nics   = scalar @$nics_active;
         $hidpps = scalar @$hidpps_active;
-        $swaps = scalar @$swaps_active;
+        $swaps  = scalar @$swaps_active;
 
         XR->set_nics;
         XR->set_hidpps;
@@ -2713,7 +2722,7 @@ sub on_start {
             my %r;
 
             local *_filter = sub {
-                map { $_ => ${ $_[0] }{$_} } @{ $_[1] }; #TODO should not return undefined in results
+                map { $_ => ${ $_[0] }{$_} } @{ $_[1] };    #TODO should not return undefined in results
             };
 
             redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok || XR->set_batteries->ok || XR->set_nics->ok;
@@ -2725,7 +2734,7 @@ sub on_start {
             $usage_of{cpu_temp} = sub { %{ cdmn::proc::cpu_temp_usages() } };
             $usage_of{battery}  = sub { %{ cdmn::proc::battery_usages() } };
             $usage_of{hidpp}    = sub { %{ cdmn::proc::hidpp_usages() } };
-            $usage_of{swap}    = sub { %{ cdmn::proc::swap_usages() } };
+            $usage_of{swap}     = sub { %{ cdmn::proc::swap_usages() } };
             $usage_of{disk}     = sub { _filter( cdmn::proc::disk_usages(), XR->get_gauges('disks') ) };
             $usage_of{network}  = sub { _filter( cdmn::proc::network_usages(), XR->get_gauges('networks') ) };
             $usage_of{mount}    = sub { %{ cdmn::proc::fs_usage() } };
