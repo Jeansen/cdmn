@@ -66,6 +66,7 @@ package cdmn::math {
 
         return \@union;
     }
+
 }
 
 package cdmn::constants {
@@ -288,8 +289,10 @@ package cdmn::proc {
             }
             %mounts = (@mounts);
         }
+
         return \%mounts;
     }
+
 
     sub fs_usage {
         my %r = map { $_ => df($_)->{per} } grep { defined df($_) } ( sort values %{ mounts() } );    #warn if mounts inaccessible
@@ -813,8 +816,9 @@ package cdmn::resources {
 
         local *_set_mounts = sub {
             my $ov = $s->get_gauges('mounts') ? scalar @{ $s->get_gauges('mounts') } : 0;
-            $s->set_gauges( 'mounts', MATH->cut_set( [ values %{&cdmn::proc::mounts} ], $s->get_gauges('mounts') ) );
-            $s->set_gauges( 'mounts', [ values %{&cdmn::proc::mounts} ] ) if scalar @{ $s->get_gauges('mounts') } eq 0;
+            # $s->set_gauges( 'mounts', MATH->cut_set( [ values %{&cdmn::proc::mounts} ], $s->get_gauges('mounts') ) );
+            my @m = do { my %m; grep { !$m{$_}++ } values %{&cdmn::proc::mounts} }; #uniq
+            $s->set_gauges( 'mounts', [ sort @m ] ) if scalar @{ $s->get_gauges('mounts') } eq 0;
             $ov != scalar @{ $s->get_gauges('mounts') } ? $s->{ok} = 1 && return $s : Null->new;
         };
 
