@@ -2626,11 +2626,13 @@ sub on_refresh_end {
 sub on_configure_notify {
     my ( $s, $e ) = @_;
 
+    my $dh = $e->{height} % $s->fheight;
     #NOTE this is a hack for saving the real height and width. Otherwise there are (currently 4) pixels missing ;(
     $s->{width}   = $e->{width};
     $s->{height}  = $e->{height};
     $s->{dwidth}  = $e->{width} - $s->width;
     $s->{dheight} = $e->{height} - $s->height;
+    $s->{height}  = $s->{height} - $dh +4;
     return if $s->{w_size} eq $s->{term}->ncol && $s->{y_size} eq $s->{term}->nrow;
     refresh_bounds( $s, XR->{visual_align} );
     1;
@@ -2811,11 +2813,11 @@ sub on_start {
 
  There are three terminals that have to be considered, which are the root, main and sidebar terminal. The root terminal is also the original terminal for this extension. 
  
- The main terminal is the next layer on top of the root terminal an will be resized as necessary depending on which mode a user currently uses and what aligment is set. This technique was chosen to emulate the two different modes: normal and overlay. 
+ The main terminal is the next layer on top of the root terminal and will be resized as necessary depending on the mode a user currently uses and what aligment is set. This technique was chosen to emulate the two different modes: normal and overlay. 
   
- Tecnically the two terminals are identical and show the same captions. But in overlay mode only the main terminal will be visible. In normal mode the main terminal will be resized to fit the users setttings. For example it will be on row smaller than the root terminal and and show the captions of the root terminal to give the impression of a fixed header.
+ Tecnically the two terminals are identical and show the same captions. But in overlay mode only the main terminal will be visible. In normal mode the main terminal will be resized to fit the users setttings. For example it will be on row smaller than the root terminal and show the captions of the root terminal to give the impression of a fixed header.
  
- The sidebar is a terminal that will be present on user interaction. The different pages a implemented as overlays thad are shown/hidden while the user navigates through them.
+ The sidebar is a terminal that will be present on user interaction. The different pages are implemented as overlays thad are shown/hidden while the user navigates through them.
 
   All actions caught on the root and sidebar terminal will be relayed to the main terminal.
 
