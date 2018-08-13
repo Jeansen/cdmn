@@ -2612,15 +2612,11 @@ sub on_refresh_begin {
         $s->{y_size} = $s->{term}->nrow;
     }
 
-    1;
-}
-
-sub on_refresh_end {
-    my $s   = shift;
     my $str = $s->{term}->locale_encode("\e[0;0H\e[K");
     $s->{term}->cmd_parse($str);    #do not show the cursor!
     1;
 }
+
 
 # React on X Events (resize)
 sub on_configure_notify {
