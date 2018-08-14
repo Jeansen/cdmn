@@ -2268,7 +2268,7 @@ package cdmn::visuals::visual {
         my $size = scalar @{&BLOCKS};
         my $bar_i = ( $usage > 100 ? 100 : $usage ) / 100 * ($size);
         $usage = 100 - $usage if $invert;
-        $bar_i = $size - $bar_i if $inverse - 1;
+        $bar_i = $size - $bar_i -1 if $inverse;
         $bar_i -= 1 if $bar_i >= $size;
         $bar_i += 1 if $bar_i < 0;
         $size = scalar @{ $s->{gauges_colors} };
