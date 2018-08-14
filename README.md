@@ -215,8 +215,9 @@ to adapt its visual style.
 | `URxvt.cdmn.<guage>.graph.width`  | Width of graph in samplings, for example 5.                                                  | not set         |
 | `URxvt.cdmn.<guage>.graph.expand` | If graph width should take up as much space as possible.                                     | not set         |
 | `URxvt.cdmn.<guage>.detail`       | How much detail, e.g. a gauge for every logical core or just one gauge.                      | true (false)    |
-| `URxvt.cdmn.<guage>.invert`       | Invert colors                                                                                | true (false)    |
-| `URxvt.cdmn.<guage>.colors`       | The colors to be used apart from any global setting                                          | true (false)    |
+| `URxvt.cdmn.<guage>.invert`       | Invert colors.                                                                               | true (false)    |
+| `URxvt.cdmn.<guage>.colors`       | The colors to be used apart from any global setting.                                         | true (false)    |
+| `URxvt.cdmn.<guage>.inverse`      | Inverse gauges value interpretation, e.g. a full bar for 0 instead for 100%.                 | true (false)    |
 
 If you specify `URxvt.cdmn.<guage>.graph.width` and `URxvt.cdmn.<guage>.graph.expand`, the latter one takes precedence.
 

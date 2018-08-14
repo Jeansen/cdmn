@@ -44,6 +44,7 @@ URxvt.cdmn.sidebar.label.position: top
 URxvt.cdmn.label.bold: 1
 URxvt.cdmn.disk.mountsonly: false
 URxvt.cdmn.mount.detail: true
+URxvt.cdmn.memory.inverse: true
 
 /* URxvt.cdmn.visual.alignment: col */
 

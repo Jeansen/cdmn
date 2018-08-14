@@ -703,6 +703,7 @@ package cdmn::resources {
 
         detail
         invert
+        inverse
 
         padding
         visual_style
@@ -885,6 +886,7 @@ package cdmn::resources {
             $s->set_graph_expand( $_, _set_boolean( "%.$_.graph.expand", 0 ) );
             $s->set_visual_style( $_, _set_value( "%.$_.style", [STYLES], $s->get_visual_style('global') ) );
             $s->set_invert( $_, _set_boolean( "%.$_.invert", 0 ) );
+            $s->set_inverse( $_, _set_boolean( "%.$_.inverse", 0 ) );
             $s->set_detail( $_, _set_boolean( "%.$_.detail", 0 ) );
         }
 
@@ -1008,6 +1010,17 @@ package cdmn::resources {
     sub get_invert {
         my $s = shift;
         $s->{invert}{ $_[0] };
+    }
+
+    sub set_inverse {
+        my ( $s, $k, $v ) = @_;
+        $s->{inverse}{$k} = $v;
+        $s;
+    }
+
+    sub get_inverse {
+        my $s = shift;
+        $s->{inverse}{ $_[0] };
     }
 
     sub set_detail {
@@ -1967,7 +1980,7 @@ package cdmn::visuals::container {
     }
 
     sub set {
-        my ( $s, $name, $usage, $invert ) = validate_pos( @_, 1, 1, 1, 1 );
+        my ( $s, $name, $usage, $invert, $inverse ) = validate_pos( @_, 1, 1, 1, 1, 1 );
         my $total = 0;
 
         if ( $s->{graph_length}{$name} ) {
@@ -2000,11 +2013,11 @@ package cdmn::visuals::container {
                 $total += $_ for values %$usage;
                 my $size = scalar keys %$usage;
                 $total /= $size if $size > 0;
-                $s->{gauges}{$name}->set( 'simple', $total, $invert );
+                $s->{gauges}{$name}->set( 'simple', $total, $invert, $inverse );
             }
             else {
                 while ( my ( $key, $value ) = each %$usage ) {
-                    $s->{gauges}{$name}->set( $key, $value, $invert );
+                    $s->{gauges}{$name}->set( $key, $value, $invert, $inverse );
                 }
             }
         }
@@ -2249,13 +2262,15 @@ package cdmn::visuals::visual {
     }
 
     sub set {
-        my ( $s, $i, $usage, $invert ) = validate_pos( @_, 1, 1, 1, 1 );
+        my ( $s, $i, $usage, $invert, $inverse ) = validate_pos( @_, 1, 1, 1, 1, 1 );
         return if !$s->{gauges}{"$i"};
 
         my $size = scalar @{&BLOCKS};
         my $bar_i = ( $usage > 100 ? 100 : $usage ) / 100 * ($size);
         $usage = 100 - $usage if $invert;
+        $bar_i = $size - $bar_i if $inverse - 1;
         $bar_i -= 1 if $bar_i >= $size;
+        $bar_i += 1 if $bar_i < 0;
         $size = scalar @{ $s->{gauges_colors} };
         my $clr_i = ( $usage > 100 ? 100 : $usage ) / 100 * ( $size - 1 ) + 1;
         $clr_i -= 1 if $clr_i >= $size;
@@ -2749,7 +2764,7 @@ sub on_start {
 
                 $s->{xterms}{sidebar}->set_pane( $_, $r{$_} ) for @$panes;    #if $s->{xterms}{sidebar}{visible};
                 for my $g (@$gauges) {
-                    $$_->set( $g, $r{$g}, XR->get_invert($g) ) for @{ $s->{captions} };
+                    $$_->set( $g, $r{$g}, XR->get_invert($g), XR->get_inverse($g) ) for @{ $s->{captions} };
                 }
             };
 
