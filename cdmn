@@ -2740,7 +2740,7 @@ sub on_start {
             my %r;
 
             local *_filter = sub {
-                map { $_ => ${ $_[0] }{$_} } @{ $_[1] };    #TODO should not return undefined in results
+                map { $_ => ${ $_[0] }{$_} } grep { defined ${ $_[0] }{$_}} @{ $_[1] };
             };
 
             redraw( $s, XR->{showing_labels} ) if XR->set_disks->ok || XR->set_batteries->ok || XR->set_nics->ok;
@@ -2751,7 +2751,8 @@ sub on_start {
             $usage_of{memory}   = sub { %{ cdmn::proc::memory_usages() } };
             $usage_of{cpu_temp} = sub { %{ cdmn::proc::cpu_temp_usages() } };
             $usage_of{battery}  = sub { %{ cdmn::proc::battery_usages() } };
-            $usage_of{hidpp}    = sub { %{ cdmn::proc::hidpp_usages() } };
+            # $usage_of{hidpp}    = sub { %{ cdmn::proc::hidpp_usages() } };
+            $usage_of{hidpp}    = sub { _filter( cdmn::proc::hidpp_usages(), XR->get_gauges('hidpps')) };
             $usage_of{swap}     = sub { %{ cdmn::proc::swap_usages() } };
             $usage_of{disk}     = sub { _filter( cdmn::proc::disk_usages(), XR->get_gauges('disks') ) };
             $usage_of{network}  = sub { _filter( cdmn::proc::network_usages(), XR->get_gauges('networks') ) };

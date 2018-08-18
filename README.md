@@ -188,20 +188,32 @@ More fine-grained settings are possible with the following resources:
     URxvt.cdmn.gauges.cores
     URxvt.cdmn.network.rx
     URxvt.cdmn.network.tx
+    URxvt.cdmn.gauges.mounts
+    URxvt.cdmn.gauges.hidpps
+    URxvt.cdmn.gauges.swaps
 
 Each of the above resources expects a list of device names to show gauges for.
 
-By default if you do not specify anything _cdmn_ will assume you would like to see everything. That is, if you do specify 
-valid values for `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx` then you will only see what you specified.
+By default if you do not specify anything _cdmn_ will assume you would like to see everything. 
 
-The only exceptions to this rule are `URxvt.cdmn.disk.read` and `URxvt.cdmn.disk.write`. These act as an addition to 
-`URxvt.cdmn.gauges.disks` and allow you to define for which disks you would like to see additional read and/or write 
-utilization. Of course you could leave out `URxvt.cdmn.gauges.disks` and only provide values for disks you would like 
-to monitor in detail.
+That is, if you do specify valid values for let's say `URxvt.cdmn.batteries` then you will only see what you specified.
 
-Also note, that the additional gauges are divisions of `URxvt.cdmn.disk.read`. If you were to set all three settings to 
-a value of `sda` and copied a large file from one folder to another on the same disk (sda), you would see three gauges. 
-One with about 100 percent for the combined read and write utilization and two others with about 50 percent each 
+There are some exceptions, though.
+
+-   If you do not provide `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx` then there will be only one gauge for each
+    interface. On the other hand, if you do provide `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx`, then you will
+    only see those gauges. Ultimately you will have to provide for all interfaces you would like to see the moment you
+    provide values for `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx`. This also means you will have to provide
+    values for 'rx' and 'tx' where the default was to only show one gauge combining 'rx' and 'tx' values.
+
+-   The other exceptions to this rule are `URxvt.cdmn.disk.read` and `URxvt.cdmn.disk.write`. These act as an addition to 
+    `URxvt.cdmn.gauges.disks` and allow you to define for which disks you would like to see additional read and/or write 
+    utilization. Of course you could leave out `URxvt.cdmn.gauges.disks` and only provide values for disks you would like 
+    to monitor in detail.
+
+Note, that the additional gauges to `URxvt.cdmn.gauges.disks` are subsets of it. If you were to set all three settings to 
+a value of `sda` and copied a large file from one folder to another on this disk, you would see three gauges:
+One with about 100 percent for the combined read and write utilization and two others with about 50 percent each
 because half of the time was spent reading in data and the other half of the time was spent writing data.
 
 ## Visual styles
