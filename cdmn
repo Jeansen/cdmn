@@ -1430,11 +1430,12 @@ package cdmn::sidebar {
         for (@slctn) {
             push @content, _overlay($_) if $s->{label_position} eq TOP;
 
+            my $v = $data{"$title"}->{$_};
             my $w = $s->{term}->ncol - 8;                                                    #TODO 2 border,space + 4 number% + 1 space
-            my $c = $data{"$title"}->{$_} ? floor( $w * $data{"$title"}->{$_} / 100 ) : 0;
+            my $c = $v ? floor( $w * $v / 100 ) : 0;
             $c = 0 if $c < 0;
             my $f = $c <= $w ? $w - $c : 0;                                                  #should only be necessary on startup
-            push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . $c . "%" );
+            push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . int($v) . "%" );
             push @content, _overlay($_) if $s->{label_position} eq BOTTOM;
         }
 
