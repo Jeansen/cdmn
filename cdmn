@@ -525,6 +525,9 @@ package cdmn::proc {
             $o_stat->{$name} = $n_stat->{$name};
             $n_stat->{$name} = $stats;
 
+            my $wps = ($n_stat->{$name}{w_sectors} - $o_stat->{$name}{w_sectors}) * 512 / 1024 / 1024;
+            my $rps = ($n_stat->{$name}{r_sectors} - $o_stat->{$name}{r_sectors}) * 512 / 1024 / 1024;
+
             $diff_usage{$_} = $n_stat->{$name}->{$_} - $o_stat->{$name}->{$_} for ( keys %$stats );
 
             $diff_usage{io_time} = $diff_usage{io_time} / ( 1000 * $refresh ) * 100;
@@ -2122,7 +2125,7 @@ package cdmn::visuals::visual {
 
     );
 
-    use constant BLOCKS => [qw/_ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
+    use constant BLOCKS => [qw/⎯ ▁ ▂ ▃ ▄ ▅ ▆ ▇ █/];
 
     #use constant LED => '⬛';
     use constant LED => '■';
