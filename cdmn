@@ -4,7 +4,7 @@
 # utilizations of different system resoureces like cpu, disk i/o, ram,
 # network (and more).
 
-# Copyright (C) 2016-2017 Marcel Lautenbach
+# Copyright (C) 2016-2018 Marcel Lautenbach
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -825,16 +825,16 @@ package cdmn::resources {
         };
 
         local *_set_cores = sub {
-            my $cpus = cdmn::proc::cpu_count() - 1;
+            my $cpus = PROC->cpu_count() - 1;
             $s->set_gauges( 'cpus', [ map "cpu" . $_, 0 .. $cpus ] );
-            $s->set_gauges( 'cpu_temps', cdmn::proc::cores() );    #TODO
+            $s->set_gauges( 'cpu_temps', PROC->cores() );
             $s;
         };
 
         local *_set_mounts = sub {
             my $ov = $s->get_gauges('mounts') ? scalar @{ $s->get_gauges('mounts') } : 0;
             # $s->set_gauges( 'mounts', MATH->cut_set( [ values %{&cdmn::proc::mounts} ], $s->get_gauges('mounts') ) );
-            my @m = do { my %m; grep { !$m{$_}++ } values %{&cdmn::proc::mounts} }; #uniq
+            my @m = do { my %m; grep { !$m{$_}++ } values %{&PROC->mounts} }; #uniq
             $s->set_gauges( 'mounts', [ sort @m ] ) if scalar @{ $s->get_gauges('mounts') } eq 0;
             $ov != scalar @{ $s->get_gauges('mounts') } ? $s->{ok} = 1 && return $s : Null->new;
         };
@@ -960,14 +960,14 @@ package cdmn::resources {
     sub set_hidpps {
         my $s = shift;
         my $ov = $s->get_gauges('hidpps') ? scalar @{ $s->get_gauges('hidpps') } : 0;
-        $s->set_gauges( 'hidpps', cdmn::proc::hidpps );
+        $s->set_gauges( 'hidpps', PROC->hidpps() );
         $ov != scalar @{ $s->get_gauges('hidpps') } ? $s->{ok} = 1 && return $s : Null->new;
     }
 
     sub set_swaps {
         my $s = shift;
         my $ov = $s->get_gauges('swaps') ? scalar @{ $s->get_gauges('swaps') } : 0;
-        $s->set_gauges( 'swaps', cdmn::proc::swaps );
+        $s->set_gauges( 'swaps', PROC->swaps() );
         $ov != scalar @{ $s->get_gauges('swaps') } ? $s->{ok} = 1 && return $s : Null->new;
     }
 
@@ -1147,7 +1147,7 @@ package cdmn::resources {
 
     sub set_nics {
         my $s           = shift;
-        my $nics_active = cdmn::proc->network_list;
+        my $nics_active = PROC->network_list();
         my $ov          = $s->get_gauges('networks') ? scalar @{ $s->get_gauges('networks') } : 0;
 
         my $rx_tx = MATH->cut_set( $s->get_gauges('network_tx'), $nics_active );
@@ -1168,24 +1168,24 @@ package cdmn::resources {
         my $ov = $s->get_gauges('disks') ? @{ $s->get_gauges('disks') } : 0;
 
         $s->set_gauges( 'disks', $s->{disk_mounts_only}
-            ? MATH->cut_set( PROC->disk_mounts, $s->get_gauges('disks') )
-            : MATH->cut_set( PROC->disks,       $s->get_gauges('disks') ) );
+            ? MATH->cut_set( PROC->disk_mounts(), $s->get_gauges('disks') )
+            : MATH->cut_set( PROC->disks(),       $s->get_gauges('disks') ) );
 
         my $rw =
             $s->{disk_mounts_only}
-            ? MATH->cut_set( PROC->disk_mounts, $s->get_gauges('disks_read') )
-            : MATH->cut_set( PROC->disks,       $s->get_gauges('disks_read') );
+            ? MATH->cut_set( PROC->disk_mounts(), $s->get_gauges('disks_read') )
+            : MATH->cut_set( PROC->disks(),       $s->get_gauges('disks_read') );
 
         my @r = map { $_ . POSTFIX_READ } @$rw;
 
         $rw =
             $s->{disk_mounts_only}
-            ? MATH->cut_set( PROC->disk_mounts, $s->get_gauges('disks_write') )
-            : MATH->cut_set( PROC->disks,       $s->get_gauges('disks_write') );
+            ? MATH->cut_set( PROC->disk_mounts(), $s->get_gauges('disks_write') )
+            : MATH->cut_set( PROC->disks(),       $s->get_gauges('disks_write') );
 
         my @w = map { $_ . POSTFIX_WRITE } @$rw;
 
-        $s->set_gauges( 'disks', ( $s->{disk_mounts_only} ? PROC->disk_mounts : PROC->disks ) )
+        $s->set_gauges( 'disks', ( $s->{disk_mounts_only} ? PROC->disk_mounts() : PROC->disks() ) )
             if !@{ $s->get_gauges('disks') } && !@r && !@w;
 
         $s->add_gauges( 'disks', [ ( @r, @w ) ] );
@@ -1230,8 +1230,8 @@ package cdmn::resources {
             sub set_$h {
                 my \$s = shift;
                 my \$ov = \$s->get_gauges($h) ? scalar \@{\$s->get_gauges($h)} : 0;
-                \$s->set_gauges($h, MATH->cut_set(cdmn::proc::$h, \$s->get_gauges($h)));
-                \$s->set_gauges($h, cdmn::proc::$h) if scalar \@{\$s->get_gauges($h)} eq 0;
+                \$s->set_gauges($h, MATH->cut_set(PROC->$h, \$s->get_gauges($h)));
+                \$s->set_gauges($h, PROC->$h) if scalar \@{\$s->get_gauges($h)} eq 0;
                 \$ov != scalar \@{\$s->get_gauges($h)} ? \$s->{ok} = 1 && return \$s : Null->new;
             }
         }
@@ -1301,13 +1301,19 @@ package cdmn::sidebar {
         ARR_DOWN => "▼",
     };
 
+    use constant {
+        PROC => 'cdmn::proc',
+    };
+
     use constant { SCROLL_UP => 'up', SCROLL_DOWN => 'down' };
 
     #TODO method name and return value
     #TODO this method is way too big!
     $s{create_pane} = sub {
         my @header;
+        my @content;
         my ( $s, $title, $args ) = @_;
+
         $data{$title} = {%$args} if $args;    #TODO Cannot use $args as ref directly? So, deref. and new ref.
 
         my $r = REND;
@@ -1408,6 +1414,22 @@ package cdmn::sidebar {
             [ splice ( @h, 0, $t ) ], shift @h, [ ( splice ( @h, 0 ) ) ];
         };
 
+        local *_down = sub {
+            pop @content;
+            if (@content) {
+                $content[-1] = _overlay( _center(ARR_DOWN) );
+                $content[-1]->{y} = -1;
+            }
+        };
+
+        local *_up = sub {
+            shift @content;
+            if (@content) {
+                $content[0] = _overlay( _center(ARR_UP) );
+                $content[0]->{y} = $header[-1]->{y} + 1;
+            }
+        };
+
         # BORDER
         if ( $s->{border_position} =~ m/^${\(LEFT)}|^${\(RIGHT)}/ && $s->{border_visible} ) {
             $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
@@ -1466,21 +1488,6 @@ package cdmn::sidebar {
         my $cntlen = ( @content / ( $s->{label_position} eq TOP ? 2 : 1 ) );
         my $sdown  = $scroll_i{$title}{&SCROLL_DOWN} = $delta - $sup;
 
-        local *_down = sub {
-            pop @content;
-            if (@content) {
-                $content[-1] = _overlay( _center(ARR_DOWN) );
-                $content[-1]->{y} = -1;
-            }
-        };
-
-        local *_up = sub {
-            shift @content;
-            if (@content) {
-                $content[0] = _overlay( _center(ARR_UP) );
-                $content[0]->{y} = $header[-1]->{y} + 1;
-            }
-        };
 
         if ( $cntlen > 0 ) {
             if ( $sup > 0 && $delta > 0 ) {
@@ -2371,6 +2378,7 @@ package cdmn::visuals::overlay {
 
 use constant XR   => cdmn::resources->new();
 use constant CDMN => 'cdmn::constants';
+use constant PROC => 'cdmn::proc';
 
 #-----------------------------------------------------------
 #   HELPERS
@@ -2620,9 +2628,9 @@ sub key_press {
 # will be called.
 sub on_refresh_begin {
     my ($s)           = @_;
-    my $nics_active   = cdmn::proc->network_list;
-    my $hidpps_active = cdmn::proc->hidpps;
-    my $swaps_active  = cdmn::proc->swaps;
+    my $nics_active   = PROC->network_list();
+    my $hidpps_active = PROC->hidpps();
+    my $swaps_active  = PROC->swaps();
 
     state $hidpps = 0;
     state $swaps  = 0;
@@ -2630,7 +2638,7 @@ sub on_refresh_begin {
     state $nics   = 0;
     if (   $s->{w_size} != $s->{term}->ncol
         || $s->{y_size} != $s->{term}->nrow
-        || cdmn::proc::ac_online() != $onAC
+        || PROC->ac_online() != $onAC
         || $nics != scalar @$nics_active
         || $hidpps != scalar @$hidpps_active
         || $swaps != scalar @$swaps_active )
@@ -2764,16 +2772,16 @@ sub on_start {
 
             #use subs because we only want to get values when we need them!
             my %usage_of;
-            $usage_of{cpu}      = sub { _filter( cdmn::proc::cpu_usages(), XR->get_gauges('cpus') ) };
-            $usage_of{memory}   = sub { %{ cdmn::proc::memory_usages() } };
-            $usage_of{cpu_temp} = sub { %{ cdmn::proc::cpu_temp_usages() } };
-            $usage_of{battery}  = sub { %{ cdmn::proc::battery_usages() } };
-            # $usage_of{hidpp}    = sub { %{ cdmn::proc::hidpp_usages() } };
-            $usage_of{hidpp}    = sub { _filter( cdmn::proc::hidpp_usages(), XR->get_gauges('hidpps')) };
-            $usage_of{swap}     = sub { %{ cdmn::proc::swap_usages() } };
-            $usage_of{disk}     = sub { _filter( cdmn::proc::disk_usages(), XR->get_gauges('disks') ) };
-            $usage_of{network}  = sub { _filter( cdmn::proc::network_usages(), XR->get_gauges('networks') ) };
-            $usage_of{mount}    = sub { %{ cdmn::proc::fs_usage() } };
+            $usage_of{cpu}      = sub { _filter( PROC->cpu_usages(), XR->get_gauges('cpus') ) };
+            $usage_of{memory}   = sub { %{ PROC->memory_usages() } };
+            $usage_of{cpu_temp} = sub { %{ PROC->cpu_temp_usages() } };
+            $usage_of{battery}  = sub { %{ PROC->battery_usages() } };
+            # $usage_of{hidpp}    = sub { %{ PROC->hidpp_usages() } };
+            $usage_of{hidpp}    = sub { _filter( PROC->hidpp_usages(), XR->get_gauges('hidpps')) };
+            $usage_of{swap}     = sub { %{ PROC->swap_usages() } };
+            $usage_of{disk}     = sub { _filter( PROC->disk_usages(), XR->get_gauges('disks') ) };
+            $usage_of{network}  = sub { _filter( PROC->network_usages(), XR->get_gauges('networks') ) };
+            $usage_of{mount}    = sub { %{ PROC->fs_usage() } };
 
             local *_set = sub {
                 my $gauges = shift;
