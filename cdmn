@@ -112,6 +112,8 @@ package cdmn::proc {
     use Params::Validate qw(:all);
     use Filesys::Df;
 
+    my %alter_label;
+
     use constant {
         PROC_PARTITIONS => '/proc/partitions',
         PROC_MOUNTS     => '/proc/mounts',
@@ -324,6 +326,7 @@ package cdmn::proc {
             chomp ( my $now = <$f> );
 
             $results{$bat} = $now / $full * 100;
+            $alter_label{$bat} //= SYSFS_BAT . "/${bat}/model_name";
         }
         return \%results;
     }
@@ -403,8 +406,18 @@ package cdmn::proc {
             $full = 10  if $full =~ /Critical/i;
             $full = 0   if $full =~ /[^0-9]/;      #Maybe charging? Could be Unknown.
             $results{$bat} = $full;
+            $alter_label{$bat} //= SYSFS_BAT . "/${bat}/model_name";
         }
         return \%results;
+    }
+
+    sub alter_label {
+        shift if $_[0] eq __PACKAGE__;
+        my $s = shift;
+        my $l = $alter_label{$s} || return undef;
+        open ( my $f, '<', $l );
+        chomp ( my $v = <$f> );
+        return $v;
     }
 
     sub disks {
@@ -1399,6 +1412,7 @@ package cdmn::sidebar {
         if ( $s->{border_position} =~ m/^${\(LEFT)}|^${\(RIGHT)}/ && $s->{border_visible} ) {
             $r = urxvt::SET_FGCOLOR REND, $s->{fg_border};
             push @header, _overlay( $s->{border_position} eq LEFT ? BORDER_R : BORDER_L );
+
             $header[-1]->{x}      = $s->{border_position} eq LEFT                         ? -1 : 0;
             $header[-1]->{width}  = $s->{border_position} =~ m/^(${\(LEFT)}|${\(RIGHT)})/ ? 1  : $s->{term}->ncol;
             $header[-1]->{height} = $s->{border_position} =~ m/^(${\(TOP)}|${\(BOTTOM)})/ ? 1  : $s->{term}->nrow;
@@ -1427,19 +1441,20 @@ package cdmn::sidebar {
         $scroll_i{$title}{&SCROLL_UP}   //= 0;
         $scroll_i{$title}{&SCROLL_DOWN} //= 0;
 
-        my @content;
         my @slctn = ( sort keys %{ $data{$title} } );
 
         for (@slctn) {
-            push @content, _overlay($_) if $s->{label_position} eq TOP;
+            my $l = PROC->alter_label($_);
+            $l //= $_;
+            push @content, _overlay($l) if $s->{label_position} eq TOP;
 
-            my $v = $data{"$title"}->{$_};
+            my $v = $data{$title}->{$_};
             my $w = $s->{term}->ncol - 8;                                                    #TODO 2 border,space + 4 number% + 1 space
             my $c = $v ? floor( $w * $v / 100 ) : 0;
             $c = 0 if $c < 0;
             my $f = $c <= $w ? $w - $c : 0;                                                  #should only be necessary on startup
             push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . int($v) . "%" );
-            push @content, _overlay($_) if $s->{label_position} eq BOTTOM;
+            push @content, _overlay($l) if $s->{label_position} eq BOTTOM;
         }
 
         #TODO maybe for label visible but otherwise should be always a cluster of label and graph?!
@@ -2423,7 +2438,6 @@ sub refresh_bounds {
         && ceil( $sidebar->{term}->{h} / $sidebar->{term}->fheight ) > 4
         && ceil( $sidebar->{term}->{w} / $sidebar->{term}->fwidth ) > 4    #TODO remove magic number
         && $sidebar->{visible};
-
 }
 
 # P: urxvt::term, 0|1
