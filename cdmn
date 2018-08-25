@@ -80,6 +80,8 @@ package cdmn::constants {
         ACTION_PREV_PANE   => 'cdmn:action-prev-pane',
         ACTION_SCROLL_DOWN => 'cdmn:action-scroll-down',
         ACTION_SCROLL_UP   => 'cdmn:action-scroll-up',
+        ACTION_EXTEND_PANE => 'cdmn:action-extend-pane',
+        ACTION_SHRINK_PANE => 'cdmn:action-shrink-pane',
 
         VISUAL_ALIGN_COL => 'col',
         VISUAL_ALIGN_ROW => 'row',
@@ -932,6 +934,8 @@ package cdmn::resources {
         $s->set_keysym( CDMN->ACTION_PREV_PANE,      $t->x_resource('%.keysym.sidebar.pane.prev')   // 'M-j' );
         $s->set_keysym( CDMN->ACTION_SCROLL_UP,      $t->x_resource('%.keysym.sidebar.scroll.up')   // 'C-k' );
         $s->set_keysym( CDMN->ACTION_SCROLL_DOWN,    $t->x_resource('%.keysym.sidebar.scroll.down') // 'C-j' );
+        $s->set_keysym( CDMN->ACTION_EXTEND_PANE,    $t->x_resource('%.keysym.sidebar.extend') // 'C-comma' );
+        $s->set_keysym( CDMN->ACTION_SHRINK_PANE,    $t->x_resource('%.keysym.sidebar.shrink') // 'C-period' );
 
         $s->set_disks;
         $s->set_batteries;
@@ -1690,6 +1694,37 @@ package cdmn::sidebar {
         $s->{panes}{$title} = $s{create_pane}->( $s, $title );
         $s->show_pane($title) if $title eq $s->{order}[ $s->{active_pane} ];
     }
+
+    #P: resize by n column, reposition
+    sub resize_width {
+        my ($s, $n, $relocate) = @_;
+        my $cn = $s->{term}->ncol;
+        my $cnp = $s->{term}{parent}->ncol;
+        my $c = $s->{term}->fwidth * $n;
+        my @v = @{$s->{term}}{qw/x y w h/};
+        if ($cn + $n <= $cnp+1 ) {
+            $v[2]+= $c;
+            $v[0]-= $c if $relocate;
+        }
+        $s->bounds(@v);
+        $s->refresh_pane;
+    }
+
+
+    #P: resize by n column, reposition
+    sub resize_height {
+        my ($s, $n, $relocate) = @_;
+        my $cn = $s->{term}->nrow;
+        my $cnp = $s->{term}{parent}->nrow;
+        my $c = $s->{term}->fheight * $n;
+        my @v = @{$s->{term}}{qw/x y w h/};
+        if ($cn + $n <= $cnp && $cn + $n > 2 ) {
+            $v[3]+= $c;
+            $v[1]-= $c if $relocate;
+        }
+        $s->bounds(@v);
+        $s->refresh_pane;
+    }
 }
 
 package cdmn::term {
@@ -1802,7 +1837,10 @@ package cdmn::term {
         my $t = $s->{term};
         my %wh;
         @wh{qw/x y w h/} = validate_pos( @_, 1, 1, 1, 1 );
-        $t->XMoveResizeWindow( $t->parent, @_ ) if $wh{h} > $t->fheight && $wh{w} > $t->fwidth;    #if window to small
+        if ($wh{h} > $t->fheight && $wh{w} > $t->fwidth) {
+            $t->XMoveResizeWindow( $t->parent, @_ ); #if window to small
+            @$s{qw/x y w h/} = @wh{qw/x y w h/};
+        }
         $s;
     }
 
@@ -2585,6 +2623,20 @@ $user_command{ CDMN->ACTION_SCROLL_DOWN } = sub {
     (shift)->{xterms}{sidebar}->scroll_down;
 };
 
+$user_command{ CDMN->ACTION_SHRINK_PANE } = sub {
+    (shift)->{xterms}{sidebar}->resize_width(-1) if XR->get_sidebar("position") eq CDMN->LEFT;
+    (shift)->{xterms}{sidebar}->resize_width(-1, 1) if XR->get_sidebar("position") eq CDMN->RIGHT;
+    (shift)->{xterms}{sidebar}->resize_height(-1, 1) if XR->get_sidebar("position") eq CDMN->BOTTOM;
+    (shift)->{xterms}{sidebar}->resize_height(-1) if XR->get_sidebar("position") eq CDMN->TOP;
+};
+
+$user_command{ CDMN->ACTION_EXTEND_PANE } = sub {
+    (shift)->{xterms}{sidebar}->resize_width(+1) if XR->get_sidebar("position") eq CDMN->LEFT;
+    (shift)->{xterms}{sidebar}->resize_width(+1, 1) if XR->get_sidebar("position") eq CDMN->RIGHT;
+    (shift)->{xterms}{sidebar}->resize_height(+1, 1) if XR->get_sidebar("position") eq CDMN->BOTTOM;
+    (shift)->{xterms}{sidebar}->resize_height(+1) if XR->get_sidebar("position") eq CDMN->TOP;
+};
+
 $user_command{ CDMN->ACTION_TOGGLE_LABELS } = sub {
     if ( XR->{showing} ) {
         my $s = shift;
@@ -2606,7 +2658,14 @@ sub user_command {
 
 sub key_press {
     my ( $s, $event, $keysym, $string ) = @_;
-    my @sidebar_actions = ( CDMN->ACTION_NEXT_PANE, CDMN->ACTION_PREV_PANE, CDMN->ACTION_SCROLL_UP, CDMN->ACTION_SCROLL_DOWN );
+    my @sidebar_actions = (
+        CDMN->ACTION_NEXT_PANE,
+        CDMN->ACTION_PREV_PANE,
+        CDMN->ACTION_SCROLL_UP,
+        CDMN->ACTION_SCROLL_DOWN,
+        CDMN->ACTION_EXTEND_PANE,
+        CDMN->ACTION_SHRINK_PANE
+    );
 
     my $shift_mask   = urxvt::ShiftMask & $event->{state};
     my $control_mask = urxvt::ControlMask & $event->{state};

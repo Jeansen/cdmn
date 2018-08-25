@@ -307,16 +307,18 @@ color overwrites to make it look like the example screenshots. Make sure you ada
 
 If you do not like the default [keysyms](#default-keysyms), you can change them:
 
-| Resource                                | Default | Function                                                                     |
-| --------------------------------------- | ------- | ---------------------------------------------------------------------------- |
-| `URxvt.cdmn.Keysym.labels.show`         | Meta-l  | Show/Hide labels                                                             |
-| `URxvt.cdmn.Keysym.overlay.toggle`      | Meta-o  | Show/Hide cpations in overlay mode                                           |
-| `URxvt.cdmn.Keysym.toggle`              | Meta-h  | Show/Hide cpations in normal mode <br> Toggle between overlay to normal mode |
-| `URxvt.cdmn.Keysym.sidebar.toggle`      | Meta-p  | Show/Hide sidebar                                                            |
-| `URxvt.cdmn.Keysym.sidebar.pane.next`   | Meta-k  | Show next pane                                                               |
-| `URxvt.cdmn.Keysym.sidebar.pane.prev`   | Meta-j  | Show previous pane                                                           |
-| `URxvt.cdmn.Keysym.sidebar.scroll.up`   | Ctrl-k  | Scroll up in current pane                                                    |
-| `URxvt.cdmn.Keysym.sidebar.scroll.down` | Ctrl-j  | Scroll down in current pane                                                  |
+| Resource                                | Default     | Function                                                                     |
+| --------------------------------------- | ----------- | ---------------------------------------------------------------------------- |
+| `URxvt.cdmn.Keysym.labels.show`         | Meta-l      | Show/Hide labels                                                             |
+| `URxvt.cdmn.Keysym.overlay.toggle`      | Meta-o      | Show/Hide cpations in overlay mode                                           |
+| `URxvt.cdmn.Keysym.toggle`              | Meta-h      | Show/Hide cpations in normal mode <br> Toggle between overlay to normal mode |
+| `URxvt.cdmn.Keysym.sidebar.toggle`      | Meta-p      | Show/Hide sidebar                                                            |
+| `URxvt.cdmn.Keysym.sidebar.pane.next`   | Meta-k      | Show next pane                                                               |
+| `URxvt.cdmn.Keysym.sidebar.pane.prev`   | Meta-j      | Show previous pane                                                           |
+| `URxvt.cdmn.Keysym.sidebar.scroll.up`   | Ctrl-k      | Scroll up in current pane                                                    |
+| `URxvt.cdmn.Keysym.sidebar.scroll.down` | Ctrl-j      | Scroll down in current pane                                                  |
+| `URxvt.cdmn.Keysym.sidebar.shrink`      | Ctrl-period | Shrink the sidebar by one column                                             |
+| `URxvt.cdmn.Keysym.sidebar.expand`      | Ctrl-comma  | Expand the sidebar by one column                                             |
 
 # How to customize the sidebar (so far)
 
