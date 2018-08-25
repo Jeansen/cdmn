@@ -45,6 +45,7 @@ URxvt.cdmn.label.bold: 1
 URxvt.cdmn.disk.mountsonly: false
 URxvt.cdmn.mount.detail: true
 URxvt.cdmn.memory.inverse: true
+URxvt.cdmn.graph.symbols: _,▁,▂,▃,▄,▅,▆,▇,█
 
 /* URxvt.cdmn.visual.alignment: col */
 
