@@ -235,9 +235,11 @@ If you specify `URxvt.cdmn.<guage>.graph.width` and `URxvt.cdmn.<guage>.graph.ex
 
 You can further define the visual representation and orientation with the following settings.
 
-| Resource                      | Function                          | Default (Other) |
-| ----------------------------- | --------------------------------- | --------------- |
-| `URxvt.cdmn.visual.alignment` | Vertical or horizontal alignment. | row (col)       |
+| Resource                       | Function                                           | Default (Other)   |
+| ------------------------------ | -------------------------------------------------- | ----------------- |
+| `URxvt.cdmn.visual.alignment`  | Vertical or horizontal alignment.                  | row (col)         |
+| `URxvt.cdmn.style.bar.symbols` | Symbols to use for `URxvt.cdmn.<guage>.style: bar` | ⎯,▁,▂,▃,▄,▅,▆,▇,█ |
+| `URxvt.cdmn.style.led.symbol`  | Symbol to use for `URxvt.cdmn.<guage>.style: led`  | ■                 |
 
 ## Visual styles - gauges colors
 

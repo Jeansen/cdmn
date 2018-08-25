@@ -733,10 +733,10 @@ package cdmn::resources {
         mounts
         colors
         sidebar
+        symbols
 
         graph_length
         graph_expand
-        graph_symbols
 
         keysyms
         term
@@ -897,7 +897,8 @@ package cdmn::resources {
         $s->set_visual_style( 'global', _set_value( '%.style', [STYLES], CDMN->STYLE_BAR ) );
         $s->set_graph_width( 'global', _set_number( '%.graph.width', 0 ) );
 
-        $s->set( 'graph_symbols', _set_list( '%.graph.symbols', '⎯,▁,▂,▃,▄,▅,▆,▇,█' ) );
+        $s->set( CDMN->STYLE_BAR.'_symbols', _set_list( '%.style.'.CDMN->STYLE_BAR.'.symbols', '⎯,▁,▂,▃,▄,▅,▆,▇,█' ) );
+        $s->set( CDMN->STYLE_LED.'_symbol', $t->x_resource( '%.style.'.CDMN->STYLE_BAR.'.symbol') // '■' );
 
         for (DEFAULT_ORDER) {
             $s->set_colors( $_, _set_list("%.$_.colors") );
@@ -1889,7 +1890,7 @@ package cdmn::visuals::container {
                 name          => 1,
                 detail        => 1,
                 graph_length  => { default => 0 },
-                graph_symbols  => 1,
+                symbols  => 1,
             }
         );
 
@@ -1913,7 +1914,7 @@ package cdmn::visuals::container {
             label_pos     => $s->{label_pos},
             padding       => $arg{padding},
             label_bold    => $arg{label_bold},
-            graph_symbols => $arg{graph_symbols},
+            symbols => $arg{symbols},
         );
 
         $s->{detail}{ $arg{name} }       = $arg{detail};
@@ -2139,7 +2140,7 @@ package cdmn::visuals::visual {
         visual_style
         sensitivity
         count
-        graph_symbols
+        symbols
 
         label
         label_bg
@@ -2153,8 +2154,6 @@ package cdmn::visuals::visual {
 
     );
 
-    #use constant LED => '⬛';
-    use constant LED => '■';
     use constant { TRUE => 1, FALSE => 0 };
     use constant CDMN => 'cdmn::constants';
 
@@ -2182,7 +2181,7 @@ package cdmn::visuals::visual {
                 sensitivity   => 1,
                 label_pos     => 1,
                 padding       => 1,
-                graph_symbols => 1,
+                symbols => 1,
             }
         );
 
@@ -2241,7 +2240,7 @@ package cdmn::visuals::visual {
                         width     => 1,
                         height    => 1,
                         rendition => $rend,
-                        text      => $s->{graph_symbols}->[0],
+                        text      => $s->{symbols}{CDMN->STYLE_BAR}->[0],
                     );
                     $s->{gauges}{"$i"}{"$_"} = $pictorial->create();
                 }
@@ -2296,7 +2295,7 @@ package cdmn::visuals::visual {
         my ( $s, $i, $usage, $invert, $inverse ) = validate_pos( @_, 1, 1, 1, 1, 1 );
         return if !$s->{gauges}{"$i"};
 
-        my $size = scalar @{$s->{graph_symbols}};
+        my $size = scalar @{$s->{symbols}{CDMN->STYLE_BAR}};
         my $bar_i = ( $usage > 100 ? 100 : $usage ) / 100 * ($size);
         $usage = 100 - $usage if $invert;
         $bar_i = $size - $bar_i -1 if $inverse;
@@ -2308,8 +2307,8 @@ package cdmn::visuals::visual {
         my $color = $usage < $s->{sensitivity} ? $s->{gauges_colors}[1] : $s->{gauges_colors}[$clr_i];
         $_->hide for values %{ $s->{gauges}{"$i"} };
 
-        $s->{gauges}{"$i"}{"$color"}->set( $s->{graph_symbols}->[$bar_i] ) if $s->{visual_style} eq CDMN->STYLE_BAR;
-        $s->{gauges}{"$i"}{"$color"}->set(LED) if $s->{visual_style} eq CDMN->STYLE_LED;
+        $s->{gauges}{"$i"}{"$color"}->set( $s->{symbols}{CDMN->STYLE_BAR}->[$bar_i] ) if $s->{visual_style} eq CDMN->STYLE_BAR;
+        $s->{gauges}{"$i"}{"$color"}->set($s->{symbols}{CDMN->STYLE_LED}) if $s->{visual_style} eq CDMN->STYLE_LED;
         $s->{gauges}{"$i"}{"$color"}->show;
         $s;
     }
@@ -2479,7 +2478,7 @@ sub create_caption {
                 detail        => $c->{detail},
                 graph_length  => $c->{length},
                 label_bold    => XR->get('label_bold'),
-                graph_symbols => XR->get('graph_symbols'),
+                symbols => {CDMN->STYLE_BAR => XR->get(CDMN->STYLE_BAR.'_symbols'), CDMN->STYLE_LED => XR->get(CDMN->STYLE_LED.'_symbol')},
             );
         };
 
