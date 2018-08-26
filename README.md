@@ -94,6 +94,8 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 | Meta-j | Show previous pane                                                           |
 | Ctrl-k | Scroll up in current pane                                                    |
 | Ctrl-j | Scroll down in current pane                                                  |
+| Ctrl-. | Shrink the sidebar by one column                                             |
+| Ctrl-, | Expand the sidebar by one column                                             |
 
 Normally the Meta key maps to the ALT key. If the bindings do not work, please check your system mappings.
 
