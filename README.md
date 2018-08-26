@@ -17,11 +17,17 @@ Here's a short screencast of what it looks like on my system:
 
 ![](https://rawgit.com/Jeansen/assets/master/videos/screencast.gif)
 
-In the above example I start `test-ng` to simulate the utilization of one logical CPU core. Because the space is to
-small I switch from overlay mode to fixed mode. I hide and show labels. Next I display the side bar, navigate through
-some tabs, resize it and finally hide the side bar again. Then I hide the gauges completely, bring back overlay mode and
-ultimately switch back to fixed mode. The keysyms for this are defined in [Default keysyms](#default-keysyms). Of course
-you can overwrite them to your liking!
+In the above example I start `test-ng` to simulate the utilization of one logical CPU core. If you watch the CPU gauges,
+you will notice, that only one bar rizes to the maximum and becomes red. 
+
+Because the space is to small I switch from overlay mode to fixed mode which puts the gauges on its on row. I then hide
+and show labels. 
+
+Next I display the side bar, navigate through some tabs, expand and shrink the sidebar and finally hide it again. Then
+I hide the gauges completely, bring them back in overlay mode and ultimately switch back to fixed mode again. 
+
+The keysyms for this are defined in [Default keysyms](#default-keysyms). Of course you can overwrite them to your
+liking!
 
 # Curious? Run the demo!
 
