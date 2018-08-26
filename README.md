@@ -13,13 +13,9 @@ Originally I planned to have some LED-like indicators but soon decided to make t
 changed the simple LED look to animated bars. With time, increasing knowledge and a lot of trial and error, I 
 continued to optimize the UX and added additional features.
 
-Here's a screenshot of what it looks like:
+Here's a short screencast of what it looks like on my system:
 
-![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_1.png)
-
-And here is another example of the additional panel with very simple filesystem information:
-
-![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
+![](https://rawgit.com/Jeansen/assets/master/videos/screencast.gif)
 
 # Curious? Run the demo!
 
