@@ -67,6 +67,18 @@ package cdmn::math {
         return \@union;
     }
 
+    sub diff {
+
+        #TODO named parameters
+        shift if scalar @_ > 2;    #drop first parameter if called as object
+        my @diff = ();
+        my %n     = ();
+
+        for my $e ( @{ $_[0] }, @{ $_[1] } ) { $n{$e}++ }
+        for my $e ( @{ $_[0] } ) { push @{ \@diff }, $e if $n{$e} == 1 }
+
+        return \@diff;
+    }
 }
 
 package cdmn::constants {
@@ -717,6 +729,7 @@ package cdmn::resources {
         disk_mounts_only
         refresh
         sensitivity
+        allow_new_devices
 
         detail
         invert
@@ -884,6 +897,7 @@ package cdmn::resources {
         $s->{disk_mounts_only} = _set_boolean( '%.disk.mountsonly', 1 );    #TODO rename
         $s->{refresh}     = _set_number( '%.refresh',     1 );
         $s->{sensitivity} = _set_number( '%.sensitivity', 1 );              #percentage
+        $s->{allow_new_devices} = _set_boolean('%.allow-new-devices', 0 );
 
         $s->set( 'gauges_order', _set_list('%.gauges.order') );
         $s->set_gauges( 'disks',       _set_list('%.gauges.disks') );
@@ -1176,11 +1190,15 @@ package cdmn::resources {
 
     sub set_disks {
         my $s = shift;
+
+        state $disks //=$s->get_gauges('disks');
+        state $disks_found //= PROC->disks();
+
         my $ov = $s->get_gauges('disks') ? @{ $s->get_gauges('disks') } : 0;
 
         $s->set_gauges( 'disks', $s->{disk_mounts_only}
-            ? MATH->cut_set( PROC->disk_mounts(), $s->get_gauges('disks') )
-            : MATH->cut_set( PROC->disks(),       $s->get_gauges('disks') ) );
+            ? MATH->cut_set( PROC->disk_mounts(), $disks )
+            : MATH->cut_set( PROC->disks(),       $disks ) );
 
         my $rw =
             $s->{disk_mounts_only}
@@ -1196,10 +1214,13 @@ package cdmn::resources {
 
         my @w = map { $_ . POSTFIX_WRITE } @$rw;
 
-        $s->set_gauges( 'disks', ( $s->{disk_mounts_only} ? PROC->disk_mounts() : PROC->disks() ) )
-            if !@{ $s->get_gauges('disks') } && !@r && !@w;
+        if (!@$disks && !@r && !@w) {
+            $disks = $s->{disk_mounts_only} ? PROC->disk_mounts() : PROC->disks();
+            $s->set_gauges( 'disks', $disks );
+        }
 
         $s->add_gauges( 'disks', [ ( @r, @w ) ] );
+        $s->add_gauges( 'disks', MATH->diff( PROC->disks(), $disks_found) ) if $s->{allow_new_devices};
 
         $ov != @{ $s->get_gauges('disks') } ? $s->{ok} = 1 && return $s : Null->new;
     }
@@ -2694,26 +2715,31 @@ sub on_refresh_begin {
     my $nics_active   = PROC->network_list();
     my $hidpps_active = PROC->hidpps();
     my $swaps_active  = PROC->swaps();
+    my $disks_active  = PROC->disks();
 
     state $hidpps = 0;
     state $swaps  = 0;
     state $onAC   = 0;
     state $nics   = 0;
+    state $disks  = 0;
     if (   $s->{w_size} != $s->{term}->ncol
         || $s->{y_size} != $s->{term}->nrow
         || PROC->ac_online() != $onAC
         || $nics != scalar @$nics_active
         || $hidpps != scalar @$hidpps_active
+        || $disks != scalar @$disks_active
         || $swaps != scalar @$swaps_active )
     {
         $onAC   = !$onAC;
         $nics   = scalar @$nics_active;
         $hidpps = scalar @$hidpps_active;
         $swaps  = scalar @$swaps_active;
+        $disks  = scalar @$disks_active;
 
         XR->set_nics;
         XR->set_hidpps;
         XR->set_swaps;
+        XR->set_disks;
         redraw( $s, XR->{showing_labels} );
         refresh_bounds( $s, XR->{visual_align} );
         $s->{w_size} = $s->{term}->ncol;
@@ -2839,8 +2865,6 @@ sub on_start {
             $usage_of{memory}   = sub { %{ PROC->memory_usages() } };
             $usage_of{cpu_temp} = sub { %{ PROC->cpu_temp_usages() } };
             $usage_of{battery}  = sub { %{ PROC->battery_usages() } };
-
-            # $usage_of{hidpp}    = sub { %{ PROC->hidpp_usages() } };
             $usage_of{hidpp}   = sub { _filter( PROC->hidpp_usages(), XR->get_gauges('hidpps') ) };
             $usage_of{swap}    = sub { %{ PROC->swap_usages() } };
             $usage_of{disk}    = sub { _filter( PROC->disk_usages(), XR->get_gauges('disks') ) };
