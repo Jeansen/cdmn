@@ -72,7 +72,7 @@ package cdmn::math {
         #TODO named parameters
         shift if scalar @_ > 2;    #drop first parameter if called as object
         my @diff = ();
-        my %n     = ();
+        my %n    = ();
 
         for my $e ( @{ $_[0] }, @{ $_[1] } ) { $n{$e}++ }
         for my $e ( @{ $_[0] } ) { push @{ \@diff }, $e if $n{$e} == 1 }
@@ -897,7 +897,7 @@ package cdmn::resources {
         $s->{disk_mounts_only} = _set_boolean( '%.disk.mountsonly', 1 );    #TODO rename
         $s->{refresh}     = _set_number( '%.refresh',     1 );
         $s->{sensitivity} = _set_number( '%.sensitivity', 1 );              #percentage
-        $s->{allow_new_devices} = _set_boolean('%.allow-new-devices', 0 );
+        $s->{allow_new_devices} = _set_boolean( '%.allow-new-devices', 0 );
 
         $s->set( 'gauges_order', _set_list('%.gauges.order') );
         $s->set_gauges( 'disks',       _set_list('%.gauges.disks') );
@@ -1191,14 +1191,16 @@ package cdmn::resources {
     sub set_disks {
         my $s = shift;
 
-        state $disks //=$s->get_gauges('disks');
+        state $disks //= $s->get_gauges('disks');
         state $disks_found //= PROC->disks();
 
         my $ov = $s->get_gauges('disks') ? @{ $s->get_gauges('disks') } : 0;
 
-        $s->set_gauges( 'disks', $s->{disk_mounts_only}
+        $s->set_gauges(
+            'disks', $s->{disk_mounts_only}
             ? MATH->cut_set( PROC->disk_mounts(), $disks )
-            : MATH->cut_set( PROC->disks(),       $disks ) );
+            : MATH->cut_set( PROC->disks(),       $disks )
+        );
 
         my $rw =
             $s->{disk_mounts_only}
@@ -1214,13 +1216,13 @@ package cdmn::resources {
 
         my @w = map { $_ . POSTFIX_WRITE } @$rw;
 
-        if (!@$disks && !@r && !@w) {
+        if ( !@$disks && !@r && !@w ) {
             $disks = $s->{disk_mounts_only} ? PROC->disk_mounts() : PROC->disks();
             $s->set_gauges( 'disks', $disks );
         }
 
         $s->add_gauges( 'disks', [ ( @r, @w ) ] );
-        $s->add_gauges( 'disks', MATH->diff( PROC->disks(), $disks_found) ) if $s->{allow_new_devices};
+        $s->add_gauges( 'disks', MATH->diff( PROC->disks(), $disks_found ) ) if $s->{allow_new_devices};
 
         $ov != @{ $s->get_gauges('disks') } ? $s->{ok} = 1 && return $s : Null->new;
     }
@@ -2865,11 +2867,11 @@ sub on_start {
             $usage_of{memory}   = sub { %{ PROC->memory_usages() } };
             $usage_of{cpu_temp} = sub { %{ PROC->cpu_temp_usages() } };
             $usage_of{battery}  = sub { %{ PROC->battery_usages() } };
-            $usage_of{hidpp}   = sub { _filter( PROC->hidpp_usages(), XR->get_gauges('hidpps') ) };
-            $usage_of{swap}    = sub { %{ PROC->swap_usages() } };
-            $usage_of{disk}    = sub { _filter( PROC->disk_usages(), XR->get_gauges('disks') ) };
-            $usage_of{network} = sub { _filter( PROC->network_usages(), XR->get_gauges('networks') ) };
-            $usage_of{mount}   = sub { %{ PROC->fs_usage() } };
+            $usage_of{hidpp}    = sub { _filter( PROC->hidpp_usages(), XR->get_gauges('hidpps') ) };
+            $usage_of{swap}     = sub { %{ PROC->swap_usages() } };
+            $usage_of{disk}     = sub { _filter( PROC->disk_usages(), XR->get_gauges('disks') ) };
+            $usage_of{network}  = sub { _filter( PROC->network_usages(), XR->get_gauges('networks') ) };
+            $usage_of{mount}    = sub { %{ PROC->fs_usage() } };
 
             local *_set = sub {
                 my $gauges = shift;
