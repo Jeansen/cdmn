@@ -13,13 +13,21 @@ Originally I planned to have some LED-like indicators but soon decided to make t
 changed the simple LED look to animated bars. With time, increasing knowledge and a lot of trial and error, I 
 continued to optimize the UX and added additional features.
 
-Here's a screenshot of what it looks like:
+Here's a short screencast of what it looks like on my system:
 
-![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_1.png)
+![](https://rawgit.com/Jeansen/assets/master/videos/screencast.gif)
 
-And here is another example of the additional panel with very simple filesystem information:
+In the above example I start `test-ng` to simulate the utilization of one logical CPU core. If you watch the CPU gauges,
+you will notice, that only one bar rizes to the maximum and becomes red. 
 
-![](https://rawgit.com/Jeansen/assets/master/examples/cdmn_2.png)
+Because the space is to small I switch from overlay mode to fixed mode which puts the gauges on its on row. I then hide
+and show labels. 
+
+Next I display the side bar, navigate through some tabs, expand and shrink the sidebar and finally hide it again. Then
+I hide the gauges completely, bring them back in overlay mode and ultimately switch back to fixed mode again. 
+
+The keysyms for this are defined in [Default keysyms](#default-keysyms). Of course you can overwrite them to your
+liking!
 
 # Curious? Run the demo!
 
@@ -86,6 +94,8 @@ Unfortunately this requires root privileges. To make thinks work, put the follow
 | Meta-j | Show previous pane                                                           |
 | Ctrl-k | Scroll up in current pane                                                    |
 | Ctrl-j | Scroll down in current pane                                                  |
+| Ctrl-. | Shrink the sidebar by one column                                             |
+| Ctrl-, | Expand the sidebar by one column                                             |
 
 Normally the Meta key maps to the ALT key. If the bindings do not work, please check your system mappings.
 
@@ -200,21 +210,27 @@ That is, if you do specify valid values for let's say `URxvt.cdmn.batteries` the
 
 There are some exceptions, though.
 
--   If you do not provide `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx` then there will be only one gauge for each
-    interface. On the other hand, if you do provide `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx`, then you will
-    only see those gauges. Ultimately you will have to provide for all interfaces you would like to see the moment you
+-   If you do not provide `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx` then there will be only one gauge for
+    each interface. On the other hand, if you do provide `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx`, then
+    you will only see those gauges. Ultimately you will have to explicitly list all interfaces you would like when you
     provide values for `URxvt.cdmn.network.rx` and/or `URxvt.cdmn.network.tx`. This also means you will have to provide
     values for 'rx' and 'tx' where the default was to only show one gauge combining 'rx' and 'tx' values.
 
--   The other exceptions to this rule are `URxvt.cdmn.disk.read` and `URxvt.cdmn.disk.write`. These act as an addition to 
-    `URxvt.cdmn.gauges.disks` and allow you to define for which disks you would like to see additional read and/or write 
-    utilization. Of course you could leave out `URxvt.cdmn.gauges.disks` and only provide values for disks you would like 
-    to monitor in detail.
+-   The other exceptions to this rule are `URxvt.cdmn.disk.read` and `URxvt.cdmn.disk.write`. These act as an addition
+    to `URxvt.cdmn.gauges.disks` and allow you to define for which disks you would like to see additional read and/or
+    write utilization. Of course you could leave out `URxvt.cdmn.gauges.disks` and only provide values for disks you
+    would like to monitor in detail.
 
-Note, that the additional gauges to `URxvt.cdmn.gauges.disks` are subsets of it. If you were to set all three settings to 
-a value of `sda` and copied a large file from one folder to another on this disk, you would see three gauges:
-One with about 100 percent for the combined read and write utilization and two others with about 50 percent each
-because half of the time was spent reading in data and the other half of the time was spent writing data.
+Note, that the additional gauges to `URxvt.cdmn.gauges.disks` are subsets of it. If you were to set all three settings
+to a value of `sda` and copied a large file from one folder to another on this disk, you would see three gauges: One
+with about 100 percent for the combined read and write utilization and two others with about 50 percent each because
+half of the time was spent reading in data and the other half of the time was spent writing data.
+
+Also note, that a missing resource setting for `URxvt.cdmn.gauges.disks` will only be replace by a list of disks
+available on startup. After that the (default) list will be used as if you had specified it explicitly. That is, if you
+later on attach another disk (for instance via USB), that disk will not add an additional gauge. If you would like to
+have additional gauges for any disk that you attach afterwards, you will have to [enable
+`URxvt.cdmn.allow-new-devices`](#miscellaneous-settings)
 
 ## Visual styles
 
@@ -235,9 +251,11 @@ If you specify `URxvt.cdmn.<guage>.graph.width` and `URxvt.cdmn.<guage>.graph.ex
 
 You can further define the visual representation and orientation with the following settings.
 
-| Resource                      | Function                          | Default (Other) |
-| ----------------------------- | --------------------------------- | --------------- |
-| `URxvt.cdmn.visual.alignment` | Vertical or horizontal alignment. | row (col)       |
+| Resource                       | Function                                           | Default (Other)   |
+| ------------------------------ | -------------------------------------------------- | ----------------- |
+| `URxvt.cdmn.visual.alignment`  | Vertical or horizontal alignment.                  | row (col)         |
+| `URxvt.cdmn.style.bar.symbols` | Symbols to use for `URxvt.cdmn.<guage>.style: bar` | ⎯,▁,▂,▃,▄,▅,▆,▇,█ |
+| `URxvt.cdmn.style.led.symbol`  | Symbol to use for `URxvt.cdmn.<guage>.style: led`  | ■                 |
 
 ## Visual styles - gauges colors
 
@@ -293,9 +311,10 @@ increase), which flashes (updates) every second but only if there is at least 1%
 
 Finally there are even more settings ...
 
-| Resource                     | Function                                                       | Default (Other) |
-| ---------------------------- | -------------------------------------------------------------- | --------------- |
-| `URxvt.cdmn.disk.mountsonly` | Only show disk gauges for disks with at least one mount point. | true (false)    |
+| Resource                       | Function                                                              | Default (Other) |
+| ------------------------------ | --------------------------------------------------------------------- | --------------- |
+| `URxvt.cdmn.disk.mountsonly`   | Only show disk gauges for disks with at least one mount point.        | true (false)    |
+| `URxvt.cdmn.allow-new-devices` | Add gauges for new devices even in the presence of a predefined list. | true (false)    |
 
 There is an initial .Xresouces file in the resources folder with some minimal necessary settings, including some 
 color overwrites to make it look like the example screenshots. Make sure you adapt the line `URxvt*perl-lib: 
@@ -305,16 +324,18 @@ color overwrites to make it look like the example screenshots. Make sure you ada
 
 If you do not like the default [keysyms](#default-keysyms), you can change them:
 
-| Resource                                | Default | Function                                                                     |
-| --------------------------------------- | ------- | ---------------------------------------------------------------------------- |
-| `URxvt.cdmn.Keysym.labels.show`         | Meta-l  | Show/Hide labels                                                             |
-| `URxvt.cdmn.Keysym.overlay.toggle`      | Meta-o  | Show/Hide cpations in overlay mode                                           |
-| `URxvt.cdmn.Keysym.toggle`              | Meta-h  | Show/Hide cpations in normal mode <br> Toggle between overlay to normal mode |
-| `URxvt.cdmn.Keysym.sidebar.toggle`      | Meta-p  | Show/Hide sidebar                                                            |
-| `URxvt.cdmn.Keysym.sidebar.pane.next`   | Meta-k  | Show next pane                                                               |
-| `URxvt.cdmn.Keysym.sidebar.pane.prev`   | Meta-j  | Show previous pane                                                           |
-| `URxvt.cdmn.Keysym.sidebar.scroll.up`   | Ctrl-k  | Scroll up in current pane                                                    |
-| `URxvt.cdmn.Keysym.sidebar.scroll.down` | Ctrl-j  | Scroll down in current pane                                                  |
+| Resource                                | Default     | Function                                                                     |
+| --------------------------------------- | ----------- | ---------------------------------------------------------------------------- |
+| `URxvt.cdmn.Keysym.labels.show`         | Meta-l      | Show/Hide labels                                                             |
+| `URxvt.cdmn.Keysym.overlay.toggle`      | Meta-o      | Show/Hide cpations in overlay mode                                           |
+| `URxvt.cdmn.Keysym.toggle`              | Meta-h      | Show/Hide cpations in normal mode <br> Toggle between overlay to normal mode |
+| `URxvt.cdmn.Keysym.sidebar.toggle`      | Meta-p      | Show/Hide sidebar                                                            |
+| `URxvt.cdmn.Keysym.sidebar.pane.next`   | Meta-k      | Show next pane                                                               |
+| `URxvt.cdmn.Keysym.sidebar.pane.prev`   | Meta-j      | Show previous pane                                                           |
+| `URxvt.cdmn.Keysym.sidebar.scroll.up`   | Ctrl-k      | Scroll up in current pane                                                    |
+| `URxvt.cdmn.Keysym.sidebar.scroll.down` | Ctrl-j      | Scroll down in current pane                                                  |
+| `URxvt.cdmn.Keysym.sidebar.shrink`      | Ctrl-period | Shrink the sidebar by one column                                             |
+| `URxvt.cdmn.Keysym.sidebar.expand`      | Ctrl-comma  | Expand the sidebar by one column                                             |
 
 # How to customize the sidebar (so far)
 
@@ -333,17 +354,18 @@ Now, while still in development, there are already some things that work and tha
 | `URxvt.cdmn.sidebar.graph.symbols`   | Use given symbols for depicting graphs               | '■, □' (ANY)                      | Any character or list of two characters, e.g.: <br><br> █ ░ <br> ▪ ▫ <br> ▬ ▭ <br> ○ ● |
 | `URxvt.cdmn.sidebar.border.visible`  | Show border                                          | 1 (0)                             | If `URxvt.cdmn.sidebar.position` set to `bottom` or `top`                              |
 
-Most of these settings should be self-explanatory. Some values are only taken into account with specific sidebar positions. 
-For instance, if you set `URxvt.cdmn.sidebar.position` to `left` or `right`, only your setting for `URxvt.cdmn.sidebar.width` 
-will be honored whereas `URxvt.cdmn.sidebar.height` will be fixed at 100%. Similarly, if you set `URxvt.cdmn.sidebar.position` 
-to `top` or `bottom` only your setting for `URxvt.cdmn.sidebar.height` will be honored whereas `URxvt.cdmn.sidebar.width` 
-will be fixed at 100%. Finally, `center` will set both, width and height, to 100% and ignore any of your settings for
-width and height. In addition you can decide if you would like to have a border when you position the sidebar left or right.
+Most of these settings should be self-explanatory. Some values are only taken into account with specific sidebar
+positions.  For instance, if you set `URxvt.cdmn.sidebar.position` to `left` or `right`, only your setting for
+`URxvt.cdmn.sidebar.width` will be honored whereas `URxvt.cdmn.sidebar.height` will be fixed at 100%. Similarly, if you
+set `URxvt.cdmn.sidebar.position` to `top` or `bottom` only your setting for `URxvt.cdmn.sidebar.height` will be honored
+whereas `URxvt.cdmn.sidebar.width` will be fixed at 100%. Finally, `center` will set both, width and height, to 100% and
+ignore any of your settings for width and height. In addition you can decide if you would like to have a border when you
+position the sidebar left or right.
 
-For the graphs shown on each pane you can set the symbols to use. Generally, there are two symbols. One symbols serves as
-the background and the other serves as the indicator. But you can also leave out the second symbols if you want to have a
-transparent effect. Depending on the order you can decide how the graphs will fill - either from left to right or vice-versa.
-Just play with the settings and see what fits best for you!
+For the graphs shown on each pane you can set the symbols to use. Generally, there are two symbols. One symbols serves
+as the background and the other serves as the indicator. But you can also leave out the second symbols if you want to
+have a transparent effect. Depending on the order you can decide how the graphs will fill - either from left to right or
+vice-versa.  Just play with the settings and see what fits best for you!
 
 # Context awareness
 

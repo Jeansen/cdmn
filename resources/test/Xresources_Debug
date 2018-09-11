@@ -38,13 +38,14 @@ URxvt.cdmn.padding: 2
 URxvt.cdmn.refresh: 0.1
 URxvt.cdmn.sidebar.bg: 4
 URxvt.cdmn.sidebar.header.position: bottom
-URxvt.cdmn.sidebar.position: left
+URxvt.cdmn.sidebar.position: top
 URxvt.cdmn.sidebar.panes.order: CPU,NET,MOUNT
 URxvt.cdmn.sidebar.label.position: top
 URxvt.cdmn.label.bold: 1
 URxvt.cdmn.disk.mountsonly: false
 URxvt.cdmn.mount.detail: true
 URxvt.cdmn.memory.inverse: true
+URxvt.cdmn.graph.symbols: _,▁,▂,▃,▄,▅,▆,▇,█
 
 /* URxvt.cdmn.visual.alignment: col */
 
