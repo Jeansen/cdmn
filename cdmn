@@ -566,9 +566,7 @@ package cdmn::proc {
             $r *= $diff_usage{io_time};
             $w *= $diff_usage{io_time};
 
-            $results{$name}                   = $diff_usage{io_time};
-            $results{ $name . POSTFIX_READ }  = $r;
-            $results{ $name . POSTFIX_WRITE } = $w;
+            $results{$name}={ 'read' => $r, 'write' => $w, 'all' =>  $diff_usage{io_time}, 'wps' => $wps, 'rps' => $rps };
         }
         return \%results;
     }
@@ -937,7 +935,7 @@ package cdmn::resources {
         $s->set_sidebar( 'position',        _set_value( '%.sidebar.position',        [TBLRC], CDMN->RIGHT ) );
         $s->set_sidebar( 'header_position', _set_value( '%.sidebar.header.position', [TB],    CDMN->BOTTOM ) );
         $s->set_sidebar( 'label_position',  _set_value( '%.sidebar.label.position',  [TB],    CDMN->TOP ) );
-        $s->set_sidebar( 'graph_symbols', _set_list( '%.sidebar.graph.symbols', '■, □' ) );
+        $s->set_sidebar( 'graph_symbols', _set_list( '%.sidebar.graph.symbols', '━, ─' ) );
         $s->set_sidebar( 'border_visible', _set_number( '%.sidebar.border.visible', 1 ) );
         $s->set_sidebar( 'panes_order', _set_list('%.sidebar.panes.order') );
 
@@ -1346,7 +1344,7 @@ package cdmn::sidebar {
         my @content;
         my ( $s, $title, $args ) = @_;
 
-        $data{$title} = {%$args} if $args;    #TODO Cannot use $args as ref directly? So, deref. and new ref.
+        $data{$title} = $args if $args;
 
         my $r = REND;
         $r = urxvt::SET_FGCOLOR REND, $s->{fg};
@@ -1498,16 +1496,20 @@ package cdmn::sidebar {
         my @slctn = ( sort keys %{ $data{$title} } );
 
         for (@slctn) {
+            my ($v, $dl) = @{$data{$title}->{$_}};
+            $dl //= "";
             my $l = PROC->alter_label($_);
             $l //= $_;
+            my $ln = $s->{term}->ncol - (length "$l$dl") - (3 + 5);
+            $ln = 1 if $ln < 0;
+            $l = $l . " "x $ln . $dl . " MB/s" if $dl;
             push @content, _overlay($l) if $s->{label_position} eq TOP;
 
-            my $v = $data{$title}->{$_};
-            my $w = $s->{term}->ncol - 8;              #TODO 2 border,space + 4 number% + 1 space
+            my $w = $s->{term}->ncol - 8;   #TODO 2 border,space + 4 number% + 1 space
             my $c = $v ? floor( $w * $v / 100 ) : 0;
             $c = 0 if $c < 0;
-            my $f = $c <= $w ? $w - $c : 0;            #should only be necessary on startup
-            push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . int ($v) . "%" );
+            my $f = $c <= $w ? $w - $c : 0;                                                  #should only be necessary on startup
+            push @content, _overlay( $s->{graph_symbols}[0] x $c . $s->{graph_symbols}[1] x $f . " " . int($v) . '%' );
             push @content, _overlay($l) if $s->{label_position} eq BOTTOM;
         }
 
@@ -2867,7 +2869,7 @@ sub on_start {
             $usage_of{memory}   = sub { %{ PROC->memory_usages() } };
             $usage_of{cpu_temp} = sub { %{ PROC->cpu_temp_usages() } };
             $usage_of{battery}  = sub { %{ PROC->battery_usages() } };
-            $usage_of{hidpp}    = sub { _filter( PROC->hidpp_usages(), XR->get_gauges('hidpps') ) };
+            $usage_of{hidpp}    = sub { _filter( PROC->hidpp_usages(), XR->get_gauges('hidpps')) };
             $usage_of{swap}     = sub { %{ PROC->swap_usages() } };
             $usage_of{disk}     = sub { _filter( PROC->disk_usages(), XR->get_gauges('disks') ) };
             $usage_of{network}  = sub { _filter( PROC->network_usages(), XR->get_gauges('networks') ) };
@@ -2878,11 +2880,22 @@ sub on_start {
                 my $panes  = shift;
 
                 $r{$_} = { $usage_of{$_}->() } foreach @{ cdmn::math->union( $gauges, $panes ) };
-
-                $s->{xterms}{sidebar}->set_pane( $_, $r{$_} ) for @$panes;    #if $s->{xterms}{sidebar}{visible};
                 for my $g (@$gauges) {
-                    $$_->set( $g, $r{$g}, XR->get_invert($g), XR->get_inverse($g) ) for @{ $s->{captions} };
+                    $$_->set( $g, $g eq 'disk' ? $r{$g}{'all'} : $r{$g}, XR->get_invert($g), XR->get_inverse($g) ) for @{ $s->{captions} };
                 }
+
+                while ( my ($k, $v) = each %r ) {
+                    $r{$k} = {
+                        map {
+                            if ($k eq 'disk') {
+                                $_ => [$v->{$_}{all}, floor($v->{$_}{rps})."/".floor($v->{$_}{wps})]
+                            } else {
+                                $_ => [$v->{$_}]
+                            }
+                        } keys %$v
+                    };
+                }
+                $s->{xterms}{sidebar}->set_pane( $_, $r{$_} ) for @$panes;    #if $s->{xterms}{sidebar}{visible};
             };
 
             my @gauges = keys %{ ${ $s->{captions}[0] }->{gauges} };
