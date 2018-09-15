@@ -2881,9 +2881,10 @@ sub on_start {
 
                 $r{$_} = { $usage_of{$_}->() } foreach @{ cdmn::math->union( $gauges, $panes ) };
                 for my $g (@$gauges) {
-                    $$_->set( $g, $g eq 'disk' ? $r{$g}{'all'} : $r{$g}, XR->get_invert($g), XR->get_inverse($g) ) for @{ $s->{captions} };
+                    $$_->set( $g, $g eq 'disk' ? { map { $_ => $r{$g}->{$_}{all} } keys %{$r{$g} }} : $r{$g}, XR->get_invert($g), XR->get_inverse($g) ) for @{ $s->{captions} };
                 }
 
+                #remap values for sidebar
                 while ( my ($k, $v) = each %r ) {
                     $r{$k} = {
                         map {
