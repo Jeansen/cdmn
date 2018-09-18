@@ -19,6 +19,8 @@ if [ $OPTIND -eq 1 ]; then echo "No options were passed"; exit 1; fi
 
 xhost +local:;
 
+docker pull jeansen/cdmn_docker 2>/dev/null
+
 docker run \
   --rm \
   --volume=$XSOCK:$XSOCK:rw \
