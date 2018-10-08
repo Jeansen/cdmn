@@ -100,6 +100,9 @@ package cdmn::constants {
 
         STYLE_LED => 'led',
         STYLE_BAR => 'bar',
+        SIMPLE => 'simple',
+        FULL => 'full',
+        REAL => 'real',
 
         LEFT   => 'left',
         RIGHT  => 'right',
@@ -309,8 +312,23 @@ package cdmn::proc {
         return \%mounts;
     }
 
+    #Formatting the number should not be part of this function!. TODO
     sub fs_usage {
-        my %r = map { $_ => df($_)->{per} } grep { defined df($_) } ( sort values %{ mounts() } );    #warn if mounts inaccessible
+        local *_set = sub {
+            my @u = (qw/B K M G T P/);
+            my ($v)=@_;
+            my $i=0;
+            while ($v > 1024) {
+                $v /= 1024;
+                $i++;
+            }
+            $v = int($v);
+            $v . $u[$i];
+        };
+
+        # my %r = map { $_ => { 'bused' => $r, 'bavail' => $w, 'used'  df($_)->{per} } } grep { defined df($_, 2**30) } ( sort values %{ mounts() } );    #TODO warn if mounts inaccessible
+        my %r = map { $_ => { 'bavail' => _set(df($_, 1)->{bavail}), 'bused' => _set(df($_, 1)->{used}), 'used' => df($_)->{per} } } grep { defined df($_) } ( sort values %{ mounts() } );    #TODO warn if mounts inaccessible
+        # my %r = map { $_ => df($_)->{per} } grep { defined df($_) } ( sort values %{ mounts() } );    #TODO warn if mounts inaccessible
         \%r;
     }
 
@@ -430,6 +448,7 @@ package cdmn::proc {
         my $l = $alter_label{$s} || return undef;
         open ( my $f, '<', $l );
         chomp ( my $v = <$f> );
+        $v =~ s/^\s+|\s+$//g;
         return $v;
     }
 
@@ -566,6 +585,7 @@ package cdmn::proc {
             $r *= $diff_usage{io_time};
             $w *= $diff_usage{io_time};
 
+            $alter_label{$name} //= SYSFS_BLOCK . "/${name}/device/model";
             $results{$name}={ 'read' => $r, 'write' => $w, 'all' =>  $diff_usage{io_time}, 'wps' => $wps, 'rps' => $rps };
         }
         return \%results;
@@ -767,6 +787,7 @@ package cdmn::resources {
 
     use constant DEFAULT_ORDER     => (qw/ cpu cpu_temp disk memory swap network hidpp battery mount /);
     use constant STYLES            => ( CDMN->STYLE_BAR, CDMN->STYLE_LED );
+    use constant LABEL_DETAILS     => ( CDMN->STYLE_BAR, CDMN->STYLE_LED );
     use constant VISUAL_ALIGNMENTS => ( CDMN->VISUAL_ALIGN_COL, CDMN->VISUAL_ALIGN_ROW );
     use constant TBLRC             => ( CDMN->TOP, CDMN->LEFT, CDMN->RIGHT, CDMN->BOTTOM, CDMN->CENTER );
     use constant TB                => ( CDMN->TOP, CDMN->BOTTOM );
@@ -938,6 +959,7 @@ package cdmn::resources {
         $s->set_sidebar( 'graph_symbols', _set_list( '%.sidebar.graph.symbols', '━, ─' ) );
         $s->set_sidebar( 'border_visible', _set_number( '%.sidebar.border.visible', 1 ) );
         $s->set_sidebar( 'panes_order', _set_list('%.sidebar.panes.order') );
+        $s->set_sidebar( 'label_detail', _set_value('%.sidebar.label.detail', [LABEL_DETAILS], CDMN->FULL) );
 
         # $s->set_sidebar( 'enable', _set_number('%.sidebar.panes.enable', 1) ); #TODO
 
@@ -1274,6 +1296,7 @@ package cdmn::sidebar {
     use Params::Validate qw(:all);
     use POSIX qw(ceil floor);
     use constant { REND => cdmn::constants::REND, };
+    use constant CDMN => 'cdmn::constants';
 
     my %s;
     my @headers = ();
@@ -1301,6 +1324,7 @@ package cdmn::sidebar {
         border_position
         header_position
         label_position
+        label_detail
         graph_symbols
         border_visible
     );
@@ -1499,10 +1523,17 @@ package cdmn::sidebar {
             my ($v, $dl) = @{$data{$title}->{$_}};
             $dl //= "";
             my $l = PROC->alter_label($_);
+            if ($s->{label_detail} eq CDMN->FULL) {
+                $l = defined $l ? $l . " ⋅ ⋅ $_" : $_;
+            } 
+            elsif ($s->{label_detail} eq CDMN->SIMPLE) {
+                $l = $_;
+            }
             $l //= $_;
+
             my $ln = $s->{term}->ncol - (length "$l$dl") - (3 + 5);
             $ln = 1 if $ln < 0;
-            $l = $l . " "x $ln . $dl . " MB/s" if $dl;
+            $l = $l . " "x $ln . $dl if $dl;
             push @content, _overlay($l) if $s->{label_position} eq TOP;
 
             my $w = $s->{term}->ncol - 8;   #TODO 2 border,space + 4 number% + 1 space
@@ -1579,6 +1610,7 @@ package cdmn::sidebar {
                 border_position => 1,
                 header_position => 1,
                 label_position  => 1,
+                label_detail    => 1,
                 graph_symbols   => 1,
                 border_visible  => 1,
                 keysyms         => 0,
@@ -2832,6 +2864,7 @@ sub on_start {
         border_position => XR->get_sidebar('position'),
         header_position => XR->get_sidebar('header_position'),
         label_position  => XR->get_sidebar('label_position'),
+        label_detail    => XR->get_sidebar('label_detail'),
         graph_symbols   => XR->get_sidebar('graph_symbols'),
         border_visible  => XR->get_sidebar('border_visible'),
         keysyms         => XR->{keysyms},
@@ -2881,15 +2914,21 @@ sub on_start {
 
                 $r{$_} = { $usage_of{$_}->() } foreach @{ cdmn::math->union( $gauges, $panes ) };
                 for my $g (@$gauges) {
-                    $$_->set( $g, $g eq 'disk' ? { map { $_ => $r{$g}->{$_}{all} } keys %{$r{$g} }} : $r{$g}, XR->get_invert($g), XR->get_inverse($g) ) for @{ $s->{captions} };
+                    $$_->set( $g, 
+                        $g eq 'mount' ? { map { $_ => $r{$g}->{$_}{used} } keys %{$r{$g} }} : 
+                        $g eq 'disk' ? { map { $_ => $r{$g}->{$_}{all} } keys %{$r{$g} }} : 
+                        $r{$g}, XR->get_invert($g), XR->get_inverse($g) ) for @{ $s->{captions} };
                 }
 
-                #remap values for sidebar
+                #remap values for sidebar. k => [percentage, label-addition]
                 while ( my ($k, $v) = each %r ) {
                     $r{$k} = {
                         map {
                             if ($k eq 'disk') {
-                                $_ => [$v->{$_}{all}, floor($v->{$_}{rps})."/".floor($v->{$_}{wps})]
+                                $_ => [$v->{$_}{all}, floor($v->{$_}{rps})."M"." ⇅ ".floor($v->{$_}{wps})."M"] #At the Moment only M, but should be dynamic. TODO
+                            }
+                            elsif ($k eq 'mount') {
+                                $_ => [$v->{$_}{used}, "$v->{$_}{bused} ╾ $v->{$_}{bavail}"]
                             } else {
                                 $_ => [$v->{$_}]
                             }
