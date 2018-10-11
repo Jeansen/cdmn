@@ -341,18 +341,19 @@ If you do not like the default [keysyms](#default-keysyms), you can change them:
 
 Now, while still in development, there are already some things that work and that you can customize:
 
-| Resource                             | Function                                             | Default (Other)                   | Notes                                                                                  |
-| ------------------------------------ | ---------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------- |
-| `URxvt.cdmn.sidebar.bg`              | Background color                                     | Terminal background (0-255)       |                                                                                        |
-| `URxvt.cdmn.sidebar.fg`              | Foreground color                                     | Terminal foreground (0-255)       |                                                                                        |
-| `URxvt.cdmn.sidebar.border.fg`       | Border color                                         | Terminal foreground (0-255)       |                                                                                        |
-| `URxvt.cdmn.sidebar.width`           | How much space to use for the sidebar in percentages | 50 (30-100)                       | If `URxvt.cdmn.sidebar.position` set to `left` or `right`                              |
-| `URxvt.cdmn.sidebar.height`          | How much space to use for the sidebar in percentages | 40 (30-100)                       | If `URxvt.cdmn.sidebar.position` set to `bottom` or `top`                              |
-| `URxvt.cdmn.sidebar.position`        | Sidebar position                                     | right (top, bottom, left, center) |                                                                                        |
-| `URxvt.cdmn.sidebar.header.position` | Header position                                      | top (bottom)                      |                                                                                        |
-| `URxvt.cdmn.sidebar.label.position`  | Label position for graphs                            | top (bottom)                      |                                                                                        |
-| `URxvt.cdmn.sidebar.graph.symbols`   | Use given symbols for depicting graphs               | '■, □' (ANY)                      | Any character or list of two characters, e.g.: <br><br> █ ░ <br> ▪ ▫ <br> ▬ ▭ <br> ○ ● |
-| `URxvt.cdmn.sidebar.border.visible`  | Show border                                          | 1 (0)                             | If `URxvt.cdmn.sidebar.position` set to `bottom` or `top`                              |
+| Resource                             | Function                                                  | Default (Other)                   | Notes                                                                                  |
+| ------------------------------------ | --------------------------------------------------------- | --------------------------------- | -------------------------------------------------------------------------------------- |
+| `URxvt.cdmn.sidebar.bg`              | Background color                                          | Terminal background (0-255)       |                                                                                        |
+| `URxvt.cdmn.sidebar.fg`              | Foreground color                                          | Terminal foreground (0-255)       |                                                                                        |
+| `URxvt.cdmn.sidebar.border.fg`       | Border color                                              | Terminal foreground (0-255)       |                                                                                        |
+| `URxvt.cdmn.sidebar.width`           | How much space to use for the sidebar in percentages      | 50 (30-100)                       | If `URxvt.cdmn.sidebar.position` set to `left` or `right`                              |
+| `URxvt.cdmn.sidebar.height`          | How much space to use for the sidebar in percentages      | 40 (30-100)                       | If `URxvt.cdmn.sidebar.position` set to `bottom` or `top`                              |
+| `URxvt.cdmn.sidebar.position`        | Sidebar position                                          | right (top, bottom, left, center) |                                                                                        |
+| `URxvt.cdmn.sidebar.header.position` | Header position                                           | top (bottom)                      |                                                                                        |
+| `URxvt.cdmn.sidebar.label.position`  | Label position for graphs                                 | top (bottom)                      |                                                                                        |
+| `URxvt.cdmn.sidebar.label.detail`    | If the label should be the device name, real name or both | full (simple, real)               | Fallback is 'simple' if set to real or full and the real name is not available         |
+| `URxvt.cdmn.sidebar.graph.symbols`   | Use given symbols for depicting graphs                    | '■, □' (ANY)                      | Any character or list of two characters, e.g.: <br><br> █ ░ <br> ▪ ▫ <br> ▬ ▭ <br> ○ ● |
+| `URxvt.cdmn.sidebar.border.visible`  | Show border                                               | 1 (0)                             | If `URxvt.cdmn.sidebar.position` set to `bottom` or `top`                              |
 
 Most of these settings should be self-explanatory. Some values are only taken into account with specific sidebar
 positions.  For instance, if you set `URxvt.cdmn.sidebar.position` to `left` or `right`, only your setting for
