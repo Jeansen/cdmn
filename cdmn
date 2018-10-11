@@ -1294,6 +1294,7 @@ package cdmn::sidebar {
         active_pane
         visible
         order
+        is_fixed_size
 
         bg
         fg
@@ -1573,6 +1574,7 @@ package cdmn::sidebar {
                 width           => { default => 0 },
                 height          => { default => 0 },
                 visible         => { default => 0 },
+                is_fixed_size   => { default => 0 },
                 bg              => 1,
                 fg              => 1,
                 fg_border       => 1,
@@ -1635,6 +1637,7 @@ package cdmn::sidebar {
     sub bounds {
         my $s = shift;
         $s->{term}->bounds(@_);
+        @$s{qw/x y width height/} = (@_);
         $s;
     }
 
@@ -2489,6 +2492,7 @@ sub calc_bounds {
 sub refresh_bounds {
     my ( $s, $t ) = @_;
     my ( $h, $w, $x, $y ) = calc_bounds( $s, $t );
+    my $sidebar = $s->{xterms}{sidebar};
 
     if ( $s->{xterms}{main}{maximized} ) {
         $s->{xterms}{main}->bounds( 0, 0, $s->{width}, $s->{height} );
@@ -2499,19 +2503,23 @@ sub refresh_bounds {
     }
 
     my ( $sb_pos, $sb_w, $sb_h ) = map { XR->get_sidebar($_) } (qw/position width height/);
-    my $width  = $sb_pos =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ ? $s->width *  ( $sb_w / 100 ) + $s->{dwidth}  : $s->{width};
-    my $height = $sb_pos =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/ ? $s->height * ( $sb_h / 100 ) + $s->{dheight} : $s->{height};
+    my ($width, $height);
+
+    $width  = $sb_pos =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ 
+        ? ($sidebar->{is_fixed_size} ? $sidebar->{width} : $s->width *  ( $sb_w / 100 ) ) 
+        : $s->{width};
+    $height = $sb_pos =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/
+        ? ($sidebar->{is_fixed_size} ? $sidebar->{height} : $s->height *  ( $sb_h / 100 ) ) 
+        : $s->{height};
 
     $x = $sb_pos eq CDMN->RIGHT  ? $s->{width} - $width   : 0;
     $y = $sb_pos eq CDMN->BOTTOM ? $s->{height} - $height : 0;
     $s->{xterms}{sidebar}->bounds( $x, $y, $width, $height );
 
-    my $sidebar = $s->{xterms}{sidebar};
     $sidebar->refresh_pane
         if $sidebar->{visible}
         && ceil( $sidebar->{term}->{h} / $sidebar->{term}->fheight ) > 4
-        && ceil( $sidebar->{term}->{w} / $sidebar->{term}->fwidth ) > 4    #TODO remove magic number
-        && $sidebar->{visible};
+        && ceil( $sidebar->{term}->{w} / $sidebar->{term}->fwidth ) > 4;    #TODO remove magic number
 }
 
 # P: urxvt::term, 0|1
@@ -2648,17 +2656,22 @@ $user_command{ CDMN->ACTION_SCROLL_DOWN } = sub {
 };
 
 $user_command{ CDMN->ACTION_SHRINK_PANE } = sub {
-    (shift)->{xterms}{sidebar}->resize_width(-1) if XR->get_sidebar("position") eq CDMN->LEFT;
-    (shift)->{xterms}{sidebar}->resize_width( -1, 1 ) if XR->get_sidebar("position") eq CDMN->RIGHT;
-    (shift)->{xterms}{sidebar}->resize_height( -1, 1 ) if XR->get_sidebar("position") eq CDMN->BOTTOM;
-    (shift)->{xterms}{sidebar}->resize_height(-1) if XR->get_sidebar("position") eq CDMN->TOP;
+    my $s = shift;
+    ($s)->{xterms}{sidebar}->resize_width(-1) if XR->get_sidebar("position") eq CDMN->LEFT;
+    ($s)->{xterms}{sidebar}->resize_width( -1, 1 ) if XR->get_sidebar("position") eq CDMN->RIGHT;
+    ($s)->{xterms}{sidebar}->resize_height( -1, 1 ) if XR->get_sidebar("position") eq CDMN->BOTTOM;
+    ($s)->{xterms}{sidebar}->resize_height(-1) if XR->get_sidebar("position") eq CDMN->TOP;
+    ($s)->{xterms}{sidebar}{is_fixed_size}=1;
+
 };
 
 $user_command{ CDMN->ACTION_EXTEND_PANE } = sub {
-    (shift)->{xterms}{sidebar}->resize_width(+1) if XR->get_sidebar("position") eq CDMN->LEFT;
-    (shift)->{xterms}{sidebar}->resize_width( +1, 1 ) if XR->get_sidebar("position") eq CDMN->RIGHT;
-    (shift)->{xterms}{sidebar}->resize_height( +1, 1 ) if XR->get_sidebar("position") eq CDMN->BOTTOM;
-    (shift)->{xterms}{sidebar}->resize_height(+1) if XR->get_sidebar("position") eq CDMN->TOP;
+    my $s = shift;
+    ($s)->{xterms}{sidebar}->resize_width(+1) if XR->get_sidebar("position") eq CDMN->LEFT;
+    ($s)->{xterms}{sidebar}->resize_width( +1, 1 ) if XR->get_sidebar("position") eq CDMN->RIGHT;
+    ($s)->{xterms}{sidebar}->resize_height( +1, 1 ) if XR->get_sidebar("position") eq CDMN->BOTTOM;
+    ($s)->{xterms}{sidebar}->resize_height(+1) if XR->get_sidebar("position") eq CDMN->TOP;
+    ($s)->{xterms}{sidebar}{is_fixed_size}=1;
 };
 
 $user_command{ CDMN->ACTION_TOGGLE_LABELS } = sub {
