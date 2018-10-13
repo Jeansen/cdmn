@@ -1312,6 +1312,9 @@ package cdmn::sidebar {
         width
         height
 
+        rel_height
+        rel_width
+
         panes
         data
         active_pane
@@ -1603,7 +1606,9 @@ package cdmn::sidebar {
                 x               => { default => 0 },
                 y               => { default => 0 },
                 width           => { default => 0 },
+                rel_width       => { default => 0 },
                 height          => { default => 0 },
+                rel_height      => { default => 0 },
                 visible         => { default => 0 },
                 is_fixed_size   => { default => 0 },
                 bg              => 1,
@@ -1670,6 +1675,8 @@ package cdmn::sidebar {
         my $s = shift;
         $s->{term}->bounds(@_);
         @$s{qw/x y width height/} = (@_);
+        $s->{rel_width} = $s->{width} / $s->{parent}->width * 100;
+        $s->{rel_height} = $s->{height} / $s->{parent}->height * 100;
         $s;
     }
 
@@ -2524,7 +2531,9 @@ sub calc_bounds {
 sub refresh_bounds {
     my ( $s, $t ) = @_;
     my ( $h, $w, $x, $y ) = calc_bounds( $s, $t );
-    my $sidebar = $s->{xterms}{sidebar};
+    my $sb = $s->{xterms}{sidebar};
+    $sb->{width} = $s->width * $sb->{rel_width} / 100 if $sb->{width} / $s->width * 100 > 100; 
+    $sb->{height} = $s->height * $sb->{rel_height} / 100 if $sb->{height} / $s->height * 100 > 100; 
 
     if ( $s->{xterms}{main}{maximized} ) {
         $s->{xterms}{main}->bounds( 0, 0, $s->{width}, $s->{height} );
@@ -2538,20 +2547,20 @@ sub refresh_bounds {
     my ($width, $height);
 
     $width  = $sb_pos =~ m/^${\(CDMN->LEFT)}|${\(CDMN->RIGHT)}/ 
-        ? ($sidebar->{is_fixed_size} ? $sidebar->{width} : $s->width *  ( $sb_w / 100 ) ) 
+        ? ($sb->{is_fixed_size} ? $sb->{width} : $s->width *  ( $sb_w / 100 ) ) 
         : $s->{width};
     $height = $sb_pos =~ m/^${\(CDMN->TOP)}|${\(CDMN->BOTTOM)}/
-        ? ($sidebar->{is_fixed_size} ? $sidebar->{height} : $s->height *  ( $sb_h / 100 ) ) 
+        ? ($sb->{is_fixed_size} ? $sb->{height} : $s->height *  ( $sb_h / 100 ) ) 
         : $s->{height};
 
     $x = $sb_pos eq CDMN->RIGHT  ? $s->{width} - $width   : 0;
     $y = $sb_pos eq CDMN->BOTTOM ? $s->{height} - $height : 0;
     $s->{xterms}{sidebar}->bounds( $x, $y, $width, $height );
 
-    $sidebar->refresh_pane
-        if $sidebar->{visible}
-        && ceil( $sidebar->{term}->{h} / $sidebar->{term}->fheight ) > 4
-        && ceil( $sidebar->{term}->{w} / $sidebar->{term}->fwidth ) > 4;    #TODO remove magic number
+    $sb->refresh_pane
+        if $sb->{visible}
+        && ceil( $sb->{term}->{h} / $sb->{term}->fheight ) > 4
+        && ceil( $sb->{term}->{w} / $sb->{term}->fwidth ) > 4;    #TODO remove magic number
 }
 
 # P: urxvt::term, 0|1
