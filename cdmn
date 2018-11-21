@@ -547,9 +547,9 @@ package cdmn::proc {
     sub disk_usages {
         my %diff_usage;
         state( %results, $n_stat, $o_stat );
-        state $t = urxvt::NOW- 1;
+        state $t = urxvt::NOW - 1; #initial value 
         my $ct      = urxvt::NOW;
-        my $refresh = $ct - $t;
+        my $refresh = $ct - $t; #so this is not zero
         $t = $ct;
 
         open ( my $f, '<', PROC_DISKSTATS );
@@ -586,7 +586,16 @@ package cdmn::proc {
             $w *= $diff_usage{io_time};
 
             $alter_label{$name} //= SYSFS_BLOCK . "/${name}/device/model";
-            $results{$name}={ 'read' => $r, 'write' => $w, 'all' =>  $diff_usage{io_time}, 'wps' => $wps, 'rps' => $rps };
+
+            #All time is in percentags calculated relative to refresh rate. So, if refresh rate is 500ms and since then
+            #200ms were spent for reads and 100ms for writes, then 'read' would equal 0.4, write would
+            #equal 0.2 and 'all' would equal 0.6(%).
+            $results{$name}={ 
+                'read'  => $r, #Time spent for reads
+                'write' => $w, #Time spent for writes
+                'all'   => $diff_usage{io_time}, #Time spent for r/w
+                'wps'   => $wps, #Writes per second in MB
+                'rps'   => $rps }; #Reads per second in MB
         }
         return \%results;
     }
