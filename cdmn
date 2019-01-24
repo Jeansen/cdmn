@@ -32,13 +32,13 @@ use POSIX qw(ceil floor);
 
 binmode STDOUT, ":encoding(UTF-8)";
 
-package Null {
+package Null {#{{{
     my $null = bless {}, __PACKAGE__;
     sub AUTOLOAD { $null }
     sub ok       { 0 }
-}
+}#}}}
 
-package cdmn::math {
+package cdmn::math {#{{{
 
     #return a ref. to a new set containing only the elements that exist in both given sets.
     sub cut_set {
@@ -79,9 +79,9 @@ package cdmn::math {
 
         return \@diff;
     }
-}
+}#}}}
 
-package cdmn::constants {
+package cdmn::constants {#{{{
     use constant {
         ACTION_TOGGLE         => 'cdmn:show',
         ACTION_TOGGLE_LABELS  => 'cdmn:show-labels',
@@ -122,9 +122,9 @@ package cdmn::constants {
     };
 
     use constant REND => urxvt::SET_COLOR urxvt::OVERLAY_RSTYLE, 255, 1;
-}
+}#}}}
 
-package cdmn::proc {
+package cdmn::proc {#{{{
     use List::Util qw(sum max min);
     use Params::Validate qw(:all);
     use Filesys::Df;
@@ -702,9 +702,9 @@ package cdmn::proc {
         $t = $ct;
         1;
     }
-}
+}#}}}
 
-package cdmn::resources::single {
+package cdmn::resources::single {#{{{
     use Params::Validate qw(:all);
     use fields qw(
         name
@@ -741,9 +741,9 @@ package cdmn::resources::single {
         );
         $s;
     }
-}
+}#}}}
 
-package cdmn::resources {
+package cdmn::resources {#{{{
     use Scalar::Util qw(looks_like_number);
 
     use fields qw(
@@ -1299,9 +1299,9 @@ package cdmn::resources {
             }
         }
     }
-}
+}#}}}
 
-package cdmn::sidebar {
+package cdmn::sidebar {#{{{
     use Params::Validate qw(:all);
     use POSIX qw(ceil floor);
     use constant { REND => cdmn::constants::REND, };
@@ -1800,9 +1800,9 @@ package cdmn::sidebar {
         $s->bounds(@v);
         $s->refresh_pane;
     }
-}
+}#}}}
 
-package cdmn::term {
+package cdmn::term {#{{{
     use Params::Validate qw(:all);
     use File::Basename;
 
@@ -1948,9 +1948,9 @@ package cdmn::term {
         $s->{term}->mapped ? $s->hide : $s->show;
         $s;
     }
-}
+}#}}}
 
-package cdmn::visuals::container {
+package cdmn::visuals::container {#{{{
     use fields qw( term rendition padding align even_gauges x y bg_color label_pos graph_data graph_length  );
     use fields qw( gauges visible bg bg_visible label_visible detail width height ncol nrow order graphs);
     use Params::Validate qw(:all);
@@ -2234,9 +2234,9 @@ package cdmn::visuals::container {
         $s->show_bg(FALSE);
         $s;
     }
-}
+}#}}}
 
-package cdmn::visuals::visual {
+package cdmn::visuals::visual {#{{{
     use List::Util qw(max);
     use Params::Validate qw(:all);
 
@@ -2425,9 +2425,9 @@ package cdmn::visuals::visual {
         $s->{gauges}{"$i"}{"$color"}->show;
         $s;
     }
-}
+}#}}}
 
-package cdmn::visuals::overlay {
+package cdmn::visuals::overlay {#{{{
     use Params::Validate qw(:all);
     use fields qw(
         term
@@ -2491,18 +2491,18 @@ package cdmn::visuals::overlay {
         }
         $s;
     }
-}
+}#}}}
 
 use constant XR   => cdmn::resources->new();
 use constant CDMN => 'cdmn::constants';
 use constant PROC => 'cdmn::proc';
 
-#-----------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------
 #   HELPERS
-#-----------------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------
 
 #
-sub redraw {
+sub redraw {#{{{
     my ( $s, $showLabels ) = @_;
     my @visible = map { $$_->{visible} } @{ ( $s->{captions} ) };
 
@@ -2517,11 +2517,11 @@ sub redraw {
 
     $s->{xterms}{sidebar}->refresh_pane if $s->{xterms}{sidebar}{visible};
     $s->{visuals_updater}->start;
-}
+}#}}}
 
 # P: urxvt::term, row|col
 # R: List with new bounds
-sub calc_bounds {
+sub calc_bounds {#{{{
     my ( $s, $t ) = @_;
     my ( $h, $w, $x, $y ) = ( $s->{height}, $s->{width}, $s->{x}, $s->{y} );
 
@@ -2535,9 +2535,9 @@ sub calc_bounds {
     }
     $x = 0;
     ( $h, $w, $x, $y );
-}
+}#}}}
 
-sub refresh_bounds {
+sub refresh_bounds {#{{{
     my ( $s, $t ) = @_;
     my ( $h, $w, $x, $y ) = calc_bounds( $s, $t );
     my $sb = $s->{xterms}{sidebar};
@@ -2570,11 +2570,11 @@ sub refresh_bounds {
         if $sb->{visible}
         && ceil( $sb->{term}->{h} / $sb->{term}->fheight ) > 4
         && ceil( $sb->{term}->{w} / $sb->{term}->fwidth ) > 4;    #TODO remove magic number
-}
+}#}}}
 
 # P: urxvt::term, 0|1
 # R: ref to new cdmn::visuals::container
-sub create_caption {
+sub create_caption {#{{{
     my ( $s, $showLabels ) = (@_);
     my $caption;
 
@@ -2642,7 +2642,7 @@ sub create_caption {
 
     _create( XR->gauges() );
     return \$caption;
-}
+}#}}}
 
 #-----------------------------------------------------------------------------------------------------------------------
 #   ACTIONS
@@ -2650,7 +2650,7 @@ sub create_caption {
 
 my %user_command;
 
-$user_command{ CDMN->ACTION_TOGGLE } = sub {
+$user_command{ CDMN->ACTION_TOGGLE } = sub {#{{{
     my $s = shift;
     my ( $h, $w, $x, $y ) = calc_bounds( $s, XR->{visual_align} );
 
@@ -2666,9 +2666,9 @@ $user_command{ CDMN->ACTION_TOGGLE } = sub {
         $s->{xterms}{main}{maximized} = 1;
         XR->{showing} = 0;
     }
-};
+};#}}}
 
-$user_command{ CDMN->ACTION_TOGGLE_OVERLAY } = sub {
+$user_command{ CDMN->ACTION_TOGGLE_OVERLAY } = sub {#{{{
     my $s = shift;
     if ( $s->{xterms}{main}{maximized} ) {
         my $c = ${ $s->{captions}->[0] };
@@ -2683,29 +2683,29 @@ $user_command{ CDMN->ACTION_TOGGLE_OVERLAY } = sub {
             refresh_bounds( $s, XR->{visual_align} );
         }
     }
-};
+};#}}}
 
-$user_command{ CDMN->ACTION_TOGGLE_SIDEBAR } = sub {
+$user_command{ CDMN->ACTION_TOGGLE_SIDEBAR } = sub {#{{{
     (shift)->{xterms}{sidebar}->toggle;
-};
+};#}}}
 
-$user_command{ CDMN->ACTION_NEXT_PANE } = sub {
+$user_command{ CDMN->ACTION_NEXT_PANE } = sub {#{{{
     (shift)->{xterms}{sidebar}->next_pane;
-};
+};#}}}
 
-$user_command{ CDMN->ACTION_PREV_PANE } = sub {
+$user_command{ CDMN->ACTION_PREV_PANE } = sub {#{{{
     (shift)->{xterms}{sidebar}->prev_pane;
-};
+};#}}}
 
-$user_command{ CDMN->ACTION_SCROLL_UP } = sub {
+$user_command{ CDMN->ACTION_SCROLL_UP } = sub {#{{{
     (shift)->{xterms}{sidebar}->scroll_up;
-};
+};#}}}
 
-$user_command{ CDMN->ACTION_SCROLL_DOWN } = sub {
+$user_command{ CDMN->ACTION_SCROLL_DOWN } = sub {#{{{
     (shift)->{xterms}{sidebar}->scroll_down;
-};
+};#}}}
 
-$user_command{ CDMN->ACTION_SHRINK_PANE } = sub {
+$user_command{ CDMN->ACTION_SHRINK_PANE } = sub {#{{{
     my $s = shift;
     ($s)->{xterms}{sidebar}->resize_width(-1) if XR->get_sidebar("position") eq CDMN->LEFT;
     ($s)->{xterms}{sidebar}->resize_width( -1, 1 ) if XR->get_sidebar("position") eq CDMN->RIGHT;
@@ -2713,37 +2713,37 @@ $user_command{ CDMN->ACTION_SHRINK_PANE } = sub {
     ($s)->{xterms}{sidebar}->resize_height(-1) if XR->get_sidebar("position") eq CDMN->TOP;
     ($s)->{xterms}{sidebar}{is_fixed_size}=1;
 
-};
+};#}}}
 
-$user_command{ CDMN->ACTION_EXTEND_PANE } = sub {
+$user_command{ CDMN->ACTION_EXTEND_PANE } = sub {#{{{
     my $s = shift;
     ($s)->{xterms}{sidebar}->resize_width(+1) if XR->get_sidebar("position") eq CDMN->LEFT;
     ($s)->{xterms}{sidebar}->resize_width( +1, 1 ) if XR->get_sidebar("position") eq CDMN->RIGHT;
     ($s)->{xterms}{sidebar}->resize_height( +1, 1 ) if XR->get_sidebar("position") eq CDMN->BOTTOM;
     ($s)->{xterms}{sidebar}->resize_height(+1) if XR->get_sidebar("position") eq CDMN->TOP;
     ($s)->{xterms}{sidebar}{is_fixed_size}=1;
-};
+};#}}}
 
-$user_command{ CDMN->ACTION_TOGGLE_LABELS } = sub {
+$user_command{ CDMN->ACTION_TOGGLE_LABELS } = sub {#{{{
     if ( XR->{showing} ) {
         my $s = shift;
         XR->{showing_labels} = !XR->{showing_labels};
         redraw( $s, XR->{showing_labels} );
         refresh_bounds( $s, XR->{visual_align} );
     }
-};
+};#}}}
 
 #-----------------------------------------------------------------------------------------------------------------------
 #   RXVT HANDLERS
 #-----------------------------------------------------------------------------------------------------------------------
 
-sub user_command {
+sub user_command {#{{{
     my ( $s, $action ) = (@_);
     $user_command{$action}->($s);
     1;
-}
+}#}}}
 
-sub key_press {
+sub key_press {#{{{
     my ( $s, $event, $keysym, $string ) = @_;
     my @sidebar_actions = (
         CDMN->ACTION_NEXT_PANE,
@@ -2771,13 +2771,13 @@ sub key_press {
     }
 
     ();
-}
+}#}}}
 
 # Before every terminal update, check if the state of some devices
 # or the terminal size has changed and recalculate accordingly.
 # The resource 'refresh' has direct impact on how often his method
 # will be called.
-sub on_refresh_begin {
+sub on_refresh_begin {#{{{
     my ($s)           = @_;
     my $nics_active   = PROC->network_list();
     my $hidpps_active = PROC->hidpps();
@@ -2816,10 +2816,10 @@ sub on_refresh_begin {
     my $str = $s->{term}->locale_encode("\e[0;0H\e[K");
     $s->{term}->cmd_parse($str);    #do not show the cursor!
     1;
-}
+}#}}}
 
 # React on X Events (resize)
-sub on_configure_notify {
+sub on_configure_notify {#{{{
     my ( $s, $e ) = @_;
 
     my $dh = $e->{height} % $s->fheight;
@@ -2833,7 +2833,7 @@ sub on_configure_notify {
     return if $s->{w_size} eq $s->{term}->ncol && $s->{y_size} eq $s->{term}->nrow;
     refresh_bounds( $s, XR->{visual_align} );
     1;
-}
+}#}}}
 
 # Forward all events to main terminal
 for my $h (qw(key_press key_release)) {
@@ -2850,32 +2850,32 @@ for my $h (qw(focus_in focus_out)) {
     eval qq{ sub on_$h { (shift)->{xterms}{main}{term}->$h; 1; } };    ## no critic
 }
 
-sub on_wm_delete_window {
+sub on_wm_delete_window {#{{{
 
     # This is the root terminal.
     # Do not forward to prevent deletion of alread deleted child terminals.
     exit;
     1;
-}
+}#}}}
 
-sub on_tt_write {
+sub on_tt_write {#{{{
 
     # Forward all terminal output to main terminal
     (shift)->{xterms}{main}{term}->tt_write(shift);
     1;
-}
+}#}}}
 
-#-------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------
 #   MAIN
-#-------------------------------------------------
+#----------------------------------------------------------------------------------------------------------------------
 
-sub on_init {
+sub on_init {#{{{
     my ($s) = @_;
     @$s{qw/width height dwidth dheight/} = (qw/0 0 0 0/);
     ();
-}
+}#}}}
 
-sub on_start {
+sub on_start {#{{{
     my ($s) = @_;
 
     XR->init($s);
@@ -2976,7 +2976,7 @@ sub on_start {
     );
     refresh_bounds( $s, XR->{visual_align} );
     ();
-}
+}#}}}
 
 =head1 packages
 
