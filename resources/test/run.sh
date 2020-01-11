@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
 XSOCK=/tmp/.X11-unix
-XAUTH=/tmp/.docker.xauth
 #touch $XAUTH
 #xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
 
@@ -21,14 +20,18 @@ xhost +local:;
 
 docker pull jeansen/cdmn_docker 2>/dev/null
 
+[[ $(uname -s) == Mac ]] && display=host.docker.internal:0
+
 docker run \
+  -e DISPLAY=${display:-$DISPLAY} \
   --rm \
   --volume=$XSOCK:$XSOCK:rw \
-  --volume=$XAUTH:$XAUTH:rw \
   --env="XAUTHORITY=${XAUTH}" \
-  --env="DISPLAY" \
   --volume=$EXTENSION:/urxvt/cdmn:ro \
   --volume=$XRESOURCES:/Xresources:ro \
   jeansen/cdmn_docker
 
 xrdb -load ~/.Xresources
+
+#Change after the following issue is resolved to always use the internal name
+#https://github.com/docker/for-linux/issues/264
