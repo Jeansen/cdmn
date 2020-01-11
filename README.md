@@ -1,6 +1,7 @@
 ![](https://rawgit.com/Jeansen/assets/master/project-status.svg)
 ![](https://rawgit.com/Jeansen/assets/master/version.svg)
 [![](https://rawgit.com/Jeansen/assets/master/license.svg)](LICENSE)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/3118/badge)](https://bestpractices.coreinfrastructure.org/projects/3118)
 
 <!--[![Build Status](https://travis-ci.org/Jeansen/trc.svg?branch=master)](https://travis-ci.org/Jeansen/trc)-->
 

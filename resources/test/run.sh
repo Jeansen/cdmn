@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
 XSOCK=/tmp/.X11-unix
-#touch $XAUTH
-#xauth nlist $DISPLAY | sed -e 's/^..../ffff/' | xauth -f $XAUTH nmerge -
 
 while getopts :e:x: option
 do
@@ -20,13 +18,12 @@ xhost +local:;
 
 docker pull jeansen/cdmn_docker 2>/dev/null
 
-[[ $(uname -s) == Mac ]] && display=host.docker.internal:0
+[[ $(uname -s) != Linux ]] && display=host.docker.internal:0
 
 docker run \
   -e DISPLAY=${display:-$DISPLAY} \
   --rm \
   --volume=$XSOCK:$XSOCK:rw \
-  --env="XAUTHORITY=${XAUTH}" \
   --volume=$EXTENSION:/urxvt/cdmn:ro \
   --volume=$XRESOURCES:/Xresources:ro \
   jeansen/cdmn_docker
